@@ -1,0 +1,191 @@
+// 📋 CHANGELOG:
+// ✅ Perubahan: Initial Schema Definition
+// ✨ Fitur Baru: RBAC 4 Roles, Kuota Industri per TP, Periode Kelas, Flow Pengajuan Dokumen
+// 🎨 UI/UX Update: Enums untuk Status Pengajuan dan User Role
+// 🔧 Bug Fix: Standardized cascade deletes & unique constraints
+// 🚀 Inovasi: Strict Multi-tenant mapping per Tahun Pelajaran & Relasi Guru-Siswa
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  POKJA
+  SISWA
+  GURU_PEMBIMBING
+}
+
+enum StatusPengajuan {
+  DRAFT
+  MENUNGGU_PERSETUJUAN_POKJA
+  DITOLAK_POKJA
+  SURAT_TERBIT
+  SURAT_DIKIRIM
+  DITERIMA_INDUSTRI
+  DITOLAK_INDUSTRI
+}
+
+enum StatusIndustri {
+  AKTIF
+  NONAKTIF
+}
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  password      String
+  name          String
+  role          Role
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relasi opsional berdasarkan Role
+  siswaProfile      SiswaProfile?
+  pembimbingProfile PembimbingProfile?
+  auditLogs         AuditLog[]
+
+  @@map("users")
+}
+
+model TahunPelajaran {
+  id          String   @id @default(cuid())
+  tahun       String   @unique // Contoh: "2025/2026"
+  isAktif     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  kelas         Kelas[]
+  kuotaIndustri KuotaIndustri[]
+  pengajuan     PengajuanPrakerin[]
+
+  @@map("tahun_pelajaran")
+}
+
+model Jurusan {
+  id        String   @id @default(cuid())
+  kode      String   @unique // Contoh: "RPL", "TKJ"
+  nama      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kelas Kelas[]
+
+  @@map("jurusan")
+}
+
+model Kelas {
+  id               String   @id @default(cuid())
+  nama             String   // Contoh: "XII RPL 1"
+  jurusanId        String
+  tahunPelajaranId String
+  periodePrakerin  Int      @default(1) // Periode 1 atau 2
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  jurusan        Jurusan        @relation(fields: [jurusanId], references: [id], onDelete: Cascade)
+  tahunPelajaran TahunPelajaran @relation(fields: [tahunPelajaranId], references: [id], onDelete: Cascade)
+  siswaProfiles  SiswaProfile[]
+
+  @@map("kelas")
+}
+
+model SiswaProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  nisn                 String   @unique
+  kelasId              String
+  pembimbingProfileId String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kelas              Kelas              @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  pembimbing         PembimbingProfile? @relation(fields: [pembimbingProfileId], references: [id], onDelete: SetNull)
+  pengajuanPrakerin PengajuanPrakerin[]
+
+  @@map("siswa_profiles")
+}
+
+model PembimbingProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  nip       String   @unique
+  noHp      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siswaBimbing SiswaProfile[]
+
+  @@map("pembimbing_profiles")
+}
+
+model Industri {
+  id        String         @id @default(cuid())
+  nama      String
+  alamat    String
+  kontak    String?
+  email     String?
+  status    StatusIndustri @default(AKTIF)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  kuotaList KuotaIndustri[]
+  pengajuan PengajuanPrakerin[]
+
+  @@map("industri")
+}
+
+model KuotaIndustri {
+  id               String   @id @default(cuid())
+  industriId       String
+  tahunPelajaranId String
+  kuota            Int      @default(0)
+  terpakai         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  industri       Industri       @relation(fields: [industriId], references: [id], onDelete: Cascade)
+  tahunPelajaran TahunPelajaran @relation(fields: [tahunPelajaranId], references: [id], onDelete: Cascade)
+
+  @@unique([industriId, tahunPelajaranId])
+  @@map("kuota_industri")
+}
+
+model PengajuanPrakerin {
+  id               String          @id @default(cuid())
+  siswaId          String
+  industriId       String
+  tahunPelajaranId String
+  status           StatusPengajuan @default(DRAFT)
+  cvUrl            String?
+  suratPengantarUrl String?
+  suratBalasanUrl  String?
+  catatan          String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  siswa          SiswaProfile   @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  industri       Industri       @relation(fields: [industriId], references: [id], onDelete: Cascade)
+  tahunPelajaran TahunPelajaran @relation(fields: [tahunPelajaranId], references: [id], onDelete: Cascade)
+
+  @@map("pengajuan_prakerin")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
