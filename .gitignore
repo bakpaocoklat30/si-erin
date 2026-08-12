@@ -1,31 +1,56 @@
-# Dependencies
+# 📋 CHANGELOG:
+# ✅ Perubahan: Mengabaikan seluruh berkas templat non-Next.js (*.md, *.php, *.sql, *.html) dan environment file dari tracking Git.
+# ✨ Fitur Baru: Clean Repository Ignore Strategy.
+# 🎨 UI/UX Update: N/A (Version Control Configuration)
+# 🔧 Bug Fix: Mencegah berkas pendukung/templat ikut terunggah ke repositori GitHub/GitLab.
+# 🚀 Inovasi: Standardized Next.js Enterprise GitIgnore Rules.
+
+# Dependencies & Build Outputs
 /node_modules
-/.pnp
-.pnp.js
-
-# Environment Variables (SANGAT RAHASIA)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Next.js Build Output
 /.next/
 /out/
-
-# Production & Logs
-build
+/build
 /dist
+
+# Debug Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# OS & IDE Files (macOS specific)
+# Local Environment Variables
+.env
+.env*.local
+!.env.example
+
+# Operating System Files
 .DS_Store
-*.pem
-.vscode/
-.idea/
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# Build Info
-tsconfig.tsbuildinfo
+# IDE & Editor Files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker Data & Public Uploads
+/pgdata
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# Non-Next.js Template, Instruction & SQL Reference Files
+*.md
+*.php
+*.sql
+*.html
+PANDUAN_PEMILIHAN_TEKNOLOGI.md
+QA_CHECKLIST_ERROR_GUIDE.md
+INSTRUKSI_UTAMA.md
+installfolder_template.php
+schema_foundation.sql
+template_sidebar_enterprise.html

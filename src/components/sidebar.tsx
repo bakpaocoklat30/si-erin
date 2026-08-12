@@ -1,9 +1,9 @@
 // 📋 CHANGELOG:
-// ✅ Perubahan: Merombak skema warna Sidebar Navigasi agar berimbang dan sangat tajam pada Light Mode (Slate-900 / Indigo-950) serta mendukung fitur Collapse, Mobile Overlay, dan Theme Switcher.
-// ✨ Fitur Baru: Responsive Mobile Drawer, Collapsible Sidebar State, & High-Contrast Adaptive Light/Dark Colors.
-// 🎨 UI/UX Update: Penataan highlight rute aktif yang tajam, kontras border Slate-200/80, dan logo SI-ERIN berdesain modern.
-// 🔧 Bug Fix: Menyelesaikan teks memudar/redup di Light Mode dan menyelaraskan seluruh menu Admin, Pokja, dan Siswa.
-// 🚀 Inovasi: Enterprise Adaptive Multi-Role Navigation System.
+// ✅ Perubahan: Memperbaiki ekstraksi `useSession()` agar tahan banting (*prerender-safe*) saat `next build` mengevaluasi komponen secara statis.
+// ✨ Fitur Baru: Multi-Role Dynamic Navigation, Collapsible Sidebar State, & High-Contrast Adaptive Light/Dark Colors.
+// 🎨 UI/UX Update: Highlight rute aktif, kontras border Slate, dan logo SI-ERIN berdesain modern.
+// 🔧 Bug Fix: Menyelesaikan 'Cannot destructure property data of useSession as it is undefined' saat Docker build.
+// 🚀 Inovasi: Prerender-Proof Enterprise Adaptive Sidebar Engine.
 
 'use client';
 
@@ -28,8 +28,7 @@ import {
   UserCheck,
   Calendar,
   Lock,
-  RotateCcw,
-  ChevronRight
+  RotateCcw
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
@@ -43,7 +42,12 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsCollapsed }: SidebarProps) {
   const pathname = usePathname();
-  const { data: session, status } = useSession();
+  
+  // 🛡️ Safe useSession Extraction (Mencegah crash saat SSG Prerender)
+  const sessionState = useSession();
+  const session = sessionState?.data;
+  const status = sessionState?.status || 'loading';
+
   const { theme, toggleTheme } = useTheme();
   
   const [mounted, setMounted] = useState(false);
@@ -59,7 +63,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
       fetch(`/api/students/permission?className=${encodeURIComponent(userClassName)}`)
         .then(res => res.json())
         .then(data => {
-          if (data.success) {
+          if (data && data.success) {
             setIsClassAllowedPkl(data.isAllowedPkl);
           }
         })
@@ -222,7 +226,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
                     key={item.href}
                     href={item.href}
                     title={isCollapsed ? item.name : undefined}
-                    onClick={() => { if (window.innerWidth < 1024) setIsOpen(false); }}
+                    onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 1024) setIsOpen(false); }}
                     className={`flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer relative z-20 ${
                       isActive
                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'

@@ -1,14 +1,14 @@
 // 📋 CHANGELOG:
-// ✅ Perubahan: Menyempurnakan callback NextAuth untuk meneruskan properti `username` ke dalam token JWT & Session tanpa mengubah struktur `id`, `role`, dan `department` yang sudah digunakan oleh role lain.
+// ✅ Perubahan: Mengubah impor `bcrypt` menjadi `bcryptjs` agar kompatibel dengan lingkungan Docker Alpine Linux tanpa membutuhkan kompilasi native C++.
 // ✨ Fitur Baru: Universal Role-Safe Auth Token & Username Transmission Pipeline.
 // 🎨 UI/UX Update: N/A (Backend Auth API Route)
-// 🔧 Bug Fix: Menjamin kompatibilitas password (bcrypt + fallback plaintext migration) dan memastikan role SISWA mendarat tepat di /dashboard/student tanpa merusak rute ADMIN, POKJA, atau PEMBIMBING.
+// 🔧 Bug Fix: Menyelesaikan `Module not found: Can't resolve 'bcrypt'` saat proses Next.js webpack build.
 // 🚀 Inovasi: Enterprise Resilient Multi-Role NextAuth Configuration.
 
 import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 export const authOptions: AuthOptions = {
   providers: [

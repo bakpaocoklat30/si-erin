@@ -1,8 +1,8 @@
 // 📋 CHANGELOG:
-// ✅ Perubahan: Menghapus seleksi field non-existent (`className`, `bpjsStatus`, `bpjsUrl`) dari kueri `db.user` untuk mematuhi skema ternormalisasi 3NF.
+// ✅ Perubahan: Mengubah impor `bcrypt` menjadi `bcryptjs` untuk mengamankan proses hashing password pengguna pada API Manajemen Pengguna Admin.
 // ✨ Fitur Baru: Parallel Student Data Enrichment via NIS Relational Mapping.
 // 🎨 UI/UX Update: N/A (Backend API Route)
-// 🔧 Bug Fix: Mengatasi PrismaClientValidationError runtime akibat pemanggilan field yang sudah dipindahkan ke tabel Student.
+// 🔧 Bug Fix: Menyelesaikan `Module not found: Can't resolve 'bcrypt'` saat kompilasi Webpack Docker build.
 // 🚀 Inovasi: Clean Dual-Entity Synchronization Pipeline Tanpa Type Hacking (`as any`).
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 export async function GET(request: Request) {
   try {

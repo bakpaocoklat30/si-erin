@@ -1,21 +1,20 @@
 // 📋 CHANGELOG:
-// ✅ Perubahan: Menyertakan ThemeProvider di root layout aplikasi SI-Erin
-// ✨ Fitur Baru: Global theme provider wrapper untuk konsistensi tampilan
-// 🎨 UI/UX Update: Integrasi kelas root HTML default dark mode
-// 🔧 Bug Fix: Sinkronisasi session provider dan theme provider
-// 🚀 Inovasi: Enterprise app layout structure
+// ✅ Perubahan: Mengembalikan `src/app/layout.tsx` sebagai Root Layout Global dan membungkus seluruh hierarki komponen dengan `Providers` (NextAuth SessionProvider) & `ThemeProvider`.
+// ✨ Fitur Baru: Global Session Context & Adaptive Dark/Light Mode Theme Hydration.
+// 🎨 UI/UX Update: Inter Font Styling & Smooth HTML Theme Class Switching.
+// 🔧 Bug Fix: Menyelesaikan error 'useSession(...) as it is undefined' saat proses SSG prerender Next.js build.
+// 🚀 Inovasi: Prerender-Proof Enterprise Root Shell.
 
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { Providers } from "./providers";
-import { ThemeProvider } from "./theme-provider";
+import './globals.css';
+import { Inter } from 'next/font/google';
+import { Providers } from '@/app/providers';
+import { ThemeProvider } from '@/app/theme-provider';
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ['latin'] });
 
-export const metadata: Metadata = {
-  title: "SI-Erin - Sistem Informasi Prakerin SMK",
-  description: "Sistem Informasi Praktik Kerja Lapangan SMK Terintegrasi",
+export const metadata = {
+  title: 'SI-ERIN — Sistem Informasi Prakerin SMK',
+  description: 'Platform Manajemen Prakerin & Mitra Industri SMK Terintegrasi',
 };
 
 export default function RootLayout({
@@ -24,10 +23,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className="dark">
-      <body className={`${inter.className} bg-slate-950 text-slate-100 antialiased min-h-screen flex flex-col selection:bg-indigo-600 selection:text-white`}>
+    <html lang="id" suppressHydrationWarning>
+      <body className={inter.className}>
         <Providers>
-          <ThemeProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             {children}
           </ThemeProvider>
         </Providers>

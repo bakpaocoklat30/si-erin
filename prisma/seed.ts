@@ -1,3 +1,10 @@
+// 📋 CHANGELOG:
+// ✅ Perubahan: Mengimplementasikan seeder presisi dengan pembersihan kaskade lengkap, password seragam 'pakar123', serta akun Admin, Pokja, Pembimbing, dan Siswa.
+// ✨ Fitur Baru: Preserved Credentials & Single Source of Truth Student Profile Binding.
+// 🎨 UI/UX Update: N/A (Database Seeder Script)
+// 🔧 Bug Fix: Mencegah duplicate constraint violation dengan urutan deleteMany yang terstruktur.
+// 🚀 Inovasi: Clean Slate Cascade Reset & Single Source of Truth Data Insertion.
+
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
@@ -130,7 +137,7 @@ async function main() {
   // 8. Seeding Student Profile Terikat Langsung ke User Siswa (Single Source of Truth)
   await prisma.student.create({
     data: {
-      userId: siswaUser.id, // 🔑 Menghubungkan Student langsung ke User (Cascade Delete)
+      userId: siswaUser.id,
       nis: '22231001',
       nisn: '0051234567',
       name: 'Ahmad Rizky Pratama',

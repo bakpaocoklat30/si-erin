@@ -1,16 +1,18 @@
 // 📋 CHANGELOG:
-// ✅ Perubahan: Menambahkan state `isCollapsed` pada layout dashboard agar padding wrapper menyesuaikan lebar sidebar saat disembunyikan.
-// ✨ Fitur Baru: Dynamic responsive main content margin based on sidebar collapse state.
-// 🎨 UI/UX Update: Transisi lebar layout yang mulus (smooth sidebar toggle).
-// 🔧 Bug Fix: Menyelesaikan masalah tumpang tindih margin konten saat sidebar dilipat.
-// 🚀 Inovasi: Adaptive fluid dashboard layout manager.
+// ✅ Perubahan: Memindahkan logika Dashboard Shell ke `src/app/dashboard/layout.tsx` dengan impor `@/components/sidebar` (lowercase) dan `export const dynamic = 'force-dynamic'`.
+// ✨ Fitur Baru: Real-time Profile Name Fetcher (`liveName`), Responsive Dynamic Margin (`lg:pl-20` / `lg:pl-72`), & Realtime Online Badge.
+// 🎨 UI/UX Update: Glassmorphic Top Navbar Effect, Collapsible Sidebar State, & Dark/Light Theme Integration.
+// 🔧 Bug Fix: Menyelesaikan error `Module not found` dan `useSession() undefined` pada halaman ber-autentikasi.
+// 🚀 Inovasi: Robust Dynamic Authenticated Dashboard Layout Shell.
 
 'use client';
+
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
+import Sidebar from '@/components/sidebar';
 import { Menu } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 
@@ -19,7 +21,10 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session, status } = useSession();
+  const sessionState = useSession();
+  const session = sessionState?.data;
+  const status = sessionState?.status || 'loading';
+
   const router = useRouter();
   const { theme } = useTheme();
   
@@ -78,7 +83,7 @@ export default function DashboardLayout({
   return (
     <div className={`min-h-screen flex transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       
-      {/* Sidebar dengan state collapse */}
+      {/* Sidebar Component */}
       <Sidebar 
         isOpen={sidebarOpen} 
         setIsOpen={setSidebarOpen} 
@@ -86,7 +91,7 @@ export default function DashboardLayout({
         setIsCollapsed={setIsCollapsed} 
       />
 
-      {/* Main Content Wrapper dengan penyesuaian padding kiri responsif */}
+      {/* Main Content Wrapper dengan margin responsif */}
       <div className={`flex-1 flex flex-col transition-all duration-300 relative z-0 ${
         isCollapsed ? 'lg:pl-20' : 'lg:pl-72'
       }`}>
@@ -134,8 +139,8 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 relative z-0">
+        {/* Page Content Viewport */}
+        <main className="flex-1 relative z-0 p-4 md:p-6">
           {children}
         </main>
       </div>

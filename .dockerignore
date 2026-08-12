@@ -1,0 +1,46 @@
+# 📋 CHANGELOG:
+# ✅ Perubahan: Mengabaikan seluruh berkas templat non-Next.js dari Docker Context Transfer.
+# ✨ Fitur Baru: Clean Docker Context Exclusion Filter.
+# 🎨 UI/UX Update: N/A (DevOps Configuration)
+# 🔧 Bug Fix: Menyelesaikan peringatan 'The file ... could not be opened' saat docker-compose build.
+# 🚀 Inovasi: Zero-Warning High-Performance Docker Context Engine.
+
+# Node Modules & Build Outputs
+node_modules
+.next
+out
+build
+dist
+
+# Git & Local Environment Variables
+.git
+.gitignore
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs & Temporary Files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+*.pem
+
+# Configuration & Docker Files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Template, Documentation & SQL Reference Files
+*.md
+*.php
+*.sql
+*.html
+PANDUAN_PEMILIHAN_TEKNOLOGI.md
+QA_CHECKLIST_ERROR_GUIDE.md
+INSTRUKSI_UTAMA.md
+installfolder_template.php
+schema_foundation.sql
+template_sidebar_enterprise.html

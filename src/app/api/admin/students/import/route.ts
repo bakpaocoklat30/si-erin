@@ -1,8 +1,8 @@
 // 📋 CHANGELOG:
-// ✅ Perubahan: Menyimpan handler API Import CSV pada lokasi rute yang tepat (`src/app/api/admin/students/import/route.ts`) agar sinkron dengan panggilan frontend.
+// ✅ Perubahan: Mengubah impor `bcrypt` menjadi `bcryptjs` untuk mengamankan pembuatan password default siswa saat import CSV.
 // ✨ Fitur Baru: Intelligent 3-Column CSV Parser & Class-to-Department Auto-Inference Pipeline.
 // 🎨 UI/UX Update: N/A (Backend API Route)
-// 🔧 Bug Fix: Menyelesaikan masalah peringatan validasi "NIS, Nama, Kelas, Jurusan, dan Telepon wajib diisi" pada file CSV 3 kolom.
+// 🔧 Bug Fix: Menyelesaikan `Module not found: Can't resolve 'bcrypt'` pada API Import CSV.
 // 🚀 Inovasi: Seamless Dual-Table Student & User Import Synchronization.
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 // Fungsi penolong untuk penentuan jurusan otomatis dari nama kelas
 function inferDepartmentFromClassName(className: string): string {

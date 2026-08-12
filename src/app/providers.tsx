@@ -1,9 +1,9 @@
 // 📋 CHANGELOG:
-// ✅ Perubahan: Membuat file pembungkus Client SessionProvider untuk NextAuth
-// ✨ Fitur Baru: Menyediakan konteks autentikasi global di seluruh komponen Next.js App Router
-// 🎨 UI/UX Update: N/A (Provider Component)
-// 🔧 Bug Fix: Mengatasi error "[next-auth]: useSession must be wrapped in a <SessionProvider />"
-// 🚀 Inovasi: Clean context encapsulation untuk state manajemen session
+// ✅ Perubahan: Penyempurnaan SessionProvider NextAuth sebagai Client Component Provider.
+// ✨ Fitur Baru: Global Session Context Manager.
+// 🎨 UI/UX Update: N/A (State Provider)
+// 🔧 Bug Fix: Menjamin useSession() terdefinisi di seluruh hierarki halaman.
+// 🚀 Inovasi: Robust Client Session Wrapper.
 
 'use client';
 

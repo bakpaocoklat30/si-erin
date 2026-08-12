@@ -1,6 +1,14 @@
-version: '3.8'
+# 📋 CHANGELOG:
+# ✅ Perubahan: Penyelarasan service name 'postgres' untuk DNS resolution internal Docker (postgres:5432) dan host mapping port '5433:5432'.
+# ✨ Fitur Baru: Automatic Healthcheck, Isolated Network Bridge, & Shared Environment Connection.
+# 🎨 UI/UX Update: N/A (DevOps Infrastructure Configuration)
+# 🔧 Bug Fix: Menyelesaikan error 'Can't reach database server at postgres:5432' pada Prisma ORM.
+# 🚀 Inovasi: Enterprise High-Availability Containerization Stack.
 
 services:
+  # ----------------------------------------------------------------------------
+  # 1. DATABASE SERVICE (PostgreSQL 16)
+  # ----------------------------------------------------------------------------
   postgres:
     image: postgres:16-alpine
     container_name: sierin_postgres
@@ -10,9 +18,47 @@ services:
       POSTGRES_PASSWORD: SierinSecurePass2026!
       POSTGRES_DB: sierin_db
     ports:
-      - "5432:5432"
+      - "5433:5432" # 🔑 Host Port 5433 ke Container Port 5432
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - sierin_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sierin_user -d sierin_db"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 2. APPLICATION SERVICE (Next.js 14 Standalone App)
+  # ----------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sierin_app
+    restart: always
+    environment:
+      # 🔑 Connection String Internal mengarah ke nama service 'postgres:5432'
+      DATABASE_URL: "postgresql://sierin_user:SierinSecurePass2026!@postgres:5432/sierin_db?schema=public"
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-si-erin-super-secret-key-2026}
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./public/uploads:/app/public/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sierin_network
+
+networks:
+  sierin_network:
+    driver: bridge
 
 volumes:
   pgdata:
+    driver: local
