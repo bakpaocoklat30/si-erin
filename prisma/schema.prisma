@@ -264,3 +264,11 @@ model ErrorLog {
   @@index([createdAt])
   @@index([level])
 }
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

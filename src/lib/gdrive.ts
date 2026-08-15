@@ -1,43 +1,70 @@
+// ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Penambahan parameter `subject` (Impersonation) pada inisialisasi JWT untuk mengatasi error kuota 0 Byte Service Account.
-// ✨ Fitur Baru: Workspace Domain-Wide Delegation Bypass.
+// ✅ Perubahan: Mengubah pembacaan kredensial Google Drive menjadi Database-First (membaca tabel SystemSetting) dengan fallback ke process.env.
+// ✨ Fitur Baru: Support Dynamic In-App Credentials & Impersonation Handling.
 // 🎨 UI/UX Update: N/A (Backend Core Library)
-// 🔧 Bug Fix: Mengatasi error 'Service Accounts do not have storage quota'.
-// 🚀 Inovasi: Enterprise Google Auth Impersonator.
+// 🔧 Bug Fix: Mengeliminasi error "Kredensial GOOGLE_PRIVATE_KEY belum diatur di .env" dengan membaca konfigurasi dari database.
+// 🚀 Inovasi: Enterprise Hybrid Cloud Credentials Manager for Next.js & Prisma.
+// ----------------------------------------------------------------------
 
 import { google } from 'googleapis';
+import { prisma } from '@/lib/prisma';
 import fs from 'fs';
 
-const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+const SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'];
 
 /**
- * Mengambil Private Key langsung dari Environment
+ * Membaca kredensial Google Drive dari Database (SystemSetting) dengan fallback ke .env
  */
-function getPrivateKey(): string {
-  const rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
-  
-  if (!rawKey) {
-    throw new Error('Kredensial GOOGLE_PRIVATE_KEY belum diatur di .env');
-  }
+export async function getGDriveCredentials() {
+  try {
+    const clientEmailSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'GOOGLE_CLIENT_EMAIL' },
+    });
+    const privateKeySetting = await prisma.systemSetting.findUnique({
+      where: { key: 'GOOGLE_PRIVATE_KEY' },
+    });
+    const folderIdSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'GOOGLE_DRIVE_FOLDER_ID' },
+    });
+    const impersonateSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'GOOGLE_USER_TO_IMPERSONATE' },
+    });
 
-  // Normalisasi karakter newline
-  return rawKey.replace(/\\n/g, '\n');
+    const clientEmail = clientEmailSetting?.value || process.env.GOOGLE_CLIENT_EMAIL || '';
+    let privateKey = privateKeySetting?.value || process.env.GOOGLE_PRIVATE_KEY || '';
+    const folderId = folderIdSetting?.value || process.env.GOOGLE_DRIVE_FOLDER_ID || '';
+    const impersonateUser = impersonateSetting?.value || process.env.GOOGLE_USER_TO_IMPERSONATE || '';
+
+    if (privateKey) {
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
+
+    return { clientEmail, privateKey, folderId, impersonateUser };
+  } catch (error) {
+    // Fallback jika database belum dapat diakses
+    let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
+    if (privateKey) privateKey = privateKey.replace(/\\n/g, '\n');
+
+    return {
+      clientEmail: process.env.GOOGLE_CLIENT_EMAIL || '',
+      privateKey: privateKey,
+      folderId: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
+      impersonateUser: process.env.GOOGLE_USER_TO_IMPERSONATE || '',
+    };
+  }
 }
 
 /**
- * Menginisialisasi Klien Google Drive API dengan dukungan OAuth Delegation
+ * Menginisialisasi Klien Google Drive API
  */
-export function getDriveClient() {
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = getPrivateKey();
-  const impersonateUser = process.env.GOOGLE_USER_TO_IMPERSONATE;
+export async function getDriveClient() {
+  const { clientEmail, privateKey, impersonateUser } = await getGDriveCredentials();
 
-  if (!clientEmail) {
-    throw new Error('Kredensial GOOGLE_CLIENT_EMAIL belum diatur di .env');
+  if (!clientEmail || !privateKey) {
+    throw new Error('Kredensial Google Drive (Client Email / Private Key) belum dikonfigurasi!');
   }
 
-  // 🛡️ CRITICAL FIX: Jika ada email impersonate, Service Account akan menyamar menjadi user tersebut 
-  // dan menggunakan kuota Google Drive milik user tersebut (bukan kuota 0 byte SA).
   const auth = new google.auth.JWT(
     clientEmail,
     undefined,
@@ -50,19 +77,19 @@ export function getDriveClient() {
 }
 
 /**
- * Mengunggah berkas lokal ke folder Google Drive tertentu
+ * Mengunggah berkas lokal ke folder Google Drive
  */
 export async function uploadFileToDrive(filePath: string, fileName: string, mimeType: string = 'application/zip') {
-  const drive = getDriveClient();
-  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const drive = await getDriveClient();
+  const { folderId } = await getGDriveCredentials();
 
   if (!folderId) {
-    throw new Error('GOOGLE_DRIVE_FOLDER_ID belum diatur pada .env');
+    throw new Error('GOOGLE_DRIVE_FOLDER_ID belum dikonfigurasi di Pengaturan Aplikasi!');
   }
 
-  const fileMetadata = {
+  const fileMetadata: any = {
     name: fileName,
-    parents: [folderId],
+    parents: [folderId.trim()],
   };
 
   const media = {
@@ -73,7 +100,7 @@ export async function uploadFileToDrive(filePath: string, fileName: string, mime
   const response = await drive.files.create({
     requestBody: fileMetadata,
     media: media,
-    supportsAllDrives: true, // 🛡️ Tetap aktifkan untuk dukungan Shared Drives
+    supportsAllDrives: true,
     fields: 'id, name, webViewLink, createdTime, size',
   });
 
@@ -84,15 +111,15 @@ export async function uploadFileToDrive(filePath: string, fileName: string, mime
  * Mengambil daftar riwayat berkas backup yang tersimpan di Google Drive
  */
 export async function listDriveBackups() {
-  const drive = getDriveClient();
-  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const drive = await getDriveClient();
+  const { folderId } = await getGDriveCredentials();
 
   if (!folderId) {
-    throw new Error('GOOGLE_DRIVE_FOLDER_ID belum diatur pada .env');
+    throw new Error('GOOGLE_DRIVE_FOLDER_ID belum dikonfigurasi di Pengaturan Aplikasi!');
   }
 
   const response = await drive.files.list({
-    q: `'${folderId}' in parents and trashed = false`,
+    q: `'${folderId.trim()}' in parents and trashed = false`,
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
     fields: 'files(id, name, webViewLink, createdTime, size)',

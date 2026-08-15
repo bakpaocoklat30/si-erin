@@ -1,9 +1,13 @@
+# ----------------------------------------------------------------------
 # 📋 CHANGELOG:
-# ✅ Perubahan: Penyelarasan service name 'postgres' untuk DNS resolution internal Docker (postgres:5432) dan host mapping port '5433:5432'.
-# ✨ Fitur Baru: Automatic Healthcheck, Isolated Network Bridge, & Shared Environment Connection.
+# ✅ Perubahan: Penambahan connection_limit=10&pool_timeout=20 pada DATABASE_URL dan penyesuaian port mapping host 70007:3000.
+# ✨ Fitur Baru: Automated Connection Pool Management & MikroTik Public Port Forwarding Ready.
 # 🎨 UI/UX Update: N/A (DevOps Infrastructure Configuration)
-# 🔧 Bug Fix: Menyelesaikan error 'Can't reach database server at postgres:5432' pada Prisma ORM.
-# 🚀 Inovasi: Enterprise High-Availability Containerization Stack.
+# 🔧 Bug Fix: Mengatasi error 'Koneksi database eror' periodik akibat PostgreSQL connection pool exhaustion.
+# 🚀 Inovasi: Enterprise High-Availability Containerization Architecture for SI-ERIN v2.0.
+# ----------------------------------------------------------------------
+
+version: '3.8'
 
 services:
   # ----------------------------------------------------------------------------
@@ -18,7 +22,7 @@ services:
       POSTGRES_PASSWORD: SierinSecurePass2026!
       POSTGRES_DB: sierin_db
     ports:
-      - "5433:5432" # 🔑 Host Port 5433 ke Container Port 5432
+      - "5433:5432" # 🔑 Host Port 5433 dipetakan ke Container Port 5432
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -39,14 +43,14 @@ services:
     container_name: sierin_app
     restart: always
     environment:
-      # 🔑 Connection String Internal mengarah ke nama service 'postgres:5432'
-      DATABASE_URL: "postgresql://sierin_user:SierinSecurePass2026!@postgres:5432/sierin_db?schema=public"
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      # 🔑 Connection String Internal dengan Connection Pool Limiter & Timeout Guard
+      DATABASE_URL: "postgresql://sierin_user:SierinSecurePass2026!@postgres:5432/sierin_db?schema=public&connection_limit=10&pool_timeout=20"
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://202.65.116.9:7007}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-si-erin-super-secret-key-2026}
       NODE_ENV: production
       PORT: 3000
     ports:
-      - "3000:3000"
+      - "70007:3000" # 🔑 Host Port 70007 dipetakan ke Container Port 3000
     volumes:
       - ./public/uploads:/app/public/uploads
     depends_on:
