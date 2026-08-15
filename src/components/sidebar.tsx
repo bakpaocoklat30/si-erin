@@ -1,9 +1,14 @@
+// ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Memperbaiki ekstraksi `useSession()` agar tahan banting (*prerender-safe*) saat `next build` mengevaluasi komponen secara statis.
-// ✨ Fitur Baru: Multi-Role Dynamic Navigation, Collapsible Sidebar State, & High-Contrast Adaptive Light/Dark Colors.
-// 🎨 UI/UX Update: Highlight rute aktif, kontras border Slate, dan logo SI-ERIN berdesain modern.
-// 🔧 Bug Fix: Menyelesaikan 'Cannot destructure property data of useSession as it is undefined' saat Docker build.
-// 🚀 Inovasi: Prerender-Proof Enterprise Adaptive Sidebar Engine.
+// ✅ Perubahan: Menghapus kelompok menu "Manajemen Persuratan PKL" dari navigasi Tim Pokja (`pokjaGroups`).
+// ✨ Fitur Baru:
+//    - Streamlined Pokja Workflow (Tim Pokja berfokus penuh pada Verifikasi, Pengelompokan, Pembimbing, dan Parameter Mitra).
+//    - Menu persuratan tetap aktif & fokus pada role Tata Usaha & Admin.
+//    - Pengaturan Akun & Password universal tetap tersedia untuk seluruh role.
+// 🎨 UI/UX Update: Tampilan sidebar Pokja yang sangat ringkas, bersih, dan efisien.
+// 🔧 Bug Fix: Mengeliminasi tumpang tindih tanggung jawab persuratan antara Pokja dan Tata Usaha.
+// 🚀 Inovasi: Role-Focused Clean Navigation Suite for Pokja SI-ERIN.
+// ----------------------------------------------------------------------
 
 'use client';
 
@@ -27,8 +32,18 @@ import {
   ChevronLeft,
   UserCheck,
   Calendar,
-  Lock,
-  RotateCcw
+  UploadCloud,
+  Clock,
+  Building,
+  BarChart3,
+  ShieldAlert,
+  FileText,
+  Truck,
+  Search,
+  Award,
+  ShieldCheck,
+  Settings,
+  GraduationCap
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
@@ -40,10 +55,20 @@ interface SidebarProps {
   setIsCollapsed?: (collapsed: boolean) => void;
 }
 
+interface MenuItem {
+  name: string;
+  href: string;
+  icon: any;
+}
+
+interface MenuGroup {
+  groupLabel?: string;
+  items: MenuItem[];
+}
+
 export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsCollapsed }: SidebarProps) {
   const pathname = usePathname();
   
-  // 🛡️ Safe useSession Extraction (Mencegah crash saat SSG Prerender)
   const sessionState = useSession();
   const session = sessionState?.data;
   const status = sessionState?.status || 'loading';
@@ -54,7 +79,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
   const [isClassAllowedPkl, setIsClassAllowedPkl] = useState(true);
 
   const rawRole = (session?.user as any)?.role || 'SISWA';
-  const userRole = String(rawRole).toUpperCase();
+  const userRole = String(rawRole).toUpperCase().trim();
   const userClassName = (session?.user as any)?.className;
 
   useEffect(() => {
@@ -71,50 +96,168 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
     }
   }, [userRole, userClassName]);
 
-  const studentMenu = [
-    { name: 'Dashboard Overview', href: '/dashboard', icon: LayoutDashboard },
-    ...(isClassAllowedPkl ? [
-      { name: 'Pengajuan Tempat PKL', href: '/dashboard/students/pengajuan', icon: Send }
-    ] : []),
-    { name: 'Teman Satu Kelompok', href: '/dashboard/students/kelompok', icon: Users },
-    { name: 'Update Profil Siswa', href: '/dashboard/students/profile', icon: UserCog },
+  // ----------------------------------------------------------------------
+  // 1. SUBMENU MODUL PERSURATAN (KHUSUS TATA USAHA & ADMIN)
+  // ----------------------------------------------------------------------
+  const persuratanMenuItems: MenuItem[] = [
+    { name: 'Surat Permohonan', href: '/dashboard/persuratan/permohonan', icon: FileText },
+    { name: 'Surat Penerjunan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penerjunan', icon: Truck },
+    { name: 'Surat Monitoring', href: '/dashboard/persuratan/coming-soon?title=Surat%20Monitoring', icon: Search },
+    { name: 'Surat Penarikan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penarikan', icon: Award },
+    { name: 'Template Surat', href: '/dashboard/persuratan/coming-soon?title=Template%20Surat', icon: FileSpreadsheet },
+    { name: 'Pengaturan Kepsek & TTD', href: '/dashboard/persuratan/coming-soon?title=Pengaturan%20Kepsek%20%26%20TTD', icon: UserCheck },
   ];
 
-  const pokjaMenu = [
-    { name: 'Dashboard Pokja', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Verifikasi Pengajuan', href: '/dashboard/pokja/verifikasi', icon: UserCheck },
-    { name: 'Kelompok Prakerin', href: '/dashboard/pokja/kelompok', icon: Users },
-    { name: 'Pengaturan Periode', href: '/dashboard/pokja/periods', icon: Calendar },
-    { name: 'Manajemen Kelas Pokja', href: '/dashboard/pokja/classes', icon: Layers },
-    { name: 'Manajemen Siswa', href: '/dashboard/pokja/students', icon: Users },
-    { name: 'Kelola Industri Mitra', href: '/dashboard/pokja/industries', icon: Building2 },
-    { name: 'Kelola Kategori Industri', href: '/dashboard/pokja/categories', icon: Briefcase },
+  // ----------------------------------------------------------------------
+  // 2. NAVIGASI MENU TIM POKJA PRAKERIN (STREAMLINED - TANPA MANAJEMEN PERSURATAN)
+  // ----------------------------------------------------------------------
+  const pokjaGroups: MenuGroup[] = [
+    {
+      groupLabel: 'Utama & Analitik Pokja',
+      items: [
+        { name: 'Dashboard Pokja', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Analytics & Ekspor Data', href: '/dashboard/pokja/analytics', icon: BarChart3 },
+      ]
+    },
+    {
+      groupLabel: 'Verifikasi & Pengelompokan',
+      items: [
+        { name: 'Verifikasi Pengajuan PKL', href: '/dashboard/pokja/verifikasi', icon: UserCheck },
+        { name: 'Kelompok Prakerin & Pembimbing', href: '/dashboard/pokja/kelompok', icon: Users },
+        { name: 'Manajemen Data Siswa', href: '/dashboard/pokja/students', icon: GraduationCap },
+      ]
+    },
+    {
+      groupLabel: 'Master Parameter & Mitra',
+      items: [
+        { name: 'Industri Mitra PKL', href: '/dashboard/pokja/industries', icon: Building2 },
+        { name: 'Alokasi Jam PKL', href: '/dashboard/pokja/hours', icon: Clock },
+        { name: 'Manajemen Kelas & Jurusan', href: '/dashboard/pokja/classes', icon: Layers },
+        { name: 'Periode Pelaksanaan PKL', href: '/dashboard/pokja/periods', icon: Calendar },
+        { name: 'Kategori Industri Mitra', href: '/dashboard/pokja/categories', icon: Briefcase },
+        { name: 'Pengaturan Akun & Password', href: '/dashboard/settings', icon: Settings },
+      ]
+    }
   ];
 
-  const adminMenu = [
-    { name: 'Dashboard Utama', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Reset Progress Siswa', href: '/dashboard/admin/students/reset', icon: RotateCcw },
-    { name: 'Eksplorasi Jurusan & Kelas', href: '/dashboard/admin/departments', icon: Layers },
-    { name: 'Master Data', href: '/dashboard/admin/master', icon: Database },
-    { name: 'Kelola Pengguna', href: '/dashboard/admin/users', icon: Users },
-    { name: 'Import CSV Siswa', href: '/dashboard/admin/students/import', icon: FileSpreadsheet },
-    { name: 'Industri Mitra (Read-Only)', href: '/dashboard/admin/industries', icon: Building2 },
+  // ----------------------------------------------------------------------
+  // 3. NAVIGASI MENU SISWA
+  // ----------------------------------------------------------------------
+  const studentGroups: MenuGroup[] = [
+    {
+      groupLabel: 'Utama',
+      items: [
+        { name: 'Dashboard Overview', href: '/dashboard', icon: LayoutDashboard },
+        ...(isClassAllowedPkl ? [
+          { name: 'Pengajuan Tempat PKL', href: '/dashboard/students/pengajuan', icon: Send }
+        ] : []),
+        { name: 'Teman Satu Kelompok', href: '/dashboard/students/kelompok', icon: Users },
+      ]
+    },
+    {
+      groupLabel: 'Akun & Keamanan',
+      items: [
+        { name: 'Update Profil Siswa', href: '/dashboard/students/profile', icon: UserCog },
+        { name: 'Pengaturan Kata Sandi', href: '/dashboard/settings', icon: Settings },
+      ]
+    }
   ];
 
-  let menuItems = studentMenu;
-  let menuLabel = 'Menu Siswa';
+  // ----------------------------------------------------------------------
+  // 4. NAVIGASI TERKELOMPOK TATA USAHA (TU) - FOKUS PERSURATAN & ANALYTICS
+  // ----------------------------------------------------------------------
+  const tataUsahaGroups: MenuGroup[] = [
+    {
+      groupLabel: 'Utama & Analytics TU',
+      items: [
+        { name: 'Dashboard Utama', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Analytics Persuratan TU', href: '/dashboard/tata-usaha', icon: ShieldCheck },
+      ]
+    },
+    {
+      groupLabel: 'Manajemen Persuratan PKL',
+      items: persuratanMenuItems
+    },
+    {
+      groupLabel: 'Pengaturan Akun',
+      items: [
+        { name: 'Pengaturan Akun & Password', href: '/dashboard/settings', icon: Settings },
+      ]
+    }
+  ];
 
-  if (userRole === 'ADMIN') {
-    menuItems = adminMenu;
-    menuLabel = 'Menu Administrator';
-  } else if (userRole === 'POKJA') {
-    menuItems = pokjaMenu;
-    menuLabel = 'Menu Tim Pokja';
+  // ----------------------------------------------------------------------
+  // 5. NAVIGASI MENU GURU PEMBIMBING
+  // ----------------------------------------------------------------------
+  const pembimbingGroups: MenuGroup[] = [
+    {
+      groupLabel: 'Bimbingan',
+      items: [
+        { name: 'Dashboard Pembimbing', href: '/dashboard/pembimbing', icon: LayoutDashboard },
+        { name: 'Siswa Bimbingan', href: '/dashboard/pembimbing', icon: Users },
+      ]
+    },
+    {
+      groupLabel: 'Akun Saya',
+      items: [
+        { name: 'Pengaturan Akun & Password', href: '/dashboard/settings', icon: Settings },
+      ]
+    }
+  ];
+
+  // ----------------------------------------------------------------------
+  // 6. NAVIGASI MENU ADMINISTRATOR
+  // ----------------------------------------------------------------------
+  const adminGroups: MenuGroup[] = [
+    {
+      groupLabel: 'Sistem & Konfigurasi',
+      items: [
+        { name: 'Dashboard Utama', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Analytics Persuratan TU', href: '/dashboard/tata-usaha', icon: ShieldCheck },
+        { name: 'Pengaturan Sekolah', href: '/dashboard/admin/settings/school', icon: Building },
+        { name: 'Master Data', href: '/dashboard/admin/master', icon: Database },
+        { name: 'Eksplorasi Jurusan & Kelas', href: '/dashboard/admin/departments', icon: Layers },
+      ]
+    },
+    {
+      groupLabel: 'Manajemen Persuratan PKL',
+      items: persuratanMenuItems
+    },
+    {
+      groupLabel: 'Manajemen User & Industri',
+      items: [
+        { name: 'Kelola Pengguna', href: '/dashboard/admin/users', icon: Users },
+        { name: 'Import CSV Siswa', href: '/dashboard/admin/students/import', icon: FileSpreadsheet },
+        { name: 'Industri Mitra (Read-Only)', href: '/dashboard/admin/industries', icon: Building2 },
+      ]
+    },
+    {
+      groupLabel: 'Keamanan & Backup',
+      items: [
+        { name: 'Audit Trail Logs', href: '/dashboard/admin/audit-logs', icon: ShieldAlert },
+        { name: 'Pencadangan Google Drive', href: '/dashboard/admin/backup', icon: UploadCloud },
+        { name: 'Reset Progress Siswa', href: '/dashboard/admin/students/reset', icon: Clock },
+        { name: 'Pengaturan Akun & Password', href: '/dashboard/settings', icon: Settings },
+      ]
+    }
+  ];
+
+  // SELEKSI GRUP MENU BERDASARKAN ROLE USER
+  let menuGroups = studentGroups;
+
+  if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+    menuGroups = adminGroups;
+  } else if (userRole === 'POKJA' || userRole === 'TIM_POKJA') {
+    menuGroups = pokjaGroups;
+  } else if (userRole === 'TATA_USAHA' || userRole === 'TU' || userRole === 'TATAUSAHA') {
+    menuGroups = tataUsahaGroups;
+  } else if (userRole === 'PEMBIMBING' || userRole === 'GURU' || userRole === 'TEACHER' || userRole === 'GURUPMB') {
+    menuGroups = pembimbingGroups;
   }
 
   return (
     <>
-      {/* MOBILE BACKDROP OVERLAY */}
+      {/* MOBILE BACKDROP */}
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}
@@ -122,7 +265,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
         ></div>
       )}
 
-      {/* ASIDE CONTAINER */}
+      {/* SIDEBAR MAIN CONTAINER */}
       <aside
         className={`fixed inset-y-0 left-0 z-[99999] border-r flex flex-col justify-between transition-all duration-300 ease-in-out pointer-events-auto ${
           isCollapsed ? 'w-20' : 'w-72'
@@ -132,7 +275,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
             : 'bg-white border-slate-200/90 text-slate-900 shadow-xl shadow-slate-200/40'
         } ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
-        {/* TOP BRAND HEADER */}
+        {/* SIDEBAR HEADER */}
         <div className={`p-5 border-b flex items-center justify-between shrink-0 ${
           theme === 'dark' ? 'border-slate-800' : 'border-slate-200'
         }`}>
@@ -189,68 +332,76 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
           </div>
         </div>
 
-        {/* MIDDLE SECTION: MENU ITEMS */}
-        <div className="flex-1 px-3 py-6 space-y-6 overflow-y-auto relative z-10">
-          <div className="space-y-1.5">
-            {!isCollapsed && (
-              <div className="flex justify-between items-center px-3 mb-3">
-                <p className={`text-[10px] font-black uppercase tracking-widest ${
-                  theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
-                }`}>
-                  {!mounted || status === 'loading' ? 'Memuat...' : menuLabel}
-                </p>
-                {userRole === 'SISWA' && !isClassAllowedPkl && (
-                  <span className="px-2 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center">
-                    <Lock className="w-2.5 h-2.5 mr-1" />
-                    PKL Ditutup
-                  </span>
+        {/* SIDEBAR SCROLLABLE CONTENT */}
+        <div className="flex-1 px-3 py-6 space-y-6 overflow-y-auto relative z-10 custom-scrollbar">
+          {!mounted || status === 'loading' ? (
+            <div className="space-y-3 animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map((s) => (
+                <div key={s} className={`h-11 rounded-2xl ${
+                  theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'
+                }`}></div>
+              ))}
+            </div>
+          ) : (
+            menuGroups.map((group, groupIdx) => (
+              <div key={groupIdx} className="space-y-1.5">
+                {/* GROUP SECTION LABEL */}
+                {!isCollapsed && group.groupLabel && (
+                  <div className="px-3 pt-2 pb-1 flex items-center justify-between">
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${
+                      theme === 'dark' ? 'text-indigo-400/80' : 'text-indigo-600/80'
+                    }`}>
+                      {group.groupLabel}
+                    </p>
+                  </div>
+                )}
+
+                {/* GROUP ITEMS */}
+                {group.items.map((item) => {
+                  const IconComponent = item.icon || LayoutDashboard;
+                  
+                  const itemBaseHref = item.href.split('?')[0];
+                  const isActive = pathname === item.href || (itemBaseHref !== '/dashboard' && pathname?.startsWith(itemBaseHref));
+
+                  return (
+                    <Link
+                      key={item.name + item.href}
+                      href={item.href}
+                      title={isCollapsed ? item.name : undefined}
+                      onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 1024) setIsOpen(false); }}
+                      className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer relative z-20 ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                          : theme === 'dark' 
+                            ? 'text-slate-400 hover:bg-slate-900 hover:text-slate-100' 
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      <IconComponent className={`w-4 h-4 shrink-0 ${
+                        isActive ? 'text-white' : theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                      }`} />
+                      {!isCollapsed && <span className="truncate">{item.name}</span>}
+                    </Link>
+                  );
+                })}
+
+                {/* DIVIDER ANTAR KELOMPOK */}
+                {groupIdx < menuGroups.length - 1 && (
+                  <div className={`my-3 border-b ${
+                    theme === 'dark' ? 'border-slate-800/60' : 'border-slate-200/60'
+                  }`} />
                 )}
               </div>
-            )}
-            
-            {!mounted || status === 'loading' ? (
-              <div className="space-y-2 animate-pulse">
-                {[1, 2, 3, 4, 5].map((skeleton) => (
-                  <div key={skeleton} className={`h-11 rounded-2xl ${
-                    theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'
-                  }`}></div>
-                ))}
-              </div>
-            ) : (
-              menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
+            ))
+          )}
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={isCollapsed ? item.name : undefined}
-                    onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 1024) setIsOpen(false); }}
-                    className={`flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer relative z-20 ${
-                      isActive
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                        : theme === 'dark' 
-                          ? 'text-slate-400 hover:bg-slate-900 hover:text-slate-100' 
-                          : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 shrink-0 ${
-                      isActive ? 'text-white' : theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                    }`} />
-                    {!isCollapsed && <span className="truncate">{item.name}</span>}
-                  </Link>
-                );
-              })
-            )}
-          </div>
-
+          {/* PREFERENSI TAMPILAN */}
           {!isCollapsed && (
             <div className="space-y-1 pt-4 border-t border-inherit">
               <p className={`px-3 text-[10px] font-black uppercase tracking-widest mb-2 ${
                 theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
               }`}>
-                Preferensi Tampilan
+                Preferensi Tema
               </p>
               <button
                 type="button"
@@ -273,7 +424,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
           )}
         </div>
 
-        {/* BOTTOM SECTION: LOGOUT BUTTON */}
+        {/* SIDEBAR FOOTER (LOGOUT) */}
         <div className={`p-4 border-t shrink-0 relative z-10 ${
           theme === 'dark' ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-slate-50/50'
         }`}>

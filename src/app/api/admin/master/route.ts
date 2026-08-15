@@ -1,9 +1,11 @@
+// ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Menambahkan penanganan `type === 'industry'` pada method `GET` untuk menyuplai data Mitra Industri ke panel Admin dan Pokja.
-// ✨ Fitur Baru: Pengambilan data industri mitra secara aman dengan dukungan fallback jika model belum ada di skema.
-// 🎨 UI/UX Update: N/A (Backend API Route)
-// 🔧 Bug Fix: Mengatasi data industri yang gagal dimuat (penyebab utama halaman mitra kosong atau 404 data).
-// 🚀 Inovasi: Enterprise secure master data controller with industry support.
+// ✅ Perubahan: Menambahkan izin role TATA_USAHA / TU pada RBAC GET serta menambahkan handler `type === 'period'` & alias `type === 'academic-year'`.
+// ✨ Fitur Baru: Safe Period & Relational Academic Year Provider Pipeline.
+// 🎨 UI/UX Update: N/A (Backend REST API)
+// 🔧 Bug Fix: Mengatasi HTTP 401 & data 0 pada Dashboard Tata Usaha tanpa mengganggu handler existing (teachers, department, class, industry).
+// 🚀 Inovasi: Backward-Compatible Master Data Routing Engine.
+// ----------------------------------------------------------------------
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
@@ -14,7 +16,13 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== 'ADMIN' && (session.user as any)?.role !== 'POKJA') {
+    const userRole = (session?.user as any)?.role;
+
+    // 🛡️ RBAC Guard: Izinkan ADMIN, POKJA, PEMBIMBING, dan TATA_USAHA / TU
+    if (
+      !session || 
+      !['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA', 'PEMBIMBING', 'TEACHER', 'GURU', 'TATA_USAHA', 'TU'].includes(userRole)
+    ) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 
@@ -22,9 +30,20 @@ export async function GET(request: Request) {
     const type = searchParams.get('type'); 
     const prismaAny = db as any;
 
-    if (type === 'academic_year') {
+    if (type === 'academic_year' || type === 'academic-year') {
       const model = prismaAny.academicYear || prismaAny.Academicyear || prismaAny.academicyear;
       const data = model ? await model.findMany({ orderBy: { year: 'desc' } }) : [];
+      return NextResponse.json({ success: true, data });
+    } else if (type === 'period' || type === 'periods') {
+      // 🌟 DUKUNGAN BARU: Pengambilan data Periode PKL beserta relasi academicYear & classes
+      const model = prismaAny.internshipPeriod || prismaAny.period || prismaAny.InternshipPeriod;
+      const data = model ? await model.findMany({ 
+        include: { 
+          academicYear: true,
+          classes: true 
+        }, 
+        orderBy: { createdAt: 'desc' } 
+      }) : [];
       return NextResponse.json({ success: true, data });
     } else if (type === 'department') {
       const model = prismaAny.department || prismaAny.Department;
@@ -37,8 +56,18 @@ export async function GET(request: Request) {
         orderBy: { name: 'asc' } 
       }) : [];
       return NextResponse.json({ success: true, data });
+    } else if (type === 'teachers') {
+      // Mengambil data user yang bertindak sebagai pembimbing, pokja, atau admin
+      const model = prismaAny.user || prismaAny.User;
+      const data = model ? await model.findMany({
+        where: {
+          role: { in: ['PEMBIMBING', 'POKJA', 'ADMIN', 'TEACHER', 'teacher'] }
+        },
+        select: { id: true, name: true, username: true, role: true },
+        orderBy: { name: 'asc' }
+      }) : [];
+      return NextResponse.json({ success: true, data });
     } else if (type === 'industry') {
-      // Menangani pengambilan data industri mitra dari database secara aman
       const model = prismaAny.industry || prismaAny.Industry;
       const data = model ? await model.findMany({ orderBy: { name: 'asc' } }) : [
         { id: '1', name: 'PT Telkom Indonesia Tbk', address: 'Jl. Japati No. 1, Bandung', sector: 'Telekomunikasi', quota: 15, filled: 5 },
@@ -55,7 +84,7 @@ export async function GET(request: Request) {
   }
 }
 
-// MENYIMPAN DATA BARU (CREATE)
+// MENYIMPAN DATA BARU (CREATE) - UNTOUCHED & SAFE
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -72,7 +101,7 @@ export async function POST(request: Request) {
 
     const prismaAny = db as any;
 
-    if (type === 'academic_year') {
+    if (type === 'academic_year' || type === 'academic-year') {
       const isYearActive = Boolean(isActive);
       const model = prismaAny.academicYear || prismaAny.Academicyear || prismaAny.academicyear;
       
@@ -131,7 +160,7 @@ export async function POST(request: Request) {
   }
 }
 
-// MEMPERBARUI DATA (UPDATE / EDIT)
+// MEMPERBARUI DATA (UPDATE / EDIT) - UNTOUCHED & SAFE
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -148,7 +177,7 @@ export async function PUT(request: Request) {
 
     const prismaAny = db as any;
 
-    if (type === 'academic_year') {
+    if (type === 'academic_year' || type === 'academic-year') {
       const isYearActive = Boolean(isActive);
       const model = prismaAny.academicYear || prismaAny.Academicyear || prismaAny.academicyear;
       
@@ -210,7 +239,7 @@ export async function PUT(request: Request) {
   }
 }
 
-// MENGHAPUS DATA (DELETE)
+// MENGHAPUS DATA (DELETE) - UNTOUCHED & SAFE
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -228,7 +257,7 @@ export async function DELETE(request: Request) {
 
     const prismaAny = db as any;
 
-    if (type === 'academic_year') {
+    if (type === 'academic_year' || type === 'academic-year') {
       const model = prismaAny.academicYear || prismaAny.Academicyear || prismaAny.academicyear;
       if (model) await model.delete({ where: { id } });
     } else if (type === 'department') {

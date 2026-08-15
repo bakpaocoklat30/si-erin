@@ -1,9 +1,8 @@
+// ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Memperbarui handler GET() untuk menyertakan field `logoUrl`, `latitude`, dan `longitude` pada katalog industri maupun pada objek activePlacement.industry.
-// ✨ Fitur Baru: Complete Industry Branding & Geospatial Coordinate Payload Exposer.
-// 🎨 UI/UX Update: N/A (Backend REST API Route)
-// 🔧 Bug Fix: Menyelesaikan masalah logo industri dan koordinat maps yang hilang di antarmuka siswa akibat terpotong di level payload API backend.
-// 🚀 Inovasi: Synchronized Industry Model Exposer across Pokja & Student Portals.
+// ✅ Perubahan: Menghapus relasi `teacher` dari blok `include.placement` agar sesuai dengan skema Prisma aktual, lalu menyertakan `teacher` langsung dari model `Student`.
+// ✨ Fitur Baru: Schema-Compliant Student-Teacher Relation Exposer.
+// ----------------------------------------------------------------------
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -39,7 +38,7 @@ export async function GET() {
     const username = (session.user as any)?.username;
     const placementClient = getPlacementClient();
 
-    // 1. Cari data siswa berdasarkan NIS/Username atau Nama
+    // 1. Cari data siswa berdasarkan NIS/Username atau Nama beserta relasi Teacher & Placement
     const student = await db.student.findFirst({
       where: {
         OR: [
@@ -48,6 +47,17 @@ export async function GET() {
         ]
       },
       include: {
+        // 🌟 INCLUDE GURU PEMBIMBING SEKOLAH LANGSUNG DARI MODEL STUDENT
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            phone: true,
+            role: true,
+            department: true
+          }
+        },
         placement: {
           include: {
             industry: true
@@ -83,6 +93,9 @@ export async function GET() {
         };
       }
     }
+
+    // Ambil Guru Pembimbing Sekolah dari model Student
+    const resolvedTeacher = (student as any).teacher || null;
 
     // 3. Ambil daftar teman sekelompok di DUDI yang sama (jika ada active placement)
     let groupMembers: any[] = [];
@@ -175,7 +188,7 @@ export async function GET() {
           totalQuota: totalQuota,
           remainingQuota: remainingQuota,
 
-          // 🎯 EKSPLISIT MENYESUAIKAN FIELD LOGO DAN KOORDINAT DARI DATABASE
+          // EKSPLISIT MENYESUAIKAN FIELD LOGO DAN KOORDINAT DARI DATABASE
           logoUrl: ind.logoUrl || ind.logo_url || ind.logo || ind.image || ind.imageUrl || null,
           latitude: ind.latitude ?? ind.lat ?? ind.lat_location ?? null,
           longitude: ind.longitude ?? ind.lng ?? ind.lng_location ?? null
@@ -194,7 +207,9 @@ export async function GET() {
           department: student.department,
           isAllowedPkl: student.isAllowedPkl,
           cvUrl: student.cvUrl,
-          bpjsUrl: student.bpjsUrl
+          bpjsUrl: student.bpjsUrl,
+          // 🌟 MEMASUKKAN OBJEK TEACHER SECARA LANGSUNG PADA PAYLOAD STUDENT
+          teacher: resolvedTeacher
         },
         activePlacement: activePlacement,
         lastRejectedPlacement: lastRejectedPlacement,
@@ -204,7 +219,7 @@ export async function GET() {
     });
 
   } catch (error: any) {
-    console.error('Error GET /api/students/apply:', error);
+    console.error('Error GET /api/student/apply:', error);
     return NextResponse.json({ error: error.message || 'Gagal memuat data pengajuan.' }, { status: 500 });
   }
 }
@@ -344,7 +359,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Error POST /api/students/apply:', error);
+    console.error('Error POST /api/student/apply:', error);
     return NextResponse.json({ error: error.message || 'Gagal memproses pengajuan tempat PKL.' }, { status: 500 });
   }
 }
@@ -439,7 +454,7 @@ export async function PATCH(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Error PATCH /api/students/apply:', error);
+    console.error('Error PATCH /api/student/apply:', error);
     return NextResponse.json({ error: error.message || 'Gagal mengunggah surat balasan.' }, { status: 500 });
   }
 }

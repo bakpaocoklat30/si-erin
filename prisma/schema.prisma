@@ -1,3 +1,9 @@
+// ----------------------------------------------------------------------
+// 📋 CHANGELOG:
+// ✅ Perubahan: Mengintegrasikan role TATA_USAHA dan melengkapi model `InternshipPlacement` untuk persuratan Tahap 3.
+// ✨ Fitur Baru: Persistent School Identity, Audit Log, Notification, & Dual-Authority Letter Issuance Fields.
+// ----------------------------------------------------------------------
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -7,46 +13,39 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// ----------------------------------------------------------------------
-// ENUMERATIONS
-// ----------------------------------------------------------------------
+// 🔑 ENUM: ROLE USER DALAM SISTEM SI-ERIN
 enum Role {
   ADMIN
   POKJA
   PEMBIMBING
   SISWA
+  TATA_USAHA    // 🌟 ROLE BARU: Persuratan & Tata Usaha Sekolah
 }
 
-// ----------------------------------------------------------------------
-// MODEL: USER (Sistem Autentikasi Multirole)
-// ----------------------------------------------------------------------
 model User {
-  id         String   @id @default(cuid())
-  username   String   @unique
-  name       String
-  password   String
-  role       String   @default("SISWA")
-  department String?
-  phone      String?
-  student    Student? // Relasi 1-to-1 ke data profil Siswa
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                 String                  @id @default(cuid())
+  username           String                  @unique
+  name               String
+  password           String
+  role               String                  @default("SISWA")
+  department         String?
+  phone              String?
+  student            Student?                @relation("StudentAccount")
+  supervisedStudents Student[]               @relation("TeacherStudents")
+  teacherHours       TeacherHourAllocation[]
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
 }
 
-// ----------------------------------------------------------------------
-// MODEL: ACADEMIC YEAR (Tahun Pelajaran)
-// ----------------------------------------------------------------------
 model AcademicYear {
-  id        String   @id @default(cuid())
-  year      String   @unique
-  isActive  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String             @id @default(cuid())
+  year      String             @unique
+  isActive  Boolean            @default(false)
+  periods   InternshipPeriod[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 }
 
-// ----------------------------------------------------------------------
-// MODEL: DEPARTMENT (Kompetensi Keahlian / Jurusan)
-// ----------------------------------------------------------------------
 model Department {
   id        String      @id @default(cuid())
   code      String      @unique
@@ -56,9 +55,6 @@ model Department {
   updatedAt DateTime    @updatedAt
 }
 
-// ----------------------------------------------------------------------
-// MODEL: CLASS ROOM (Rombongan Belajar / Kelas)
-// ----------------------------------------------------------------------
 model ClassRoom {
   id           String            @id @default(cuid())
   name         String            @unique
@@ -71,25 +67,38 @@ model ClassRoom {
   updatedAt    DateTime          @updatedAt
 }
 
-// ----------------------------------------------------------------------
-// MODEL: INTERNSHIP PERIOD (Gelombang / Periode PKL)
-// ----------------------------------------------------------------------
 model InternshipPeriod {
-  id               String      @id @default(cuid())
+  id               String                @id @default(cuid())
   name             String
   startDate        DateTime
   endDate          DateTime
-  department       String
-  isActive         Boolean     @default(false)
-  activeIndustries Json?       @default("[]")
+  department       String                @default("ALL")
+  isActive         Boolean               @default(false)
+  academicYearId   String?
+  academicYear     AcademicYear?         @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  activeIndustries Json?                 @default("[]")
   classes          ClassRoom[]
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  coefficient      InternshipCoefficient? // 🔑 Relasi 1-to-1 spesifik per periode
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 }
 
-// ----------------------------------------------------------------------
-// MODEL: INDUSTRY CATEGORY (Kategori Industri)
-// ----------------------------------------------------------------------
+// 🔑 MODEL: INTERNSHIP COEFFICIENT (Terikat spesifik ke periodId)
+model InternshipCoefficient {
+  id            String           @id @default(cuid())
+  periodId      String           @unique // Kunci unik agar tiap periode punya koefisien sendiri
+  period        InternshipPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  academicYear  String
+  periodName    String
+  totalClasses  Int
+  hoursPerClass Int
+  totalStudents Int
+  coefficient   Float
+  notes         String?          @db.Text
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
 model IndustryCategory {
   id          String   @id @default(cuid())
   name        String   @unique
@@ -98,50 +107,37 @@ model IndustryCategory {
   updatedAt   DateTime @updatedAt
 }
 
-// ----------------------------------------------------------------------
-// MODEL: INDUSTRY / DUDI (Mitra Industri Terintegrasi Dapodik)
-// ----------------------------------------------------------------------
 model Industry {
-  id            String   @id @default(cuid())
-  
-  // Identitas Utama DUDI
-  name          String   @unique // 🔑 Wajib (Required)
-  nib           String?  // Nomor Induk Berusaha
-  sector        String?  // Sektor / Bidang Usaha
-  npwp          String?  // NPWP Perusahaan
-  logoUrl       String?  @db.Text // Logo Base64 / URL Gambar
-
-  // Alamat Rinci Standar Dapodik Kemdikbudristek
-  address       String   // Alamat Jalan
-  rt            String?  // RT
-  rw            String?  // RW
-  dusun         String?  // Nama Dusun
-  desaKelurahan String?  // Desa / Kelurahan
-  subDistrict   String?  // Kecamatan / Kabupaten
-  postalCode    String?  // Kode Pos
-  latitude      String?  // Koordinat Lintang GPS
-  longitude     String?  // Koordinat Bujur GPS
-
-  // Kontak & Detail Operasional
-  contactPerson String?  // Nama HRD / Person in Charge
-  phone         String?  // Nomor Telepon / WA
-  fax           String?  // Nomor Fax
-  email         String?  // Email Perusahaan
-  website       String?  // Website Perusahaan
-  totalQuota    Int      @default(0) // Total Kuota Tempat PKL
-
+  id            String                @id @default(cuid())
+  name          String                @unique
+  nib           String?
+  sector        String?
+  npwp          String?
+  logoUrl       String?               @db.Text
+  address       String
+  rt            String?
+  rw            String?
+  dusun         String?
+  desaKelurahan String?
+  subDistrict   String?
+  postalCode    String?
+  latitude      String?
+  longitude     String?
+  contactPerson String?
+  phone         String?
+  fax           String?
+  email         String?
+  website       String?
+  totalQuota    Int                   @default(0)
   placements    InternshipPlacement[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 }
 
-// ----------------------------------------------------------------------
-// MODEL: STUDENT (Data Profil Siswa Terhubung ke User)
-// ----------------------------------------------------------------------
 model Student {
   id             String               @id @default(cuid())
-  userId         String?              @unique // Foreign key ke tabel User
-  user           User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String?              @unique
+  user           User?                @relation("StudentAccount", fields: [userId], references: [id], onDelete: Cascade)
   nis            String               @unique
   nisn           String?              
   name           String
@@ -156,27 +152,31 @@ model Student {
   cvStatus       String?              @default("BELUM_UPLOAD")
   cvUrl          String?
   isAllowedPkl   Boolean              @default(false)
+  teacherId      String?
+  teacher        User?                @relation("TeacherStudents", fields: [teacherId], references: [id], onDelete: SetNull)
   placement      InternshipPlacement?
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 }
 
-// ----------------------------------------------------------------------
-// MODEL: INTERNSHIP PLACEMENT (Alur Penempatan & Verifikasi 6 Tahap)
-// ----------------------------------------------------------------------
+// 🌟 MODEL: INTERNSHIP PLACEMENT (DILENGKAPI FIELD PERSURATAN TAHAP 3 & DUAL-AUTHORITY TRACKING)
 model InternshipPlacement {
   id                 String    @id @default(cuid())
   studentId          String    @unique
   student            Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   industryId         String
   industry           Industry  @relation(fields: [industryId], references: [id], onDelete: Cascade)
-  
-  // Status Alur 6 Tahap
-  status             String    @default("PENGAJUAN_DIKIRIM")
+  status             String    @default("PENGAJUAN_DIKIRIM") // PENGAJUAN_DIKIRIM -> REVIEW_POKJA -> PEMBUATAN_SURAT -> SURAT_DITERBITKAN -> SENT_DUDI -> COMPLETED
+  stage              Int       @default(1)                   // Tahap 1 s.d. 6
   notes              String?   @db.Text
   
-  // Berkas Administrasi Surat Permohonan & Balasan DUDI
-  suratTugasUrl      String?   @db.Text
+  // 📜 FIELD PERSURATAN PERMOHONAN PKL (TAHAP 3 -> TAHAP 4)
+  letterNumber       String?                                 // Nomor Surat Resmi dari TU / Pokja
+  suratTugasUrl      String?   @db.Text                      // File Surat Permohonan/Tugas yang sudah di-TTD & Stempel
+  letterUploadedBy   String?                                 // Identifier Pengunggah (misal: "Tata Usaha" atau "Tim Pokja")
+  letterUploadedAt   DateTime?                               // Timestamp waktu penerbitan surat
+  
+  // 📑 FIELD BALASAN DUDI
   suratBalasanUrl    String?   @db.Text
   suratBalasanStatus String?   @default("BELUM_UPLOAD")
   
@@ -185,4 +185,82 @@ model InternshipPlacement {
   appliedAt          DateTime  @default(now())
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+}
+
+model TeacherHourAllocation {
+  id           String   @id @default(cuid())
+  className    String   
+  teacherId    String   
+  teacher      User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  totalHours   Int      
+  academicYear String   
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// 🌟 MODEL: SCHOOL SETTING (PENGATURAN IDENTITAS & LOGO SEKOLAH PERSISTENT)
+model SchoolSetting {
+  id            String   @id @default(cuid())
+  name          String   @default("SMK Negeri 1 Adiwerna")
+  shortName     String   @default("SMKN 1 Adiwerna")
+  logoUrl       String   @default("/images/logo-sekolah.png") @db.Text
+  address       String   @default("Jl. Raya Adiwerna No. 15, Kabupaten Tegal") @db.Text
+  phone         String   @default("(0283) 443768")
+  email         String   @default("info@smkn1adiwerna.sch.id")
+  headmaster    String   @default("Joko Pramono, S.Pd., M.Ds")
+  headmasterNip String   @default("19690316 199802 1 004")
+  accreditation String   @default("A")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ======================================================================
+// 🌟 MODEL: AUDIT LOG (TRACKING SELURUH AKTIVITAS & PERUBAHAN DATA)
+// ======================================================================
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  username  String
+  userRole  String
+  action    String   // Contoh: "CREATE", "UPDATE", "DELETE", "EXPORT", "UPLOAD_LETTER"
+  module    String   // Contoh: "ANALYTICS", "STUDENTS", "PLACEMENTS", "PERSURATAN"
+  details   String   @db.Text
+  ipAddress String?
+  userAgent String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([module])
+  @@index([action])
+}
+
+// ======================================================================
+// 🌟 MODEL: NOTIFICATION (NOTIFIKASI REALTIME/IN-APP USER)
+// ======================================================================
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   // Target Penerima Notifikasi (User ID / "ALL")
+  title     String
+  message   String   @db.Text
+  type      String   @default("INFO") // "INFO", "SUCCESS", "WARNING", "DANGER"
+  link      String?  // URL Pengalihan saat notifikasi diklik
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+model ErrorLog {
+  id        String   @id @default(cuid())
+  level     String   @default("ERROR") // ERROR, WARN, FATAL
+  message   String
+  stack     String?  
+  path      String?
+  method    String?
+  userId    String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([level])
 }

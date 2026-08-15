@@ -1,3 +1,15 @@
+// ----------------------------------------------------------------------
+// 📋 CHANGELOG:
+// ✅ Perubahan: Tuning Modal Form DUDI dengan mengganti <select> bidang usaha menjadi Searchable Custom Dropdown.
+// ✨ Fitur Baru:
+//    - Search Input Inside Sector Dropdown (Pencarian real-time bidang usaha / sektor industri).
+//    - Click-Outside Auto Close Handler untuk penutupan otomatis dropdown saat klik di luar.
+//    - Visual Selected Indicator (Ikon Centang & Highlight aktif pada opsi yang dipilih).
+// 🎨 UI/UX Update: Custom Select Box modern dengan scrollbar halus, transisi mulus, dan adaptif Dark/Light Mode.
+// 🔧 Bug Fix: Menyelesaikan keterbatasan elemen <select> native HTML yang kaku dan tidak dapat di-search.
+// 🚀 Inovasi: Enterprise Searchable Sector Select Box for Pokja SI-ERIN.
+// ----------------------------------------------------------------------
+
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -27,7 +39,9 @@ import {
   Navigation,
   Map as MapIcon,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 
@@ -70,6 +84,19 @@ const STATIC_PROVINCES = [
   { id: '91', code: '91', name: 'PAPUA' }
 ];
 
+// DATA FALLBACK DEFAULT KATEGORI BIDANG USAHA
+const DEFAULT_SECTOR_CATEGORIES = [
+  { id: 'default-1', name: 'Teknologi Informasi & Komunikasi' },
+  { id: 'default-2', name: 'ISP / Internet Service Provider' },
+  { id: 'default-3', name: 'Rekayasa Perangkat Lunak & AI' },
+  { id: 'default-4', name: 'Multimedia & Desain Grafis' },
+  { id: 'default-5', name: 'Teknik Otomotif & Mesin' },
+  { id: 'default-6', name: 'Konstruksi & Teknik Sipil' },
+  { id: 'default-7', name: 'Keuangan, Akuntansi & Perbankan' },
+  { id: 'default-8', name: 'Hospitality, Perhotelan & Pariwisata' },
+  { id: 'default-9', name: 'Umum' }
+];
+
 export default function PokjaIndustriesPage() {
   const { status } = useSession();
   const { theme } = useTheme();
@@ -88,6 +115,11 @@ export default function PokjaIndustriesPage() {
   // State Modal CRUD Form
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // 🌟 STATE SEARCHABLE DROPDOWN BIDANG USAHA / SEKTOR
+  const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
+  const [sectorSearchQuery, setSectorSearchQuery] = useState('');
+  const sectorDropdownRef = useRef<HTMLDivElement>(null);
 
   // 🌐 STATE RELASI WILAYAH INDONESIA (HYBRID ENGINE)
   const [provinces, setProvinces] = useState<any[]>(STATIC_PROVINCES);
@@ -150,6 +182,20 @@ export default function PokjaIndustriesPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
+  // 🌟 CLICK OUTSIDE HANDLER UNTUK CUSTOM SECTOR DROPDOWN
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sectorDropdownRef.current && !sectorDropdownRef.current.contains(event.target as Node)) {
+        setIsSectorDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Load Leaflet CSS & JS Dynamic CDN
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -173,7 +219,6 @@ export default function PokjaIndustriesPage() {
   const fetchProvinces = useCallback(async () => {
     setLoadingProvinces(true);
     try {
-      // Opsi 1: Emsifa API
       const res1 = await fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinsis.json');
       if (res1.ok) {
         const data1 = await res1.json();
@@ -184,7 +229,6 @@ export default function PokjaIndustriesPage() {
         }
       }
 
-      // Opsi 2: Wilayah.id API
       const res2 = await fetch('https://wilayah.id/api/provinces.json');
       if (res2.ok) {
         const data2 = await res2.json();
@@ -206,7 +250,7 @@ export default function PokjaIndustriesPage() {
     fetchProvinces();
   }, [fetchProvinces]);
 
-  // 🎯 AUTO MATCH PROVINCE CODE SAAT MODAL EDIT DIBUKA
+  // AUTO MATCH PROVINCE CODE SAAT MODAL EDIT DIBUKA
   useEffect(() => {
     if (showModal && formData.province && provinces.length > 0) {
       const normProv = formData.province.trim().toLowerCase();
@@ -223,7 +267,7 @@ export default function PokjaIndustriesPage() {
     }
   }, [showModal, formData.province, provinces, selectedProvinceCode]);
 
-  // 🛡️ DUAL-API FETCHING KABUPATEN
+  // DUAL-API FETCHING KABUPATEN
   useEffect(() => {
     if (!selectedProvinceCode) {
       setRegencies([]);
@@ -261,7 +305,7 @@ export default function PokjaIndustriesPage() {
     fetchRegencies();
   }, [selectedProvinceCode]);
 
-  // 🎯 AUTO MATCH REGENCY CODE SAAT MODAL EDIT DIBUKA
+  // AUTO MATCH REGENCY CODE SAAT MODAL EDIT DIBUKA
   useEffect(() => {
     if (showModal && formData.regency && regencies.length > 0) {
       const normReg = formData.regency.trim().toLowerCase();
@@ -278,7 +322,7 @@ export default function PokjaIndustriesPage() {
     }
   }, [showModal, formData.regency, regencies, selectedRegencyCode]);
 
-  // 🛡️ DUAL-API FETCHING KECAMATAN
+  // DUAL-API FETCHING KECAMATAN
   useEffect(() => {
     if (!selectedRegencyCode) {
       setDistricts([]);
@@ -316,7 +360,7 @@ export default function PokjaIndustriesPage() {
     fetchDistricts();
   }, [selectedRegencyCode]);
 
-  // 🎯 AUTO MATCH DISTRICT CODE SAAT MODAL EDIT DIBUKA
+  // AUTO MATCH DISTRICT CODE SAAT MODAL EDIT DIBUKA
   useEffect(() => {
     if (showModal && formData.subDistrict && districts.length > 0) {
       const normDist = formData.subDistrict.trim().toLowerCase();
@@ -333,7 +377,7 @@ export default function PokjaIndustriesPage() {
     }
   }, [showModal, formData.subDistrict, districts, selectedDistrictCode]);
 
-  // 🛡️ DUAL-API FETCHING KELURAHAN / DESA
+  // DUAL-API FETCHING KELURAHAN / DESA
   useEffect(() => {
     if (!selectedDistrictCode) {
       setVillages([]);
@@ -376,7 +420,7 @@ export default function PokjaIndustriesPage() {
     fetchVillages();
   }, [selectedDistrictCode]);
 
-  // 🎯 AUTO MATCH VILLAGE CODE SAAT MODAL EDIT DIBUKA
+  // AUTO MATCH VILLAGE CODE SAAT MODAL EDIT DIBUKA
   useEffect(() => {
     if (showModal && formData.desaKelurahan && villages.length > 0) {
       const normVil = formData.desaKelurahan.trim().toLowerCase();
@@ -420,7 +464,6 @@ export default function PokjaIndustriesPage() {
     const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
     markerInstanceRef.current = marker;
 
-    // Event Handler Drag Marker Peta
     marker.on('dragend', function () {
       const position = marker.getLatLng();
       setFormData(prev => ({
@@ -430,7 +473,6 @@ export default function PokjaIndustriesPage() {
       }));
     });
 
-    // Event Handler Click Peta
     map.on('click', function (e: any) {
       const { lat, lng } = e.latlng;
       marker.setLatLng([lat, lng]);
@@ -446,7 +488,6 @@ export default function PokjaIndustriesPage() {
     }, 400);
   }, []);
 
-  // Update Marker Peta dari Input manual Lat/Long
   const updateMapMarker = (latVal: string, lngVal: string) => {
     const lat = parseFloat(latVal);
     const lng = parseFloat(lngVal);
@@ -456,7 +497,6 @@ export default function PokjaIndustriesPage() {
     }
   };
 
-  // 🎯 CORE SEARCH ENGINE: GEOCODING PETA & AUTO KODE POS VIA NOMINATIM OPENSTREETMAP
   const executeSearchMapLocation = useCallback(async (customSearchQuery?: string) => {
     let queryToSearch = customSearchQuery;
 
@@ -506,7 +546,6 @@ export default function PokjaIndustriesPage() {
     }
   }, [formData.address, formData.desaKelurahan, formData.subDistrict, formData.regency, formData.province]);
 
-  // 📍 OPEN GOOGLE MAPS PREVIEW FUNCTION
   const handleOpenGoogleMaps = () => {
     const lat = formData.latitude || '-6.917464';
     const lng = formData.longitude || '107.619123';
@@ -555,7 +594,15 @@ export default function PokjaIndustriesPage() {
     }
   }, [status]);
 
-  // Handler Paste Logo dari Clipboard
+  // 🌟 FILTERED SECTORS UNTUK SEARCHABLE SECTOR DROPDOWN
+  const availableSectors = useMemo(() => {
+    const list = categories.length > 0 ? categories : DEFAULT_SECTOR_CATEGORIES;
+    if (!sectorSearchQuery.trim()) return list;
+    return list.filter(cat => 
+      cat.name.toLowerCase().includes(sectorSearchQuery.toLowerCase())
+    );
+  }, [categories, sectorSearchQuery]);
+
   const processClipboardItem = useCallback((item: DataTransferItem) => {
     if (item.type.indexOf('image') !== -1) {
       const blob = item.getAsFile();
@@ -671,7 +718,7 @@ export default function PokjaIndustriesPage() {
     });
   }, [industries, searchTerm]);
 
-  // 📤 EXPORT CSV DATA INDUSTRI DUDI
+  // EXPORT CSV DATA INDUSTRI DUDI
   const handleExportCsv = () => {
     const dataToExport = filteredIndustries.length > 0 ? filteredIndustries : industries;
 
@@ -763,6 +810,8 @@ export default function PokjaIndustriesPage() {
     setSelectedRegencyCode('');
     setSelectedDistrictCode('');
     setSelectedVillageCode('');
+    setIsSectorDropdownOpen(false);
+    setSectorSearchQuery('');
 
     const defaultSector = categories.length > 0 ? categories[0].name : 'Teknologi Informasi & Komunikasi';
     setFormData({
@@ -803,6 +852,8 @@ export default function PokjaIndustriesPage() {
     setSelectedRegencyCode('');
     setSelectedDistrictCode('');
     setSelectedVillageCode('');
+    setIsSectorDropdownOpen(false);
+    setSectorSearchQuery('');
 
     const isUnlim = ind.totalQuota === -1;
     setFormData({
@@ -1642,34 +1693,91 @@ export default function PokjaIndustriesPage() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
+                  {/* 🌟 CUSTOM SEARCHABLE SECTOR DROPDOWN */}
+                  <div className="space-y-1.5 relative" ref={sectorDropdownRef}>
                     <label className="font-bold text-slate-700 dark:text-slate-300">
                       Bidang Usaha / Sektor (Master Pokja)
                     </label>
-                    <select
-                      value={formData.sector}
-                      onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-semibold cursor-pointer ${
-                        isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+
+                    {/* SELECT BUTTON TOGGLE */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSectorDropdownOpen(prev => !prev);
+                        setSectorSearchQuery('');
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-semibold text-left flex justify-between items-center transition-all cursor-pointer ${
+                        isDark 
+                          ? 'bg-slate-950 border-slate-800 text-white hover:border-indigo-500' 
+                          : 'bg-slate-50 border-slate-300 text-slate-900 hover:border-indigo-600'
                       }`}
                     >
-                      {categories.length > 0 ? (
-                        categories.map((cat) => (
-                          <option key={cat.id} value={cat.name}>
-                            {cat.name}
-                          </option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="Teknologi Informasi & Komunikasi">Teknologi Informasi & Komunikasi</option>
-                          <option value="ISP / Internet Service Provider">ISP / Internet Service Provider</option>
-                          <option value="Rekayasa Perangkat Lunak & AI">Rekayasa Perangkat Lunak & AI</option>
-                          <option value="Multimedia & Desain Grafis">Multimedia & Desain Grafis</option>
-                          <option value="Teknik Otomotif & Mesin">Teknik Otomotif & Mesin</option>
-                          <option value="Umum">Umum</option>
-                        </>
-                      )}
-                    </select>
+                      <span className="truncate">
+                        {formData.sector || 'Pilih Bidang Usaha / Sektor...'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                        isSectorDropdownOpen ? 'rotate-180 text-indigo-500' : ''
+                      }`} />
+                    </button>
+
+                    {/* SEARCHABLE DROPDOWN PANEL */}
+                    {isSectorDropdownOpen && (
+                      <div className={`absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border shadow-2xl p-2 space-y-2 animate-in fade-in duration-150 ${
+                        isDark 
+                          ? 'bg-slate-900 border-slate-800 text-white shadow-slate-950/80' 
+                          : 'bg-white border-slate-200 text-slate-900 shadow-slate-300/60'
+                      }`}>
+                        {/* SEARCH INPUT FIELD INSIDE DROPDOWN */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            autoFocus
+                            value={sectorSearchQuery}
+                            onChange={(e) => setSectorSearchQuery(e.target.value)}
+                            placeholder="Cari bidang usaha / sektor..."
+                            className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs outline-none border font-medium ${
+                              isDark 
+                                ? 'bg-slate-950 border-slate-800 text-white focus:border-indigo-500' 
+                                : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-indigo-600'
+                            }`}
+                          />
+                        </div>
+
+                        {/* LIST OF OPTIONS */}
+                        <div className="max-h-52 overflow-y-auto space-y-1 custom-scrollbar">
+                          {availableSectors.length > 0 ? (
+                            availableSectors.map((cat: any) => {
+                              const isSelected = formData.sector === cat.name;
+                              return (
+                                <button
+                                  key={cat.id || cat.name}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData(prev => ({ ...prev, sector: cat.name }));
+                                    setIsSectorDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-indigo-600 text-white font-bold'
+                                      : isDark
+                                        ? 'hover:bg-slate-800 text-slate-200'
+                                        : 'hover:bg-slate-100 text-slate-800'
+                                  }`}
+                                >
+                                  <span className="truncate">{cat.name}</span>
+                                  {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-white ml-2" />}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="p-3 text-center text-slate-400 text-xs font-medium">
+                              Tidak ada sektor yang cocok dengan "{sectorSearchQuery}"
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">

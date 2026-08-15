@@ -1,14 +1,16 @@
+// ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Memperbarui kartu "Status Penempatan Industri (DUDI)" agar tampilan Badge Status dan Kotak "Instruksi Selanjutnya" 100% dinamis dan akurat sesuai 6 tahap alur pengajuan PKL siswa.
-// ✨ Fitur Baru: Dynamic Actionable Next-Step Guide & Interactive Download Button for Official School Application Letters.
+// ✅ Perubahan: Memperbarui kartu "Status Penempatan Industri (DUDI)" agar alur 6 tahap tetap akurat & menambahkan kartu khusus "Guru Pembimbing Sekolah".
+// ✨ Fitur Baru: Dedicated School Mentorship Card with Direct Contact Info & Dual Mentor Display Pipeline.
 // 🎨 UI/UX Update: Penyempurnaan indikator visual (badge warna, ikon status, & panduan langkah aksi) yang responsif pada mode Gelap maupun Terang.
-// 🔧 Bug Fix: Menyelesaikan instruksi statis yang tidak relevan ketika status pengajuan siswa masih dalam proses verifikasi Pokja.
-// 🚀 Inovasi: Real-Time Guided Student Prakerin Progression Tracker.
+// 🔧 Bug Fix: Menyelesaikan ketiadaan tampilan informasi Guru Pembimbing Sekolah di dashboard role siswa.
+// 🚀 Inovasi: Real-Time Guided Student Prakerin Progression Tracker & Dual-Mentor Architecture.
+// ----------------------------------------------------------------------
 
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Building2, 
   MapPin, 
@@ -16,7 +18,6 @@ import {
   User, 
   CheckCircle2, 
   AlertCircle, 
-  Upload, 
   FileText, 
   RefreshCw, 
   ShieldCheck, 
@@ -25,16 +26,15 @@ import {
   Clock, 
   ExternalLink, 
   Send, 
-  AlertTriangle, 
-  Lock, 
   ArrowRight,
   Loader2,
   FileCheck2,
-  XCircle,
   HelpCircle,
   Map as MapIcon,
-  Eye,
-  X
+  X,
+  UserCheck,
+  Award,
+  BookOpen
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 import Link from 'next/link';
@@ -58,7 +58,8 @@ export default function StudentDashboardPage() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const res = await fetch('/api/students/apply');
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/students/apply?t=${timestamp}`);
       const json = await res.json();
 
       if (res.ok && json.success) {
@@ -206,6 +207,9 @@ export default function StudentDashboardPage() {
   const hasBpjs = Boolean(studentInfo?.bpjsUrl);
   const isAlreadyApplied = Boolean(activePlacement);
 
+  // Ambil objek Guru Pembimbing Sekolah jika di-assign oleh Pokja
+  const schoolTeacher = studentInfo?.teacher || activePlacement?.teacher || null;
+
   const statusConfig = activePlacement ? getStatusDisplayConfig(activePlacement.status) : null;
 
   return (
@@ -229,12 +233,12 @@ export default function StudentDashboardPage() {
             <span>Portal Siswa Prakerin SMK</span>
           </span>
           <h1 className="text-3xl font-extrabold tracking-tight">
-            Selamat Datang, <span className="text-indigo-600 dark:text-indigo-400">{studentInfo?.name || 'Siswa'}</span> 👋
+            Selamat Datang, <span className="text-indigo-600 dark:text-indigo-400">{studentInfo?.name || session?.user?.name || 'Siswa'}</span> 👋
           </h1>
           <p className={`text-sm max-w-2xl font-medium ${
             theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
           }`}>
-            Pantau status kelayakan Prakerin, verifikasi dokumen BPJS Ketenagakerjaan, dan informasi penempatan industri Anda secara real-time di sini.
+            Pantau status kelayakan Prakerin, verifikasi dokumen BPJS Ketenagakerjaan, serta informasi penempatan industri dan guru pembimbing Anda secara real-time di sini.
           </p>
         </div>
 
@@ -276,7 +280,7 @@ export default function StudentDashboardPage() {
             <div className={`p-2.5 rounded-2xl ${
               isAllowedPkl ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
             }`}>
-              {isAllowedPkl ? <CheckCircle2 className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+              {isAllowedPkl ? <CheckCircle2 className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
             </div>
           </div>
 
@@ -390,7 +394,69 @@ export default function StudentDashboardPage() {
 
       </div>
 
-      {/* 🎯 KARTU STATUS PENEMPATAN INDUSTRI (DUDI) - FULL DINAMIS KORELASI 6 TAHAP */}
+      {/* 🌟 KARTU GURU PEMBIMBING SEKOLAH */}
+      <div className={`p-6 sm:p-8 rounded-3xl border shadow-xl space-y-4 transition-all ${
+        theme === 'dark' 
+          ? 'bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border-emerald-500/30 text-white' 
+          : 'bg-gradient-to-r from-emerald-50/60 via-white to-white border-emerald-200 text-slate-900 shadow-slate-200/50'
+      }`}>
+        <div className="flex justify-between items-center border-b border-inherit pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+              <UserCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Guru Pembimbing Sekolah</span>
+              <h3 className="text-lg font-extrabold">Pendamping Resmi Prakerin</h3>
+            </div>
+          </div>
+
+          <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            Penugasan Pokja
+          </span>
+        </div>
+
+        {schoolTeacher ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center pt-2">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Award className="w-4 h-4 text-emerald-500 shrink-0" />
+                <h4 className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{schoolTeacher.name || 'Guru Pembimbing'}</h4>
+              </div>
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                Guru pembimbing sekolah bertanggung jawab memantau kehadiran, jurnal harian, serta perkembangan kompetensi PKL Anda di industri.
+              </p>
+            </div>
+
+            <div className={`p-4 rounded-2xl border space-y-2 text-xs font-medium ${
+              theme === 'dark' ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-100/80 border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Username / NIP:</span>
+                <strong className="text-slate-900 dark:text-white font-bold">{schoolTeacher.username || schoolTeacher.nip || '-'}</strong>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Kontak WhatsApp:</span>
+                <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{schoolTeacher.phone || 'Tersedia via Pokja'}</strong>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Status Pendampingan:</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  AKTIF MENDAMPINGI
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="py-6 text-center space-y-2">
+            <BookOpen className="w-8 h-8 text-slate-500 mx-auto opacity-50" />
+            <p className="text-xs font-bold text-slate-400">Belum ada Guru Pembimbing Sekolah yang ditugaskan untuk Anda.</p>
+            <p className="text-[11px] text-slate-500">Tim Pokja akan mengalokasikan guru pembimbing setelah alokasi jam dan kelas PKL selesai dipetakan.</p>
+          </div>
+        )}
+      </div>
+
+      {/* 🎯 KARTU STATUS PENEMPATAN INDUSTRI (DUDI) */}
       <div className={`p-8 rounded-3xl border shadow-xl space-y-6 transition-all ${
         theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80 shadow-slate-200/50'
       }`}>

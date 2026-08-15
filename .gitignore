@@ -54,3 +54,5 @@ INSTRUKSI_UTAMA.md
 installfolder_template.php
 schema_foundation.sql
 template_sidebar_enterprise.html
+gdrive-service-account.json.json
+*.json
