@@ -1,15 +1,20 @@
+// ----------------------------------------------------------------------
 // 📋 CHANGELOG:
 // ✅ Perubahan: Memperbaiki logika reaktivitas state `handleToggleIndustry` dan inisialisasi `activeIndustries` agar centang industri langsung merespons dan berhasil disimpan.
-// ✨ Fitur Baru: Robust Periodic Industry Toggle & Quota State Manager.
-// 🎨 UI/UX Update: Area klik checklist industri diperluas ke seluruh box agar lebih mudah dicentang.
-// 🔧 Bug Fix: Mengatasi kendala state industri aktif yang gagal dicentang/disimpan pada modal "Kelola Industri & Kuota".
-// 🚀 Inovasi: Enterprise Resilient State Management Pipeline.
+// ✨ Fitur Baru: 
+//    - Real-time Red Action Search Bar pada modal "Kelola Industri & Kuota".
+//    - Filter Quick Action Toggle (Tampilkan Semua / Hanya Terpilih / Belum Terpilih).
+//    - Counter indikator pencarian industri terfilter secara dinamis.
+// 🎨 UI/UX Update: Tombol Cari utama berwarna merah (Red Button) dengan efek hover & shadow presisi sesuai instruksi.
+// 🔧 Bug Fix: Mengatasi kendala kesulitan mencari industri saat jumlah DUDI sangat banyak pada modal periode.
+// 🚀 Inovasi: Red-Alert Instant Search Engine & Dynamic Selection Filter.
+// ----------------------------------------------------------------------
 
 'client';
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   Calendar, 
   Plus, 
@@ -23,7 +28,9 @@ import {
   Square,
   ChevronLeft,
   ChevronRight,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Search,
+  Filter
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 
@@ -176,6 +183,11 @@ export default function PokjaPeriodsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showManageIndustryModal, setShowManageIndustryModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // STATE BARU: PENCARIAN & FILTER INDUSTRI DI DALAM MODAL
+  const [industrySearchQuery, setIndustrySearchQuery] = useState('');
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
+  const [filterSelectionState, setFilterSelectionState] = useState<'all' | 'selected' | 'unselected'>('all');
 
   const [formData, setFormData] = useState({
     id: '',
@@ -402,7 +414,43 @@ export default function PokjaPeriodsPage() {
       ...p,
       activeIndustries: Array.isArray(p.activeIndustries) ? [...p.activeIndustries] : []
     });
+    setIndustrySearchQuery('');
+    setAppliedSearchTerm('');
+    setFilterSelectionState('all');
     setShowManageIndustryModal(true);
+  };
+
+  // 🔴 LOGIKA PENCARIAN & FILTER REAL-TIME INDUSTRI DI MODAL
+  const filteredModalIndustries = useMemo(() => {
+    if (!activePeriodForIndustry) return [];
+
+    return industries.filter((ind: any) => {
+      // 1. Filter Kata Kunci Nama Industri / Sektor / Alamat
+      const searchTarget = `${ind.name || ''} ${ind.sector || ''} ${ind.address || ''}`.toLowerCase();
+      const term = appliedSearchTerm.trim().toLowerCase();
+      const matchesSearch = !term || searchTarget.includes(term);
+
+      // 2. Filter Status Centang (Terpilih / Belum)
+      const isSelected = (activePeriodForIndustry.activeIndustries || []).some(
+        (item: any) => item.industryId === ind.id
+      );
+
+      let matchesSelection = true;
+      if (filterSelectionState === 'selected') matchesSelection = isSelected;
+      if (filterSelectionState === 'unselected') matchesSelection = !isSelected;
+
+      return matchesSearch && matchesSelection;
+    });
+  }, [industries, activePeriodForIndustry, appliedSearchTerm, filterSelectionState]);
+
+  const handleSearchTrigger = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAppliedSearchTerm(industrySearchQuery);
+  };
+
+  const handleClearSearch = () => {
+    setIndustrySearchQuery('');
+    setAppliedSearchTerm('');
   };
 
   if (status === 'loading') return null;
@@ -490,7 +538,6 @@ export default function PokjaPeriodsPage() {
                       </span>
                     </td>
                     <td className="p-4 text-center">
-                      {/* TOGGLE SWITCH ON/OFF */}
                       <button
                         type="button"
                         onClick={() => handleToggleStatus(p)}
@@ -550,10 +597,10 @@ export default function PokjaPeriodsPage() {
         )}
       </div>
 
-      {/* MODAL KELOLA INDUSTRI & KUOTA (DEDICATED) */}
+      {/* 🛑 MODAL KELOLA INDUSTRI & KUOTA (DENGAN TOMBOL CARI MERAH & REALTIME FILTER) */}
       {showManageIndustryModal && activePeriodForIndustry && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className={`w-full max-w-2xl border rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto ${
+          <div className={`w-full max-w-2xl border rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto ${
             theme === 'dark' ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
           }`}>
             <div className="flex justify-between items-center border-b pb-4 border-inherit">
@@ -567,15 +614,113 @@ export default function PokjaPeriodsPage() {
             </div>
 
             <div className="space-y-4 text-xs">
-              <p className="text-slate-400">Klik pada kotak industri untuk mengaktifkannya pada periode ini, tentukan kapasitas kuotanya, atau centang pilihan tanpa kuota (bebas).</p>
+              <p className="text-slate-400">Cari nama industri mitra yang ingin diaktifkan pada periode ini, tentukan kapasitas kuotanya, atau centang opsi bebas kuota.</p>
               
+              {/* 🔴 SEKSI TOMBOL & BAR PENCARIAN INDUSTRI WARNA MERAH */}
+              <form onSubmit={handleSearchTrigger} className="space-y-3">
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                  <div className="relative flex-1 w-full">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={industrySearchQuery}
+                      onChange={(e) => {
+                        setIndustrySearchQuery(e.target.value);
+                        setAppliedSearchTerm(e.target.value); // Realtime instant search
+                      }}
+                      placeholder="Ketik nama industri, bidang usaha, atau alamat..."
+                      className={`w-full pl-10 pr-9 py-2.5 rounded-2xl border text-xs outline-none font-semibold transition-all ${
+                        theme === 'dark'
+                          ? 'bg-slate-950 border-slate-700 text-white focus:border-rose-500'
+                          : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-600'
+                      }`}
+                    />
+                    {industrySearchQuery && (
+                      <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 🔴 TOMBOL CARI DIWARNA MERAH (MENCOLOK & MUDAH DILIHAT POKJA) */}
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 flex items-center justify-center space-x-2 transition-all cursor-pointer shrink-0"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Cari Industri</span>
+                  </button>
+                </div>
+
+                {/* FILTER QUICK BUTTONS */}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] pt-1">
+                  <div className="flex items-center space-x-1.5">
+                    <Filter className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    <span className="font-bold text-slate-400">Status Centang:</span>
+                  </div>
+
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setFilterSelectionState('all')}
+                      className={`px-3 py-1 rounded-xl font-bold transition-all cursor-pointer ${
+                        filterSelectionState === 'all'
+                          ? 'bg-rose-600 text-white shadow-sm'
+                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Semua ({industries.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilterSelectionState('selected')}
+                      className={`px-3 py-1 rounded-xl font-bold transition-all cursor-pointer ${
+                        filterSelectionState === 'selected'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Terpilih ({(activePeriodForIndustry.activeIndustries || []).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilterSelectionState('unselected')}
+                      className={`px-3 py-1 rounded-xl font-bold transition-all cursor-pointer ${
+                        filterSelectionState === 'unselected'
+                          ? 'bg-slate-700 text-white shadow-sm'
+                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Belum Terpilih
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              {/* LIST KOTAK INDUSTRI HASIL PENCARIAN */}
               <div className={`p-4 rounded-2xl border max-h-72 overflow-y-auto space-y-3 ${
                 theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
               }`}>
                 {industries.length === 0 ? (
-                  <p className="text-slate-400 italic">Belum ada industri mitra terdaftar. Silakan tambahkan di menu Kelola Industri Mitra.</p>
+                  <p className="text-slate-400 italic text-center py-4">Belum ada industri mitra terdaftar. Silakan tambahkan di menu Kelola Industri Mitra.</p>
+                ) : filteredModalIndustries.length === 0 ? (
+                  <div className="py-8 text-center space-y-2">
+                    <Search className="w-8 h-8 text-rose-500/50 mx-auto" />
+                    <p className="text-slate-400 font-semibold">Tidak ditemukan industri dengan pencarian "{appliedSearchTerm}"</p>
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className="text-rose-400 hover:underline text-[11px] font-bold"
+                    >
+                      Reset Kata Kunci Pencarian
+                    </button>
+                  </div>
                 ) : (
-                  industries.map((ind: any) => {
+                  filteredModalIndustries.map((ind: any) => {
                     const activeItem = (activePeriodForIndustry.activeIndustries || []).find((item: any) => item.industryId === ind.id);
                     const isSelected = !!activeItem;
 
@@ -583,24 +728,31 @@ export default function PokjaPeriodsPage() {
                       <div 
                         key={ind.id} 
                         onClick={() => handleToggleIndustry(ind.id)}
-                        className={`p-3 rounded-2xl border transition-all space-y-2 cursor-pointer ${
+                        className={`p-3.5 rounded-2xl border transition-all space-y-2 cursor-pointer ${
                           isSelected 
                             ? 'bg-indigo-600/10 border-indigo-500/40 text-white shadow-md' 
                             : 'border-slate-800/40 opacity-70 hover:opacity-100 hover:bg-slate-800/20'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="flex items-center space-x-2 font-bold text-sm">
-                            <Building2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                            <span>{ind.name}</span>
-                          </span>
-                          {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-500" /> : <Square className="w-4 h-4 text-slate-500" />}
+                          <div className="space-y-0.5">
+                            <span className="flex items-center space-x-2 font-bold text-sm">
+                              <Building2 className="w-4 h-4 text-indigo-400 shrink-0" />
+                              <span>{ind.name}</span>
+                            </span>
+                            {ind.sector && (
+                              <span className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-wider block pl-6">
+                                {ind.sector}
+                              </span>
+                            )}
+                          </div>
+                          {isSelected ? <CheckSquare className="w-5 h-5 text-indigo-500 shrink-0" /> : <Square className="w-5 h-5 text-slate-500 shrink-0" />}
                         </div>
 
                         {isSelected && (
                           <div 
-                            className="flex items-center justify-between pt-2 border-t border-indigo-500/20 text-[11px] gap-4"
-                            onClick={(e) => e.stopPropagation()} // Mencegah toggle utama ter-trigger saat klik input kuota
+                            className="flex flex-wrap items-center justify-between pt-2.5 border-t border-indigo-500/20 text-[11px] gap-4"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <div className="flex items-center space-x-2">
                               <span className="font-semibold text-slate-400">Kapasitas Kuota:</span>
