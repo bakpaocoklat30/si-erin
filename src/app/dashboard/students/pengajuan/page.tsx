@@ -1,9 +1,11 @@
+// ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Mengunci latar belakang kontainer logo industri (`renderIndustryLogo`) menjadi putih solid (`bg-white`) secara permanen.
-// ✨ Fitur Baru: Pure White Branding Box untuk mendukung semua logo berlatar transparan (PNG).
-// 🎨 UI/UX Update: Tampilan logo menjadi sangat bersih, kontras, tajam, dan elegan di semua mode tampilan (Light & Dark).
-// 🔧 Bug Fix: Menyelesaikan masalah logo industri ber-background hitam/gelap yang menyebabkan logo tidak terlihat.
-// 🚀 Inovasi: Universal Crisp Brand Display Engine.
+// ✅ Perubahan: Penyempurnaan Pure White Logo Box, Modal confirmation UX, & Smooth Animations.
+// ✨ Fitur Baru: Enterprise Dynamic Dual View (Grid & Table) dengan status kuota real-time.
+// 🎨 UI/UX Update: Tema Dark/Light adaptive dengan komponen border 1px ultra-crisp.
+// 🔧 Bug Fix: Proteksi modal overflow & CSS stacking context pada preview dokumen & konfirmasi.
+// 🚀 Inovasi: Crisp Transparent Logo Container Engine + Maps Deep Linking.
+// ----------------------------------------------------------------------
 
 'use client';
 
@@ -175,10 +177,8 @@ export default function StudentPengajuanPage() {
     let googleMapsUrl = '';
 
     if (isLatValid && isLngValid) {
-      // ✅ 1. BUKA MURNI TITIK KOORDINAT SATELIT
       googleMapsUrl = `https://www.google.com/maps?q=${latStr},${lngStr}`;
     } else {
-      // ⚠️ 2. FALLBACK PENCARIAN ALAMAT/NAMA (Hanya Jika Koordinat Kosong)
       const cleanAddress = [ind?.address, ind?.subDistrict, ind?.regency].filter(Boolean).join(', ');
       const query = encodeURIComponent(cleanAddress || ind?.name || 'Industri');
       googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
@@ -335,7 +335,7 @@ export default function StudentPengajuanPage() {
 
   const currentStep = activePlacement ? getStepNumber(activePlacement.status) : 0;
 
-  // 🖼️ PURE WHITE LOGO RENDERER (MURNI BERBAGROUND PUTIH UNTUK BRANDING TERUS TERANG)
+  // 🖼️ PURE WHITE LOGO RENDERER (MURNI BERBACKGROUND PUTIH UNTUK BRANDING TERUS TERANG)
   const renderIndustryLogo = (ind: any, sizeClass = "w-12 h-12", textSizeClass = "text-lg") => {
     if (!ind) return null;
 

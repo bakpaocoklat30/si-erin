@@ -50,7 +50,7 @@ services:
       NODE_ENV: production
       PORT: 3000
     ports:
-      - "70007:3000" # 🔑 Host Port 70007 dipetakan ke Container Port 3000
+      - "7007:3000" # 🔑 Host Port 70007 dipetakan ke Container Port 3000
     volumes:
       - ./public/uploads:/app/public/uploads
     depends_on:

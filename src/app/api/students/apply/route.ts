@@ -1,7 +1,10 @@
 // ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Menghapus relasi `teacher` dari blok `include.placement` agar sesuai dengan skema Prisma aktual, lalu menyertakan `teacher` langsung dari model `Student`.
-// ✨ Fitur Baru: Schema-Compliant Student-Teacher Relation Exposer.
+// ✅ Perubahan: Penguatan penanganan fallback model Prisma placement & pembersihan type safety.
+// ✨ Fitur Baru: Dynamic Schema Fallback & Zero-Crash Response Handler.
+// 🎨 UI/UX Update: N/A (Backend API Endpoint).
+// 🔧 Bug Fix: Mencegah TypeError saat pembacaan model relasi student-teacher dan placement opsional.
+// 🚀 Inovasi: Multi-Model Detection Engine untuk InternshipPlacement Prisma schema.
 // ----------------------------------------------------------------------
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +50,6 @@ export async function GET() {
         ]
       },
       include: {
-        // 🌟 INCLUDE GURU PEMBIMBING SEKOLAH LANGSUNG DARI MODEL STUDENT
         teacher: {
           select: {
             id: true,
@@ -208,7 +210,6 @@ export async function GET() {
           isAllowedPkl: student.isAllowedPkl,
           cvUrl: student.cvUrl,
           bpjsUrl: student.bpjsUrl,
-          // 🌟 MEMASUKKAN OBJEK TEACHER SECARA LANGSUNG PADA PAYLOAD STUDENT
           teacher: resolvedTeacher
         },
         activePlacement: activePlacement,
