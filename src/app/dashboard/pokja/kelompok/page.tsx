@@ -1,14 +1,15 @@
 // ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Menambahkan fitur Ekspor CSV Data Kelompok Prakerin Pokja.
+// ✅ Perubahan: 
+//    1. Mengintegrasikan Filter Periode PKL (dropdown selector) pada header dashboard Pokja.
+//    2. Menambahkan fitur & modal konfirmasi "Hapus Kelompok" dan "Keluarkan Siswa" untuk mereset status siswa kembali awal.
 // ✨ Fitur Baru:
-//    - Group CSV Exporter Engine (Format kolom: nama pembimbing, nama industri, tanggal mulai, tanggal selesai, nama siswa, kelas).
-//    - UTF-8 BOM Compatibility untuk Microsoft Excel & Google Sheets.
-//    - Department Locked Indicator (Menampilkan badge jurusan Pokja aktif secara otomatis di header).
-//    - Dynamic Letter Number Persistence (Nomor Surat dari TU/Pokja tampil di kartu dan modal).
-// 🎨 UI/UX Update: Penambahan tombol "Ekspor CSV" berkontras tinggi di samping tombol Refresh Data.
-// 🔧 Bug Fix: Menyelesaikan masalah karakter khusus dan data pembimbing kosong saat diekspor.
-// 🚀 Inovasi: One-Click Data Export Suite for Pokja SI-ERIN.
+//    - Period Filter Selector Engine.
+//    - Interactive Group Deletion & Reset Student Status Workflow.
+//    - Single Student Removal from Group.
+// 🎨 UI/UX Update: Tombol hapus kelompok berwarna rose-500 dengan modal konfirmasi anti-overflow & badge periode.
+// 🔧 Bug Fix: Menyelesaikan isu kelompok dummy/seed yang mengunci pendaftaran siswa.
+// 🚀 Inovasi: Complete Group Lifecycle Management for Pokja SI-ERIN.
 // ----------------------------------------------------------------------
 
 'use client';
@@ -41,7 +42,9 @@ import {
   CalendarDays,
   ShieldCheck,
   Building,
-  Download
+  Download,
+  Trash2,
+  ShieldAlert
 } from 'lucide-react';
 
 interface TeacherItem {
@@ -64,6 +67,7 @@ interface StudentItem {
   startDate?: string;
   endDate?: string;
   letterNumber?: string;
+  student?: any;
 }
 
 interface GroupItem {
@@ -73,6 +77,7 @@ interface GroupItem {
   industryName?: string;
   industryAddress?: string;
   departmentName?: string;
+  periodId?: string;
   periodName?: string;
   startDate?: string;
   endDate?: string;
@@ -84,42 +89,13 @@ interface GroupItem {
   placements?: StudentItem[];
 }
 
-const FALLBACK_GROUPS: GroupItem[] = [
-  {
-    groupId: 'GRP-TKJ-001',
-    industryId: 'IND-01',
-    industryName: 'PT Jembatan Citra Nusantara Tegal',
-    industryAddress: 'Jalan Werkudoro Komplek Ruko Langon Square No 7',
-    departmentName: 'Teknik Komputer dan Jaringan',
-    periodName: 'Periode Semester Gasal 2026/2027',
-    startDate: '2026-08-01T00:00:00.000Z',
-    endDate: '2026-11-30T00:00:00.000Z',
-    suratTugasUrl: undefined,
-    letterNumber: '421.5/102/SMK-2026',
-    students: [
-      {
-        id: 'S1',
-        name: 'MUHAMAD DWI ADI PRABOWO',
-        nis: '1001',
-        className: 'XII TKJ 1',
-        department: 'Teknik Komputer dan Jaringan',
-        teacher: null,
-        startDate: '2026-08-01T00:00:00.000Z',
-        endDate: '2026-11-30T00:00:00.000Z'
-      },
-      {
-        id: 'S2',
-        name: 'M. FALAKHUL ARFANI',
-        nis: '1002',
-        className: 'XII TKJ 2',
-        department: 'Teknik Komputer dan Jaringan',
-        teacher: { id: 'T1', name: 'Budi Santoso, S.Kom.' },
-        startDate: '2026-08-01T00:00:00.000Z',
-        endDate: '2026-11-30T00:00:00.000Z'
-      }
-    ]
-  }
-];
+interface PeriodItem {
+  id: string;
+  name: string;
+  startDate?: string;
+  endDate?: string;
+  isActive?: boolean;
+}
 
 export default function PokjaKelompokPrakerinPage() {
   const { status, data: session } = useSession();
@@ -130,10 +106,13 @@ export default function PokjaKelompokPrakerinPage() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   const [groups, setGroups] = useState<GroupItem[]>([]);
+  const [periods, setPeriods] = useState<PeriodItem[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Target Kelompok untuk Upload Surat & Input Nomor Surat Pokja
@@ -141,6 +120,10 @@ export default function PokjaKelompokPrakerinPage() {
   const [inputLetterNumber, setInputLetterNumber] = useState<string>('');
   const [suratBase64, setSuratBase64] = useState<string>('');
   const [selectedFileName, setSelectedFileName] = useState<string>('');
+
+  // Target Kelompok / Siswa untuk Dihapus (Reset Placement)
+  const [deleteTargetGroup, setDeleteTargetGroup] = useState<GroupItem | null>(null);
+  const [deleteTargetStudent, setDeleteTargetStudent] = useState<StudentItem | null>(null);
 
   // Modal State untuk Pratinjau Dokumen & Detail Kelompok
   const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
@@ -160,30 +143,44 @@ export default function PokjaKelompokPrakerinPage() {
     }
   };
 
-  // Fetch Data Kelompok dari API Pokja (Backend otomatis terikat ke Jurusan Pokja)
-  const fetchGroupsData = useCallback(async () => {
+  // Fetch Data Kelompok dari API Pokja (Dukung query periodId)
+  const fetchGroupsData = useCallback(async (periodId = selectedPeriodId) => {
     setLoading(true);
     setErrorMsg('');
     try {
-      const res = await fetch('/api/pokja/groups');
+      const url = periodId && periodId !== 'ALL' 
+        ? `/api/pokja/groups?periodId=${encodeURIComponent(periodId)}`
+        : '/api/pokja/groups';
+
+      const res = await fetch(url);
       const json = await res.json();
 
       if (res.ok && json.success) {
-        setGroups(json.data && json.data.length > 0 ? json.data : FALLBACK_GROUPS);
+        setGroups(json.data || []);
+        if (Array.isArray(json.periods)) {
+          setPeriods(json.periods);
+        }
       } else {
-        setGroups(FALLBACK_GROUPS);
+        setGroups([]);
+        setErrorMsg(json.error || 'Gagal memuat data kelompok.');
       }
     } catch (err) {
       console.error('Error fetching Pokja groups:', err);
-      setGroups(FALLBACK_GROUPS);
+      setErrorMsg('Terjadi kesalahan koneksi saat mengambil data kelompok.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedPeriodId]);
 
   useEffect(() => {
     fetchGroupsData();
   }, [fetchGroupsData]);
+
+  // Handler Ganti Filter Periode
+  const handlePeriodChange = (newPeriodId: string) => {
+    setSelectedPeriodId(newPeriodId);
+    fetchGroupsData(newPeriodId);
+  };
 
   // Filter Pencarian Berdasarkan Kata Kunci (Industri, Periode, Nomor Surat, Nama Siswa, NIS)
   const filteredGroups = useMemo(() => {
@@ -221,9 +218,7 @@ export default function PokjaKelompokPrakerinPage() {
       return;
     }
 
-    // Header Kolom Sesuai Spesifikasi Permintaan
     const headers = ['nama pembimbing', 'nama industri', 'tanggal mulai', 'tanggal selesai', 'nama siswa', 'kelas'];
-    
     const rows: string[][] = [];
 
     filteredGroups.forEach((group) => {
@@ -249,13 +244,11 @@ export default function PokjaKelompokPrakerinPage() {
       });
     });
 
-    // Sanitasi String untuk Menghindari Konflik Karakter Koma/Kutip di CSV
     const csvContent = [
       headers.map(h => `"${h}"`).join(','),
       ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\r\n');
 
-    // Menambahkan BOM \uFEFF Agar Membuka di MS Excel dengan Encoding UTF-8 Sempurna
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -311,7 +304,7 @@ export default function PokjaKelompokPrakerinPage() {
     setSuccessMsg('');
 
     const rawList = targetGroup.placements || targetGroup.students || [];
-    const placementIds = rawList.map((p: any) => p.id || p.placementId).filter(Boolean);
+    const placementIds = rawList.map((p: any) => p.placementId || p.id).filter(Boolean);
 
     try {
       const res = await fetch('/api/pokja/groups', {
@@ -329,7 +322,7 @@ export default function PokjaKelompokPrakerinPage() {
       const json = await res.json();
 
       if (res.ok && json.success) {
-        setGroups(prev => prev.map(item => item.groupId === targetGroup.groupId ? { 
+        setGroups(prev => prev.map(item => (item.groupId === targetGroup.groupId || item.groupKey === targetGroup.groupKey) ? { 
           ...item, 
           suratTugasUrl: suratBase64,
           letterNumber: inputLetterNumber.trim()
@@ -352,6 +345,88 @@ export default function PokjaKelompokPrakerinPage() {
     }
   };
 
+  // ----------------------------------------------------------------------
+  // 🌟 EKSEKUSI HAPUS KELOMPOK (RESET STATUS PENEMPATAN ANGGOTA KELOMPOK)
+  // ----------------------------------------------------------------------
+  const confirmDeleteGroup = async () => {
+    if (!deleteTargetGroup) return;
+
+    setDeleting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const rawList = deleteTargetGroup.placements || deleteTargetGroup.students || [];
+    const placementIds = rawList.map((p: any) => p.placementId || p.id).filter(Boolean);
+
+    try {
+      let queryParam = '';
+      if (placementIds.length > 0) {
+        queryParam = `placementIds=${encodeURIComponent(placementIds.join(','))}`;
+      } else if (deleteTargetGroup.industryId) {
+        queryParam = `industryId=${encodeURIComponent(deleteTargetGroup.industryId)}`;
+      }
+
+      const res = await fetch(`/api/pokja/groups?${queryParam}`, {
+        method: 'DELETE'
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        setSuccessMsg(json.message || 'Kelompok berhasil dihapus. Status siswa telah di-reset!');
+        setDeleteTargetGroup(null);
+        fetchGroupsData();
+      } else {
+        setErrorMsg(json.error || 'Gagal menghapus kelompok.');
+      }
+    } catch (err) {
+      console.error('Error deleting group:', err);
+      setErrorMsg('Terjadi kesalahan koneksi saat menghapus kelompok.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ----------------------------------------------------------------------
+  // 🌟 EKSEKUSI HAPUS SISWA INDIVIDUAL DARI KELOMPOK
+  // ----------------------------------------------------------------------
+  const confirmDeleteStudent = async () => {
+    if (!deleteTargetStudent) return;
+
+    setDeleting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const targetPlacementId = deleteTargetStudent.placementId || deleteTargetStudent.id;
+
+    if (!targetPlacementId) {
+      setErrorMsg('ID Penempatan siswa tidak valid.');
+      setDeleting(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/pokja/groups?placementId=${encodeURIComponent(targetPlacementId)}`, {
+        method: 'DELETE'
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        setSuccessMsg(json.message || 'Siswa berhasil dikeluarkan dari kelompok & statusnya di-reset.');
+        setDeleteTargetStudent(null);
+        fetchGroupsData();
+      } else {
+        setErrorMsg(json.error || 'Gagal mengeluarkan siswa dari kelompok.');
+      }
+    } catch (err) {
+      console.error('Error deleting student placement:', err);
+      setErrorMsg('Terjadi kesalahan koneksi saat mengeluarkan siswa.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className={`min-h-screen p-8 flex flex-col justify-center items-center space-y-4 ${
@@ -370,7 +445,7 @@ export default function PokjaKelompokPrakerinPage() {
       theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100/80 text-slate-900'
     }`}>
 
-      {/* HEADER BANNER - TERBAMBANG JURUSAN ACTIVE POKJA & TOMBOL EKSPOR CSV */}
+      {/* HEADER BANNER - BADGE JURUSAN & TOMBOL ACTION */}
       <div className={`p-8 rounded-3xl border shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${
         theme === 'dark' ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}>
@@ -389,10 +464,10 @@ export default function PokjaKelompokPrakerinPage() {
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-            Kelompok Prakerin & Pembimbing Industri
+            Kelompok Prakerin & Pembimbing Industri 👥
           </h1>
           <p className="text-xs text-slate-700 dark:text-slate-400 max-w-2xl font-medium">
-            Halaman ini menampilkan kelompok siswa terverifikasi khusus untuk <strong>{pokjaDepartment}</strong>. Kelola pembimbing industri, nomor surat permohonan, serta ekspor data ke CSV secara efisien.
+            Halaman ini menampilkan kelompok siswa terverifikasi khusus untuk <strong>{pokjaDepartment}</strong>. Kelola pembimbing industri, nomor surat permohonan, filter periode, serta hapus kelompok dummy jika diperlukan.
           </p>
         </div>
 
@@ -411,7 +486,7 @@ export default function PokjaKelompokPrakerinPage() {
 
           <button
             type="button"
-            onClick={fetchGroupsData}
+            onClick={() => fetchGroupsData()}
             className={`px-5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer border shadow-md ${
               theme === 'dark'
                 ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
@@ -426,39 +501,71 @@ export default function PokjaKelompokPrakerinPage() {
 
       {/* ALERT NOTIFIKASI */}
       {errorMsg && (
-        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400 text-xs font-bold flex items-center space-x-2">
+        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400 text-xs font-bold flex items-center space-x-2 animate-in fade-in duration-200">
           <AlertCircle className="w-4 h-4 shrink-0 text-red-600 dark:text-red-400" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-400 text-xs font-bold flex items-center space-x-2">
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-400 text-xs font-bold flex items-center space-x-2 animate-in fade-in duration-200">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      {/* SEARCH BAR & STATISTIK KELOMPOK */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="relative w-full sm:w-96">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      {/* SEARCH BAR & FILTER PERIODE SECTION */}
+      <div className={`p-6 rounded-3xl border shadow-xl flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 transition-all ${
+        theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/90 shadow-slate-200/50'
+      }`}>
+        {/* 🌟 DROPDOWN FILTER PERIODE PKL */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Periode PKL:
+            </span>
+          </div>
+
+          <select
+            value={selectedPeriodId}
+            onChange={(e) => handlePeriodChange(e.target.value)}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold border outline-none cursor-pointer transition-all ${
+              theme === 'dark'
+                ? 'bg-slate-950 border-slate-800 text-indigo-300 focus:border-indigo-500'
+                : 'bg-slate-50 border-slate-300 text-indigo-900 focus:border-indigo-600 shadow-sm'
+            }`}
+          >
+            <option value="ALL">Semua Periode PKL</option>
+            {periods.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} {p.isActive ? '(AKTIF)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* SEARCH BAR */}
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Cari Industri, Periode, No Surat, Nama Siswa, Pembimbing..."
-            className={`w-full pl-10 pr-4 py-3 rounded-2xl text-xs font-semibold border outline-none transition-all ${
+            className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs font-semibold border outline-none transition-all ${
               theme === 'dark' 
-                ? 'bg-slate-900 border-slate-800 text-slate-100 focus:border-indigo-500' 
+                ? 'bg-slate-950 border-slate-800 text-slate-100 focus:border-indigo-500' 
                 : 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 shadow-sm'
             }`}
           />
         </div>
+      </div>
 
-        <span className="text-xs font-extrabold text-slate-800 dark:text-slate-300">
-          Total Kelompok ({pokjaDepartment}): <strong className="text-indigo-600 dark:text-indigo-400">{filteredGroups.length} Kelompok</strong>
-        </span>
+      {/* STATISTIK KELOMPOK */}
+      <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300 px-2">
+        <span>Menampilkan <strong>{filteredGroups.length}</strong> Kelompok Penempatan DUDI ({pokjaDepartment})</span>
+        <span>Total Siswa: <strong>{filteredGroups.reduce((acc, g) => acc + (g.students || g.placements || []).length, 0)}</strong> Orang</span>
       </div>
 
       {/* INPUT FILE HIDDEN UNTUK PICKER */}
@@ -529,7 +636,7 @@ export default function PokjaKelompokPrakerinPage() {
                   </div>
 
                   {/* STATUS & TOMBOL AKSI UTAMA POKJA */}
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 shrink-0">
                     <span className={`px-3.5 py-1.5 rounded-2xl text-xs font-extrabold border flex items-center space-x-1.5 ${
                       hasSurat
                         ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border-emerald-500/30'
@@ -558,7 +665,7 @@ export default function PokjaKelompokPrakerinPage() {
                       }`}
                     >
                       <Eye className="w-4 h-4 text-indigo-600 dark:text-indigo-500" />
-                      <span>Detail Kelompok</span>
+                      <span>Detail</span>
                     </button>
 
                     <button
@@ -569,10 +676,21 @@ export default function PokjaKelompokPrakerinPage() {
                         setSuratBase64('');
                         setSelectedFileName('');
                       }}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/30 cursor-pointer"
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/30 cursor-pointer"
                     >
                       <Upload className="w-4 h-4" />
-                      <span>{hasSurat ? 'Ganti Surat & Nomor' : 'Upload Surat Permohonan'}</span>
+                      <span>{hasSurat ? 'Ganti Surat & Nomor' : 'Upload Surat'}</span>
+                    </button>
+
+                    {/* 🌟 TOMBOL HAPUS KELOMPOK */}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTargetGroup(group)}
+                      className="px-4 py-2.5 rounded-2xl text-xs font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm"
+                      title="Hapus Kelompok & Reset Status Penempatan Siswa"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Hapus Kelompok</span>
                     </button>
 
                     {hasSurat && group.suratTugasUrl && (
@@ -610,13 +728,13 @@ export default function PokjaKelompokPrakerinPage() {
                       return (
                         <div
                           key={item.id || item.placementId || idx}
-                          className={`p-4 rounded-2xl border transition-all space-y-3 flex flex-col justify-between ${
+                          className={`p-4 rounded-2xl border transition-all space-y-3 flex flex-col justify-between relative group ${
                             theme === 'dark'
                               ? 'bg-slate-950/60 border-slate-800'
                               : 'bg-slate-50 border-slate-200'
                           }`}
                         >
-                          <div className="space-y-1 overflow-hidden">
+                          <div className="space-y-1 overflow-hidden pr-6">
                             <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block truncate">
                               {student.name || student.studentName || 'Nama Siswa'}
                             </span>
@@ -627,6 +745,16 @@ export default function PokjaKelompokPrakerinPage() {
                               {student.department || student.departmentName || groupDeptName}
                             </span>
                           </div>
+
+                          {/* TOMBOL KELUARKAN SISWA INDIVIDUAL */}
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTargetStudent(item)}
+                            className="absolute top-3 right-3 p-1 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-500/10 transition-all cursor-pointer"
+                            title="Keluarkan Siswa dari Kelompok ini"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
 
                           {/* GURU PEMBIMBING ASSIGNMENT */}
                           <div className="pt-2.5 border-t border-slate-300 dark:border-slate-800 flex items-center justify-between text-[11px]">
@@ -656,11 +784,133 @@ export default function PokjaKelompokPrakerinPage() {
             <Building className="w-10 h-10 mx-auto text-slate-400" />
             <p className="font-black text-sm text-slate-900 dark:text-slate-200">Tidak Ada Kelompok Prakerin Terdaftar untuk {pokjaDepartment}</p>
             <p className="text-xs max-w-md mx-auto font-medium">
-              Data kelompok prakerin siswa terverifikasi pada jurusan ini belum tersedia.
+              Data kelompok prakerin siswa terverifikasi pada jurusan ini belum tersedia untuk kriteria filter yang dipilih.
             </p>
           </div>
         )}
       </div>
+
+      {/* 🌟 MODAL KONFIRMASI HAPUS SELURUH KELOMPOK */}
+      {deleteTargetGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden transition-all ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="p-6 border-b border-inherit flex justify-between items-center bg-rose-500/10">
+              <h3 className="font-extrabold text-base text-rose-700 dark:text-rose-400 flex items-center space-x-2">
+                <ShieldAlert className="w-5 h-5" />
+                <span>Konfirmasi Hapus Kelompok</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDeleteTargetGroup(null)}
+                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-xs">
+              <div className="space-y-2 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white mx-auto flex items-center justify-center shadow-lg shadow-rose-600/30">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <h4 className="text-base font-black text-slate-900 dark:text-slate-100">
+                  Hapus Kelompok "{deleteTargetGroup.industryName}"?
+                </h4>
+                <p className="text-slate-600 dark:text-slate-400 text-xs font-medium leading-relaxed">
+                  Tindakan ini akan menghapus data penempatan <strong>{(deleteTargetGroup.students || deleteTargetGroup.placements || []).length} Siswa</strong> pada kelompok ini.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-300 text-[11px] font-semibold flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>Status pendaftaran seluruh siswa di kelompok ini akan <strong>DI-RESET</strong>, sehingga mereka bisa memilih kembali DUDI lain di katalog siswa.</span>
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTargetGroup(null)}
+                  className={`px-4 py-2.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    theme === 'dark' ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-800'
+                  }`}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteGroup}
+                  disabled={deleting}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold transition-all shadow-lg shadow-rose-600/30 flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  <span>Ya, Hapus Kelompok</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 MODAL KONFIRMASI KELUARKAN SISWA INDIVIDUAL */}
+      {deleteTargetStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden transition-all ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="p-6 border-b border-inherit flex justify-between items-center bg-rose-500/10">
+              <h3 className="font-extrabold text-base text-rose-700 dark:text-rose-400 flex items-center space-x-2">
+                <ShieldAlert className="w-5 h-5" />
+                <span>Keluarkan Siswa dari Kelompok</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDeleteTargetStudent(null)}
+                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-xs">
+              <div className="space-y-2 text-center">
+                <h4 className="text-base font-black text-slate-900 dark:text-slate-100">
+                  Keluarkan {deleteTargetStudent.student?.name || deleteTargetStudent.name || deleteTargetStudent.studentName}?
+                </h4>
+                <p className="text-slate-600 dark:text-slate-400 text-xs font-medium">
+                  NIS: {deleteTargetStudent.student?.nis || deleteTargetStudent.nis || '-'} • Kelas: {deleteTargetStudent.student?.className || deleteTargetStudent.className || '-'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-300 text-[11px] font-semibold">
+                Status siswa ini akan di-reset dari kelompok penempatan, dan siswa dapat mendaftar kembali di DUDI lain.
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTargetStudent(null)}
+                  className={`px-4 py-2.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    theme === 'dark' ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-800'
+                  }`}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteStudent}
+                  disabled={deleting}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold transition-all shadow-lg shadow-rose-600/30 flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  <span>Keluarkan Siswa</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DETAIL KELOMPOK */}
       {detailModalGroup && (
@@ -722,7 +972,7 @@ export default function PokjaKelompokPrakerinPage() {
               <div className="space-y-3">
                 <h4 className="font-extrabold text-slate-900 dark:text-slate-200 text-sm flex items-center space-x-2">
                   <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Daftar Siswa Anggota Kelompok ({detailModalGroup.students?.length || 0} Siswa):</span>
+                  <span>Daftar Siswa Anggota Kelompok ({(detailModalGroup.students || detailModalGroup.placements || []).length} Siswa):</span>
                 </h4>
 
                 <div className="space-y-2.5">

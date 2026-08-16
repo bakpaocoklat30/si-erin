@@ -1,11 +1,14 @@
 // ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Membatasi query kelompok secara otomatis sesuai jurusan (department) yang melekat pada akun Pokja aktif.
+// ✅ Perubahan: 
+//    1. Menambahkan handler DELETE untuk menghapus penempatan kelompok (reset placement) agar status siswa kembali terbuka.
+//    2. Menambahkan filter query `periodId` pada GET method dan menyertakan daftar `periods` pada response JSON.
 // ✨ Fitur Baru:
-//    - Department-Bound Query Isolation (Pokja hanya menerima data kelompok dari jurusannya sendiri).
-//    - Tata Usaha & Admin tetap memiliki akses lintas jurusan secara global.
-// 🔧 Bug Fix: Mencegah timbulnya kebocoran data antar-jurusan pada sesi Pokja.
-// 🚀 Inovasi: Strict Role-Based Department Isolation Suite for SI-ERIN.
+//    - Placement Reset & Cascade Group Deletion Engine.
+//    - Real-time Period Filtering Support for Pokja Groups.
+// 🎨 UI/UX Update: N/A (Backend API Endpoint).
+// 🔧 Bug Fix: Menyelesaikan masalah kelompok seed/dummy yang mengunci status siswa sehingga tidak bisa memilih DUDI lain.
+// 🚀 Inovasi: Role-Isolated Department & Period Aware Group Manager.
 // ----------------------------------------------------------------------
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +22,9 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 // List Role yang Berhak Mengakses Data Kelompok & Persuratan
 const ALLOWED_ROLES = ['POKJA', 'TIM_POKJA', 'ADMIN', 'TATA_USAHA', 'TU', 'SUPER_ADMIN'];
 
-// 1. GET: Ambil Kelompok Prakerin Sesuai Isolation Jurusan Pokja Active
+// ----------------------------------------------------------------------
+// 1. GET: Ambil Kelompok Prakerin Sesuai Isolation Jurusan Pokja & Filter Periode
+// ----------------------------------------------------------------------
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -33,6 +38,14 @@ export async function GET(request: Request) {
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const selectedPeriodId = searchParams.get('periodId');
+
+    // Ambil daftar seluruh periode untuk pilihan filter di frontend
+    const periods = await db.internshipPeriod.findMany({
+      orderBy: { startDate: 'desc' }
+    });
+
     let studentWhere: any = {};
 
     // 🌟 ISOLASI JURUSAN: Jika Role Pokja & Memiliki Jurusan Khusus, Kunci Query hanya untuk Jurusan Tersebut!
@@ -40,12 +53,14 @@ export async function GET(request: Request) {
       studentWhere.department = { equals: userDepartment, mode: 'insensitive' };
     }
 
+    let placementWhere: any = {
+      student: studentWhere,
+      status: { in: ['PENGAJUAN_DIKIRIM', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'KIRIM_SURAT', 'DISETUJUI_INDUSTRI'] }
+    };
+
     // Ambil data penempatan dari database Prisma
     const placements = await db.internshipPlacement.findMany({
-      where: {
-        student: studentWhere,
-        status: { in: ['PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'KIRIM_SURAT', 'DISETUJUI_INDUSTRI'] }
-      },
+      where: placementWhere,
       include: {
         student: {
           include: {
@@ -60,7 +75,6 @@ export async function GET(request: Request) {
     });
 
     const classRooms = await db.classRoom.findMany({ include: { period: true } });
-    const periods = await db.internshipPeriod.findMany({ orderBy: { startDate: 'desc' } });
 
     const groupedMap: Record<string, any> = {};
 
@@ -75,6 +89,12 @@ export async function GET(request: Request) {
 
       const periodId = matchedPeriod ? matchedPeriod.id : 'PERIODE_DEFAULT';
       const periodName = matchedPeriod ? matchedPeriod.name : 'Periode Prakerin Standar';
+
+      // Jika user memilih filter periode spesifik dan tidak cocok, skip item ini
+      if (selectedPeriodId && selectedPeriodId !== 'ALL' && periodId !== selectedPeriodId) {
+        return;
+      }
+
       const startDate = matchedPeriod?.startDate || placement.startDate || new Date().toISOString();
       const endDate = matchedPeriod?.endDate || placement.endDate || new Date().toISOString();
 
@@ -87,6 +107,7 @@ export async function GET(request: Request) {
 
       if (!groupedMap[groupKey]) {
         groupedMap[groupKey] = {
+          groupId: groupKey,
           groupKey: groupKey,
           industryId: industryId,
           industryName: industryName,
@@ -123,6 +144,7 @@ export async function GET(request: Request) {
 
       groupedMap[groupKey].placements.push({
         id: placement.id,
+        placementId: placement.id,
         status: placement.status,
         suratTugasUrl: placement.suratTugasUrl,
         letterNumber: savedLetterNumber,
@@ -135,6 +157,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       userDepartment: userDepartment || 'Semua Jurusan',
+      periods: periods,
       data: Object.values(groupedMap)
     });
 
@@ -144,7 +167,9 @@ export async function GET(request: Request) {
   }
 }
 
+// ----------------------------------------------------------------------
 // 2. PUT / POST: Unggah Berkas & SIMPAN `letterNumber` KE TABEL InternshipPlacement PRISMA
+// ----------------------------------------------------------------------
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -206,4 +231,74 @@ export async function PUT(request: Request) {
 
 export async function POST(request: Request) {
   return PUT(request);
+}
+
+// ----------------------------------------------------------------------
+// 3. DELETE: Hapus Kelompok / Reset Penempatan Siswa Agar Kembali Terbuka Mendaftar
+// ----------------------------------------------------------------------
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+
+    if (!session || !ALLOWED_ROLES.includes(userRole)) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Akses khusus Pokja, Admin, atau Tata Usaha' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const placementId = searchParams.get('placementId');
+    const industryId = searchParams.get('industryId');
+    const placementIdsParam = searchParams.get('placementIds');
+
+    // Kasus A: Hapus Single Student Placement berdasarkan placementId
+    if (placementId) {
+      await db.internshipPlacement.delete({
+        where: { id: placementId }
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Penempatan siswa berhasil dihapus. Status siswa telah di-reset!'
+      });
+    }
+
+    // Kasus B: Hapus multiple placements berdasarkan daftar ID terpisah koma
+    if (placementIdsParam) {
+      const ids = placementIdsParam.split(',').map(id => id.trim()).filter(Boolean);
+      if (ids.length > 0) {
+        await db.internshipPlacement.deleteMany({
+          where: { id: { in: ids } }
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: `Berhasil menghapus ${ids.length} penempatan siswa dalam kelompok. Status siswa telah di-reset!`
+        });
+      }
+    }
+
+    // Kasus C: Hapus seluruh penempatan berdasarkan industryId
+    if (industryId) {
+      const deleted = await db.internshipPlacement.deleteMany({
+        where: { industryId: industryId }
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Seluruh kelompok penempatan (${deleted.count} siswa) berhasil dihapus & status siswa telah di-reset!`
+      });
+    }
+
+    return NextResponse.json(
+      { error: 'Parameter placementId, placementIds, atau industryId wajib disertakan.' },
+      { status: 400 }
+    );
+
+  } catch (error: any) {
+    console.error('Error deleting Pokja placement group:', error);
+    return NextResponse.json({ error: error.message || 'Gagal menghapus kelompok penempatan' }, { status: 500 });
+  }
 }
