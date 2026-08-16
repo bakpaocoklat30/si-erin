@@ -1,10 +1,10 @@
 // ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Menghapus argument `department` yang invalid dari query `db.industry.findMany()` untuk mencegah Prisma Unknown Argument Error.
-// ✨ Fitur Baru: Safe Prisma Schema Filter for Industry Sector & Period Quotas.
+// ✅ Perubahan: Memperbaiki ekstraksi `activeIndustries` (tipe JSON) pada `InternshipPeriod` sesuai dengan Prisma Schema dan komponen Pokja.
+// ✨ Fitur Baru: JSON-Aware Active Period Industry Resolver & Dynamic Quota Counter.
 // 🎨 UI/UX Update: N/A (Backend API Endpoint).
-// 🔧 Bug Fix: Menyelesaikan `Invalid prisma.industry.findMany() invocation: Unknown argument department`.
-// 🚀 Inovasi: Ultra-Robust Schema-Compliant Dynamic Industry Filter.
+// 🔧 Bug Fix: Menyelesaikan masalah industri yang diaktifkan Pokja tidak muncul di dashboard/students/pengajuan.
+// 🚀 Inovasi: Enterprise Resilient JSON Field Parsing Engine for Prisma.
 // ----------------------------------------------------------------------
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +28,7 @@ function getPlacementClient() {
   );
 }
 
-// Helper terisolasi untuk mendeteksi instance model Period secara presisi
+// Helper terisolasi untuk mendeteksi instance model InternshipPeriod secara presisi
 function getPeriodClient() {
   const prisma = db as any;
   return (
@@ -36,7 +36,6 @@ function getPeriodClient() {
     prisma.InternshipPeriod ||
     prisma.period ||
     prisma.Period ||
-    prisma.pklPeriod ||
     null
   );
 }
@@ -102,9 +101,9 @@ export async function GET() {
           ...rawPlacement,
           industry: rawPlacement.industry ? {
             ...rawPlacement.industry,
-            logoUrl: rawPlacement.industry.logoUrl || rawPlacement.industry.logo_url || rawPlacement.industry.logo || null,
-            latitude: rawPlacement.industry.latitude ?? rawPlacement.industry.lat ?? rawPlacement.industry.lat_location ?? null,
-            longitude: rawPlacement.industry.longitude ?? rawPlacement.industry.lng ?? rawPlacement.industry.lng_location ?? null
+            logoUrl: rawPlacement.industry.logoUrl || rawPlacement.industry.logo_url || null,
+            latitude: rawPlacement.industry.latitude ?? null,
+            longitude: rawPlacement.industry.longitude ?? null
           } : null
         };
       }
@@ -164,92 +163,98 @@ export async function GET() {
       }
     }
 
-    // 4. CARI PERIODE PKL AKTIF & PEMBATASAN INDUSTRI SESUAI JURUSAN SISWA
+    // 4. EKSPLORASI PERIODE PKL AKTIF & PARSING KOLOM JSON `activeIndustries`
     let activePeriod = null;
-    let allowedIndustryIdsFromPeriod: string[] | null = null;
+    let periodIndustryConfigMap: Record<string, { quota: number; isUnlimited: boolean }> = {};
+    let allowedIndustryIdsFromPeriod: string[] = [];
 
     try {
       if (periodClient && typeof periodClient.findFirst === 'function') {
         activePeriod = await periodClient.findFirst({
-          where: {
-            OR: [
-              { isActive: true },
-              { is_active: true },
-              { status: 'ACTIVE' },
-              { status: 'AKTIF' }
-            ]
-          },
-          include: {
-            industries: true,
-            periodIndustries: true,
-            quotas: true
-          }
+          where: { isActive: true },
+          orderBy: { createdAt: 'desc' }
         });
       }
 
       if (!activePeriod) {
-        const prisma = db as any;
-        const pModel = prisma.period || prisma.Period || prisma.internshipPeriod || prisma.InternshipPeriod;
+        // Fallback jika tidak ada yang `isActive: true`, ambil periode paling baru
+        const pModel = (db as any).internshipPeriod || (db as any).period;
         if (pModel && typeof pModel.findFirst === 'function') {
           activePeriod = await pModel.findFirst({
-            orderBy: { createdAt: 'desc' },
-            include: {
-              industries: true,
-              periodIndustries: true,
-              quotas: true
-            }
+            orderBy: { createdAt: 'desc' }
           });
         }
       }
 
-      // Ekstrak ID industri yang dialokasikan dalam periode untuk jurusan siswa
-      if (activePeriod) {
-        const rawPeriodIndustries = activePeriod.industries || activePeriod.periodIndustries || activePeriod.quotas || [];
-        
-        if (Array.isArray(rawPeriodIndustries) && rawPeriodIndustries.length > 0) {
-          allowedIndustryIdsFromPeriod = rawPeriodIndustries
-            .filter((item: any) => {
-              const itemDept = item.department || item.jurusan || item.dept || null;
-              if (itemDept && student.department) {
-                return String(itemDept).toLowerCase() === String(student.department).toLowerCase();
-              }
-              return true;
-            })
-            .map((item: any) => item.industryId || item.industry_id || item.id)
-            .filter(Boolean);
+      // EKSSTRAKSI JSON FIELD `activeIndustries`
+      if (activePeriod && activePeriod.activeIndustries) {
+        let parsedActiveIndustries: any[] = [];
+
+        if (typeof activePeriod.activeIndustries === 'string') {
+          try {
+            parsedActiveIndustries = JSON.parse(activePeriod.activeIndustries);
+          } catch (e) {
+            parsedActiveIndustries = [];
+          }
+        } else if (Array.isArray(activePeriod.activeIndustries)) {
+          parsedActiveIndustries = activePeriod.activeIndustries;
+        }
+
+        if (Array.isArray(parsedActiveIndustries) && parsedActiveIndustries.length > 0) {
+          parsedActiveIndustries.forEach((item: any) => {
+            const indId = item.industryId || item.id;
+            if (indId && typeof indId === 'string') {
+              allowedIndustryIdsFromPeriod.push(indId);
+              periodIndustryConfigMap[indId] = {
+                quota: typeof item.quota === 'number' ? item.quota : 0,
+                isUnlimited: Boolean(item.isUnlimited)
+              };
+            }
+          });
         }
       }
     } catch (pErr) {
-      console.warn('Warning: Gagal mengambil data Periode PKL Aktif:', pErr);
+      console.warn('Warning: Gagal mengekstrak activeIndustries dari Periode PKL:', pErr);
     }
 
-    // 5. AMBIL KATALOG INDUSTRI MITRA DENGAN PRISMA QUERY SAHIH (TIDAK MENGGUNAKAN UNKNOWN FIELD `department`)
-    const studentDept = student.department ? String(student.department).trim().toLowerCase() : '';
+    // 5. PENYUSUNAN QUERY KATALOG INDUSTRI
     let industryWhereClause: any = {};
 
-    if (allowedIndustryIdsFromPeriod && allowedIndustryIdsFromPeriod.length > 0) {
+    if (allowedIndustryIdsFromPeriod.length > 0) {
+      // Jika Pokja telah mengaktifkan daftar industri tertentu di Periode Aktif
       industryWhereClause = {
         id: { in: allowedIndustryIdsFromPeriod }
       };
-    } else if (studentDept) {
-      // ✅ HANYA GUNAKAN FIELD `sector` PADA MODEL INDUSTRY SANGAT PRESISI SAMA DENGAN DATABASE PRISMA
-      industryWhereClause = {
-        OR: [
-          { sector: { contains: studentDept, mode: 'insensitive' } },
-          { sector: { equals: 'Umum', mode: 'insensitive' } },
-          { sector: { equals: student.department } },
-          { sector: null },
-          { sector: '' }
-        ]
-      };
+    } else {
+      // Fallback jika Pokja belum mengeset `activeIndustries`: tampilkan berdasarkan sektor jurusan siswa atau semua industri
+      const studentDept = student.department ? String(student.department).trim() : '';
+
+      if (studentDept) {
+        industryWhereClause = {
+          OR: [
+            { sector: { contains: studentDept, mode: 'insensitive' } },
+            { sector: { equals: 'Umum', mode: 'insensitive' } },
+            { sector: { equals: studentDept } },
+            { sector: null }
+          ]
+        };
+      }
     }
 
-    const industriesRaw = await db.industry.findMany({
+    // Ambil daftar industri mitra dari database Prisma
+    let industriesRaw = await db.industry.findMany({
       where: industryWhereClause,
       orderBy: { name: 'asc' }
     });
 
-    // 6. Hitung sisa kuota industri & pasok data Logo serta Koordinat Maps
+    // Fallback pengaman kedua: Jika hasil filter masih kosong, tampilkan seluruh industri mitra
+    if (industriesRaw.length === 0) {
+      industriesRaw = await db.industry.findMany({
+        orderBy: { name: 'asc' }
+      });
+    }
+
+    // 6. HITUNG SISA KUOTA TERHUBUNG DENGAN KONFIGURASI PERIODE POKJA & DATABASE
     const industries = await Promise.all(
       industriesRaw.map(async (ind: any) => {
         let activePlacementsCount = 0;
@@ -266,28 +271,41 @@ export async function GET() {
             });
           }
         } catch (e) {
-          console.warn('Warning: Gagal menghitung kuota penempatan:', e);
+          console.warn('Warning: Gagal menghitung jumlah siswa terdaftar:', e);
         }
 
-        const totalQuota = ind.quota || ind.totalQuota || 0;
-        const remainingQuota = Math.max(0, totalQuota - activePlacementsCount);
+        // Tentukan total kuota: Prioritaskan konfigurasi khusus Periode Pokja jika ada
+        const periodConfig = periodIndustryConfigMap[ind.id];
+        let totalQuota = ind.totalQuota || 0;
+
+        if (periodConfig) {
+          if (periodConfig.isUnlimited) {
+            totalQuota = 999; // Penanda Tanpa Kuota / Bebas
+          } else if (periodConfig.quota > 0) {
+            totalQuota = periodConfig.quota;
+          }
+        }
+
+        const isUnlimited = periodConfig?.isUnlimited || totalQuota >= 999;
+        const remainingQuota = isUnlimited ? 999 : Math.max(0, totalQuota - activePlacementsCount);
 
         return {
           id: ind.id,
           name: ind.name,
           address: ind.address,
-          subDistrict: ind.subDistrict || ind.kecamatan || '',
-          regency: ind.regency || ind.kabupaten || '',
-          sector: ind.sector || ind.bidang || 'Umum',
-          phone: ind.phone || ind.telepon || ind.noHp || '',
-          contactPerson: ind.contactPerson || ind.hrd || ind.penanggungJawab || '-',
-          totalQuota: totalQuota,
-          remainingQuota: remainingQuota,
+          subDistrict: ind.subDistrict || '',
+          regency: ind.desaKelurahan || '',
+          sector: ind.sector || 'Umum',
+          phone: ind.phone || '',
+          contactPerson: ind.contactPerson || '-',
+          totalQuota: isUnlimited ? 'Bebas' : totalQuota,
+          remainingQuota: isUnlimited ? 999 : remainingQuota,
+          isUnlimited: isUnlimited,
 
-          // EKSPLISIT MENYESUAIKAN FIELD LOGO DAN KOORDINAT DARI DATABASE
-          logoUrl: ind.logoUrl || ind.logo_url || ind.logo || ind.image || ind.imageUrl || null,
-          latitude: ind.latitude ?? ind.lat ?? ind.lat_location ?? null,
-          longitude: ind.longitude ?? ind.lng ?? ind.lng_location ?? null
+          // LOGO DAN KOORDINAT MAPS
+          logoUrl: ind.logoUrl || null,
+          latitude: ind.latitude ?? null,
+          longitude: ind.longitude ?? null
         };
       })
     );
@@ -308,9 +326,9 @@ export async function GET() {
         },
         activePeriod: activePeriod ? {
           id: activePeriod.id,
-          name: activePeriod.name || activePeriod.title || 'Periode PKL Aktif',
-          startDate: activePeriod.startDate || activePeriod.start_date || null,
-          endDate: activePeriod.endDate || activePeriod.end_date || null
+          name: activePeriod.name || 'Periode PKL Aktif',
+          startDate: activePeriod.startDate || null,
+          endDate: activePeriod.endDate || null
         } : null,
         activePlacement: activePlacement,
         lastRejectedPlacement: lastRejectedPlacement,
@@ -394,8 +412,8 @@ export async function POST(request: Request) {
       });
     }
 
-    const totalQuota = industry.quota || (industry as any).totalQuota || 0;
-    if (totalQuota > 0 && currentPlacementsCount >= totalQuota) {
+    const totalQuota = industry.totalQuota || 0;
+    if (totalQuota > 0 && totalQuota < 999 && currentPlacementsCount >= totalQuota) {
       return NextResponse.json({ error: 'Mohon maaf, kuota penempatan untuk industri ini sudah penuh.' }, { status: 400 });
     }
 
