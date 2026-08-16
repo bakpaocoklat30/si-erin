@@ -1,10 +1,10 @@
 // ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Penyempurnaan Pure White Logo Box, Modal confirmation UX, & Smooth Animations.
-// ✨ Fitur Baru: Enterprise Dynamic Dual View (Grid & Table) dengan status kuota real-time.
-// 🎨 UI/UX Update: Tema Dark/Light adaptive dengan komponen border 1px ultra-crisp.
-// 🔧 Bug Fix: Proteksi modal overflow & CSS stacking context pada preview dokumen & konfirmasi.
-// 🚀 Inovasi: Crisp Transparent Logo Container Engine + Maps Deep Linking.
+// ✅ Perubahan: Penambahan info Jurusan & Periode PKL Aktif serta indikator katalog ter-filter.
+// ✨ Fitur Baru: Department Badge & Active Period Notice Banner.
+// 🎨 UI/UX Update: Tampilan badge jurusan ultra-clean & filter visual indikator.
+// 🔧 Bug Fix: Menyelesaikan kebingungan siswa mengapa industri yang ditampilkan kini sudah ter-filter khusus jurusannya.
+// 🚀 Inovasi: Department-Specific Industry Filter Display Engine.
 // ----------------------------------------------------------------------
 
 'use client';
@@ -44,7 +44,8 @@ import {
   Filter,
   Map as MapIcon,
   LayoutGrid,
-  Table as TableIcon
+  Table as TableIcon,
+  GraduationCap
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 import Link from 'next/link';
@@ -60,6 +61,7 @@ export default function StudentPengajuanPage() {
   const [successMsg, setSuccessMsg] = useState('');
 
   const [studentInfo, setStudentInfo] = useState<any>(null);
+  const [activePeriod, setActivePeriod] = useState<any>(null);
   const [activePlacement, setActivePlacement] = useState<any>(null);
   const [lastRejectedPlacement, setLastRejectedPlacement] = useState<any>(null);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
@@ -100,6 +102,7 @@ export default function StudentPengajuanPage() {
 
       if (res.ok && json.success) {
         setStudentInfo(json.data.student);
+        setActivePeriod(json.data.activePeriod);
         setActivePlacement(json.data.activePlacement);
         setLastRejectedPlacement(json.data.lastRejectedPlacement);
         setGroupMembers(json.data.groupMembers || []);
@@ -309,7 +312,7 @@ export default function StudentPengajuanPage() {
       }`}>
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
         <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-          Memuat Status Pengajuan & Katalog Industri...
+          Memuat Status Pengajuan & Katalog Industri Ter-filter...
         </p>
       </div>
     );
@@ -335,7 +338,7 @@ export default function StudentPengajuanPage() {
 
   const currentStep = activePlacement ? getStepNumber(activePlacement.status) : 0;
 
-  // 🖼️ PURE WHITE LOGO RENDERER (MURNI BERBACKGROUND PUTIH UNTUK BRANDING TERUS TERANG)
+  // 🖼️ PURE WHITE LOGO RENDERER
   const renderIndustryLogo = (ind: any, sizeClass = "w-12 h-12", textSizeClass = "text-lg") => {
     if (!ind) return null;
 
@@ -391,14 +394,30 @@ export default function StudentPengajuanPage() {
           : 'bg-white border-slate-200/80 text-slate-900 shadow-slate-200/50'
       }`}>
         <div className="space-y-2">
-          <span className={`px-3.5 py-1 rounded-full text-xs font-bold border flex items-center space-x-1.5 w-fit ${
-            theme === 'dark'
-              ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-              : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-          }`}>
-            <Send className="w-3.5 h-3.5" />
-            <span>Portal Pengajuan Tempat PKL</span>
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`px-3.5 py-1 rounded-full text-xs font-bold border flex items-center space-x-1.5 w-fit ${
+              theme === 'dark'
+                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+            }`}>
+              <Send className="w-3.5 h-3.5" />
+              <span>Portal Pengajuan Tempat PKL</span>
+            </span>
+
+            {studentInfo?.department && (
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center space-x-1">
+                <GraduationCap className="w-3.5 h-3.5" />
+                <span>Jurusan: {studentInfo.department}</span>
+              </span>
+            )}
+
+            {activePeriod && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                {activePeriod.name}
+              </span>
+            )}
+          </div>
+
           <h1 className={`text-3xl font-extrabold tracking-tight ${
             theme === 'dark' ? 'text-white' : 'text-slate-900'
           }`}>
@@ -407,7 +426,7 @@ export default function StudentPengajuanPage() {
           <p className={`text-sm max-w-2xl font-medium ${
             theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
           }`}>
-            Pilih industri mitra (DUDI), pantau 6 alur verifikasi surat permohonan, serta unggah surat balasan penerimaan dari perusahaan secara real-time.
+            Katalog di bawah ini telah disesuaikan secara khusus untuk jurusan <strong>{studentInfo?.department || 'Anda'}</strong> berdasarkan alokasi Periode PKL dari Tim Pokja.
           </p>
         </div>
 
@@ -1011,12 +1030,12 @@ export default function StudentPengajuanPage() {
               theme === 'dark' ? 'text-indigo-400' : 'text-indigo-900'
             }`}>
               <Building2 className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              <span>Katalog Industri Mitra (DUDI)</span>
+              <span>Katalog Industri Mitra (Ter-filter Khusus Jurusan)</span>
             </h3>
             <p className={`text-xs font-medium ${
               theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
             }`}>
-              Pilih salah satu perusahaan mitra yang kuotanya masih tersedia. Gunakan mode tabel agar nama/alamat tidak terpotong.
+              Hanya menampilkan DUDI yang dialokasikan oleh Pokja untuk jurusan <strong>{studentInfo?.department || 'Anda'}</strong>.
             </p>
           </div>
 
@@ -1194,7 +1213,7 @@ export default function StudentPengajuanPage() {
                 theme === 'dark' ? 'bg-slate-900/40 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
               }`}>
                 <Building2 className="w-8 h-8 mx-auto text-slate-400" />
-                <p>Tidak ada industri mitra yang sesuai dengan kriteria pencarian Anda.</p>
+                <p>Tidak ada industri mitra yang dialokasikan untuk jurusan Anda pada periode ini.</p>
               </div>
             )}
           </div>
@@ -1344,7 +1363,7 @@ export default function StudentPengajuanPage() {
                     <tr>
                       <td colSpan={7} className="py-12 text-center text-slate-500 dark:text-slate-400 text-xs font-semibold">
                         <Building2 className="w-8 h-8 mx-auto mb-2 text-slate-400" />
-                        <span>Tidak ada industri mitra yang sesuai dengan kriteria pencarian Anda.</span>
+                        <span>Tidak ada industri mitra yang dialokasikan untuk jurusan Anda pada periode ini.</span>
                       </td>
                     </tr>
                   )}

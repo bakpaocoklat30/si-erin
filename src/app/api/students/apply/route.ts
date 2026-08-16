@@ -1,10 +1,10 @@
 // ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Penguatan penanganan fallback model Prisma placement & pembersihan type safety.
-// ✨ Fitur Baru: Dynamic Schema Fallback & Zero-Crash Response Handler.
+// ✅ Perubahan: Menambahkan pemfilteran katalog industri berdasarkan Periode PKL Aktif dan Jurusan (Department) Siswa.
+// ✨ Fitur Baru: Period & Department-Aware Industry Filtering Engine.
 // 🎨 UI/UX Update: N/A (Backend API Endpoint).
-// 🔧 Bug Fix: Mencegah TypeError saat pembacaan model relasi student-teacher dan placement opsional.
-// 🚀 Inovasi: Multi-Model Detection Engine untuk InternshipPlacement Prisma schema.
+// 🔧 Bug Fix: Menyelesaikan masalah semua industri muncul di siswa padahal sudah dibatasi oleh Pokja pada menu Periode.
+// 🚀 Inovasi: Multi-Tenant Department & Active Period Scope Constraint.
 // ----------------------------------------------------------------------
 
 export const dynamic = 'force-dynamic';
@@ -28,8 +28,21 @@ function getPlacementClient() {
   );
 }
 
+// Helper terisolasi untuk mendeteksi instance model Period secara presisi
+function getPeriodClient() {
+  const prisma = db as any;
+  return (
+    prisma.internshipPeriod ||
+    prisma.InternshipPeriod ||
+    prisma.period ||
+    prisma.Period ||
+    prisma.pklPeriod ||
+    null
+  );
+}
+
 // ----------------------------------------------------------------------
-// GET: Ambil Data Profil Siswa, Status Pengajuan Aktif, Rekan Kelompok, & Katalog Industri
+// GET: Ambil Data Profil Siswa, Status Pengajuan Aktif, Rekan Kelompok, & Katalog Industri (Filtered by Period & Department)
 // ----------------------------------------------------------------------
 export async function GET() {
   try {
@@ -40,6 +53,7 @@ export async function GET() {
 
     const username = (session.user as any)?.username;
     const placementClient = getPlacementClient();
+    const periodClient = getPeriodClient();
 
     // 1. Cari data siswa berdasarkan NIS/Username atau Nama beserta relasi Teacher & Placement
     const student = await db.student.findFirst({
@@ -150,12 +164,100 @@ export async function GET() {
       }
     }
 
-    // 4. Ambil daftar industri mitra
+    // 4. CARI PERIODE PKL AKTIF & PEMBATASAN INDUSTRI SESUAI JURUSAN SISWA
+    let activePeriod = null;
+    let allowedIndustryIdsFromPeriod: string[] | null = null;
+
+    try {
+      if (periodClient && typeof periodClient.findFirst === 'function') {
+        activePeriod = await periodClient.findFirst({
+          where: {
+            OR: [
+              { isActive: true },
+              { is_active: true },
+              { status: 'ACTIVE' },
+              { status: 'AKTIF' }
+            ]
+          },
+          include: {
+            industries: true,
+            periodIndustries: true,
+            quotas: true,
+            departments: true
+          }
+        });
+      }
+
+      if (!activePeriod) {
+        // Fallback jika tidak ditemukan dengan flag active: Ambil periode terbaru
+        const prisma = db as any;
+        const pModel = prisma.period || prisma.Period || prisma.internshipPeriod || prisma.InternshipPeriod;
+        if (pModel && typeof pModel.findFirst === 'function') {
+          activePeriod = await pModel.findFirst({
+            orderBy: { createdAt: 'desc' },
+            include: {
+              industries: true,
+              periodIndustries: true,
+              quotas: true
+            }
+          });
+        }
+      }
+
+      // Jika periode ditemukan, ekstrak ID Industri yang diperbolehkan untuk jurusan siswa ini
+      if (activePeriod) {
+        const rawPeriodIndustries = activePeriod.industries || activePeriod.periodIndustries || activePeriod.quotas || [];
+        
+        if (Array.isArray(rawPeriodIndustries) && rawPeriodIndustries.length > 0) {
+          allowedIndustryIdsFromPeriod = rawPeriodIndustries
+            .filter((item: any) => {
+              // Jika ada spesifikasi jurusan pada item periode/kuota, filter sesuai jurusan siswa
+              const itemDept = item.department || item.jurusan || item.dept || null;
+              if (itemDept && student.department) {
+                return String(itemDept).toLowerCase() === String(student.department).toLowerCase();
+              }
+              return true;
+            })
+            .map((item: any) => item.industryId || item.industry_id || item.id)
+            .filter(Boolean);
+        }
+      }
+    } catch (pErr) {
+      console.warn('Warning: Gagal mengambil data Periode PKL Aktif:', pErr);
+    }
+
+    // 5. Ambil daftar industri mitra (Terapkan Filter Jurusan & Periode jika ada pembatasan)
+    const studentDept = student.department ? String(student.department).trim().toLowerCase() : '';
+    
+    // Syarat Filter Prisma:
+    // a. Sektor/Bidang sesuai jurusan siswa ATAU 'Umum'
+    // b. ATAU ID Industri terdaftar dalam Periode Aktif
+    let industryWhereClause: any = {};
+
+    if (allowedIndustryIdsFromPeriod && allowedIndustryIdsFromPeriod.length > 0) {
+      industryWhereClause = {
+        id: { in: allowedIndustryIdsFromPeriod }
+      };
+    } else if (studentDept) {
+      industryWhereClause = {
+        OR: [
+          { sector: { contains: studentDept, mode: 'insensitive' } },
+          { sector: { equals: 'Umum', mode: 'insensitive' } },
+          { sector: { equals: student.department } },
+          { department: { equals: student.department } },
+          { department: { equals: 'Umum' } },
+          { sector: null },
+          { sector: '' }
+        ]
+      };
+    }
+
     const industriesRaw = await db.industry.findMany({
+      where: industryWhereClause,
       orderBy: { name: 'asc' }
     });
 
-    // 5. Hitung sisa kuota industri & pasok data Logo serta Koordinat Maps
+    // 6. Hitung sisa kuota industri & pasok data Logo serta Koordinat Maps
     const industries = await Promise.all(
       industriesRaw.map(async (ind: any) => {
         let activePlacementsCount = 0;
@@ -212,6 +314,12 @@ export async function GET() {
           bpjsUrl: student.bpjsUrl,
           teacher: resolvedTeacher
         },
+        activePeriod: activePeriod ? {
+          id: activePeriod.id,
+          name: activePeriod.name || activePeriod.title || 'Periode PKL Aktif',
+          startDate: activePeriod.startDate || activePeriod.start_date || null,
+          endDate: activePeriod.endDate || activePeriod.end_date || null
+        } : null,
         activePlacement: activePlacement,
         lastRejectedPlacement: lastRejectedPlacement,
         groupMembers: groupMembers,
