@@ -114,8 +114,6 @@ model Industry {
   sector        String?
   npwp          String?
   logoUrl       String?               @db.Text
-  address       String
-  rt            String?
   rw            String?
   dusun         String?
   desaKelurahan String?

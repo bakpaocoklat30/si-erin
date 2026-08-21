@@ -164,8 +164,6 @@ export async function POST(request: Request) {
             npwp: cleanOptionalString(item.npwp),
             logoUrl: cleanBase64Image(item.logoUrl || item.logo),
 
-            address: cleanRequiredString(item.address || item.alamatJalan, 'Alamat Belum Diisi'),
-            rt: cleanOptionalString(item.rt),
             rw: cleanOptionalString(item.rw),
             dusun: cleanOptionalString(item.dusun),
             desaKelurahan: cleanOptionalString(item.desaKelurahan),
@@ -212,8 +210,6 @@ export async function POST(request: Request) {
 
       address: cleanRequiredString(body.address, 'Alamat Belum Diisi'),
       rt: cleanOptionalString(body.rt),
-      rw: cleanOptionalString(body.rw),
-      dusun: cleanOptionalString(body.dusun),
       desaKelurahan: cleanOptionalString(body.desaKelurahan),
       subDistrict: cleanOptionalString(body.subDistrict),
       postalCode: cleanOptionalString(body.postalCode),
@@ -279,8 +275,6 @@ export async function PUT(request: Request) {
       rt: cleanOptionalString(body.rt),
       rw: cleanOptionalString(body.rw),
       dusun: cleanOptionalString(body.dusun),
-      desaKelurahan: cleanOptionalString(body.desaKelurahan),
-      subDistrict: cleanOptionalString(body.subDistrict),
       postalCode: cleanOptionalString(body.postalCode),
       latitude: cleanOptionalString(body.latitude),
       longitude: cleanOptionalString(body.longitude),
