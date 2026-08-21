@@ -63,25 +63,46 @@ function sanitizeBase64(val: any): string {
   return str.replace(/[\r\n\s]+/g, '');
 }
 
-// 🛡️ DATA FALLBACK STATIS PROVINSI
+// 🛡️ DATA FALLBACK STATIS 38 PROVINSI SE-INDONESIA
 const STATIC_PROVINCES = [
-  { id: '34', code: '34', name: 'DI YOGYAKARTA' },
-  { id: '33', code: '33', name: 'JAWA TENGAH' },
-  { id: '32', code: '32', name: 'JAWA BARAT' },
-  { id: '35', code: '35', name: 'JAWA TIMUR' },
-  { id: '31', code: '31', name: 'DKI JAKARTA' },
-  { id: '36', code: '36', name: 'BANTEN' },
   { id: '11', code: '11', name: 'ACEH' },
   { id: '12', code: '12', name: 'SUMATERA UTARA' },
   { id: '13', code: '13', name: 'SUMATERA BARAT' },
   { id: '14', code: '14', name: 'RIAU' },
   { id: '15', code: '15', name: 'JAMBI' },
   { id: '16', code: '16', name: 'SUMATERA SELATAN' },
+  { id: '17', code: '17', name: 'BENGKULU' },
   { id: '18', code: '18', name: 'LAMPUNG' },
+  { id: '19', code: '19', name: 'KEPULAUAN BANGKA BELITUNG' },
+  { id: '21', code: '21', name: 'KEPULAUAN RIAU' },
+  { id: '31', code: '31', name: 'DKI JAKARTA' },
+  { id: '32', code: '32', name: 'JAWA BARAT' },
+  { id: '33', code: '33', name: 'JAWA TENGAH' },
+  { id: '34', code: '34', name: 'DI YOGYAKARTA' },
+  { id: '35', code: '35', name: 'JAWA TIMUR' },
+  { id: '36', code: '36', name: 'BANTEN' },
   { id: '51', code: '51', name: 'BALI' },
+  { id: '52', code: '52', name: 'NUSA TENGGARA BARAT' },
+  { id: '53', code: '53', name: 'NUSA TENGGARA TIMUR' },
+  { id: '61', code: '61', name: 'KALIMANTAN BARAT' },
+  { id: '62', code: '62', name: 'KALIMANTAN TENGAH' },
   { id: '63', code: '63', name: 'KALIMANTAN SELATAN' },
   { id: '64', code: '64', name: 'KALIMANTAN TIMUR' },
-  { id: '73', code: '73', name: 'SULAWESI SELATAN' }
+  { id: '65', code: '65', name: 'KALIMANTAN UTARA' },
+  { id: '71', code: '71', name: 'SULAWESI UTARA' },
+  { id: '72', code: '72', name: 'SULAWESI TENGAH' },
+  { id: '73', code: '73', name: 'SULAWESI SELATAN' },
+  { id: '74', code: '74', name: 'SULAWESI TENGGARA' },
+  { id: '75', code: '75', name: 'GORONTALO' },
+  { id: '76', code: '76', name: 'SULAWESI BARAT' },
+  { id: '81', code: '81', name: 'MALUKU' },
+  { id: '82', code: '82', name: 'MALUKU UTARA' },
+  { id: '91', code: '91', name: 'PAPUA BARAT' },
+  { id: '92', code: '92', name: 'PAPUA' },
+  { id: '93', code: '93', name: 'PAPUA SELATAN' },
+  { id: '94', code: '94', name: 'PAPUA TENGAH' },
+  { id: '95', code: '95', name: 'PAPUA PEGUNUNGAN' },
+  { id: '96', code: '96', name: 'PAPUA BARAT DAYA' }
 ];
 
 // DATA FALLBACK DEFAULT KOTA/KABUPATEN
@@ -303,32 +324,22 @@ export default function PokjaIndustriesPage() {
     }
   }, []);
 
-  // FETCH PROVINSI DENGAN MULTI-FALLBACK ENGINE
+  // FETCH DAFTAR PROVINSI DARI API WILAYAH INTERNAL
   const fetchProvinces = useCallback(async () => {
     setLoadingProvinces(true);
     try {
-      const res1 = await fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinsis.json');
-      if (res1.ok) {
-        const data1 = await res1.json();
-        if (Array.isArray(data1) && data1.length > 0) {
-          setProvinces(data1.map(p => ({ id: String(p.id), code: String(p.id), name: String(p.name).toUpperCase() })));
-          setLoadingProvinces(false);
+      const res = await fetch('/api/wilayah?type=provinces');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setProvinces(json.data);
           return;
         }
       }
-
-      const res2 = await fetch('https://wilayah.id/api/provinces.json');
-      if (res2.ok) {
-        const data2 = await res2.json();
-        const list = data2.data || data2 || [];
-        if (Array.isArray(list) && list.length > 0) {
-          setProvinces(list.map((p: any) => ({ id: String(p.code || p.id), code: String(p.code || p.id), name: String(p.name).toUpperCase() })));
-          setLoadingProvinces(false);
-          return;
-        }
-      }
+      setProvinces(STATIC_PROVINCES);
     } catch (err) {
-      console.warn('API Wilayah online terhalang, menggunakan fallback statis provinsi.');
+      console.warn('API Wilayah internal gagal, menggunakan fallback 38 provinsi:', err);
+      setProvinces(STATIC_PROVINCES);
     } finally {
       setLoadingProvinces(false);
     }
@@ -338,231 +349,157 @@ export default function PokjaIndustriesPage() {
     fetchProvinces();
   }, [fetchProvinces]);
 
-  // AUTO MATCH PROVINCE CODE SAAT MODAL EDIT DIBUKA
+  // AUTO MATCH PROVINCE CODE SAAT MODAL DIBUKA
   useEffect(() => {
-    if (showModal && formData.province && provinces.length > 0) {
+    if (showModal && formData.province && provinces.length > 0 && !selectedProvinceCode) {
       const normProv = formData.province.trim().toLowerCase();
       const matchProv = provinces.find((p: any) => {
         const pName = (p.name || '').trim().toLowerCase();
         return pName === normProv || normProv.includes(pName) || pName.includes(normProv);
       });
       if (matchProv) {
-        const code = String(matchProv.code || matchProv.id);
-        if (code !== selectedProvinceCode) {
-          setSelectedProvinceCode(code);
-        }
+        setSelectedProvinceCode(String(matchProv.code || matchProv.id));
       }
     }
   }, [showModal, formData.province, provinces, selectedProvinceCode]);
 
-  // MULTI-API FETCHING KABUPATEN + FALLBACK STATIS PRESISI
+  // FETCH KABUPATEN / KOTA KETIKA PROVINSI DIPILIH
   useEffect(() => {
     if (!selectedProvinceCode) {
       setRegencies([]);
       return;
     }
+    let isMounted = true;
     const fetchRegencies = async () => {
       setLoadingRegencies(true);
       try {
-        const res1 = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${selectedProvinceCode}.json`);
-        if (res1.ok) {
-          const data1 = await res1.json();
-          if (Array.isArray(data1) && data1.length > 0) {
-            setRegencies(data1.map(r => ({ id: String(r.id), code: String(r.id), name: String(r.name).toUpperCase() })));
-            setLoadingRegencies(false);
+        const res = await fetch(`/api/wilayah?type=regencies&provinceId=${selectedProvinceCode}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && json.success && Array.isArray(json.data)) {
+            setRegencies(json.data);
             return;
           }
         }
-
-        const res2 = await fetch(`https://wilayah.id/api/regencies/${selectedProvinceCode}.json`);
-        if (res2.ok) {
-          const data2 = await res2.json();
-          const list = data2.data || data2 || [];
-          if (Array.isArray(list) && list.length > 0) {
-            setRegencies(list.map((r: any) => ({ id: String(r.code || r.id), code: String(r.code || r.id), name: String(r.name).toUpperCase() })));
-            setLoadingRegencies(false);
-            return;
-          }
-        }
+        if (isMounted) setRegencies([]);
       } catch (err) {
-        console.warn('Gagal memuat kabupaten dari API online, beralih ke engine fallback statis.');
+        console.warn('Gagal memuat kabupaten/kota:', err);
+        if (isMounted) setRegencies([]);
+      } finally {
+        if (isMounted) setLoadingRegencies(false);
       }
-
-      if (STATIC_REGENCIES_MAP[selectedProvinceCode]) {
-        setRegencies(STATIC_REGENCIES_MAP[selectedProvinceCode]);
-      } else {
-        setRegencies([]);
-      }
-      setLoadingRegencies(false);
     };
 
     fetchRegencies();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedProvinceCode]);
 
-  // AUTO MATCH REGENCY CODE SAAT MODAL EDIT DIBUKA
+  // AUTO MATCH REGENCY CODE SAAT MODAL DIBUKA
   useEffect(() => {
-    if (showModal && formData.regency && regencies.length > 0) {
+    if (showModal && formData.regency && regencies.length > 0 && !selectedRegencyCode) {
       const normReg = formData.regency.trim().toLowerCase();
       const matchReg = regencies.find((r: any) => {
         const rName = (r.name || '').trim().toLowerCase();
         return rName === normReg || normReg.includes(rName) || rName.includes(normReg);
       });
       if (matchReg) {
-        const code = String(matchReg.code || matchReg.id);
-        if (code !== selectedRegencyCode) {
-          setSelectedRegencyCode(code);
-        }
+        setSelectedRegencyCode(String(matchReg.code || matchReg.id));
       }
     }
   }, [showModal, formData.regency, regencies, selectedRegencyCode]);
 
-  // DUAL-API FETCHING KECAMATAN + FALLBACK ENGINE PERMANEN
+  // FETCH KECAMATAN KETIKA KABUPATEN / KOTA DIPILIH
   useEffect(() => {
     if (!selectedRegencyCode) {
-      // Jika belum ada kode kabupaten terpilih tetapi ada teks nama kabupaten, set fallback dari static map
-      if (selectedProvinceCode && STATIC_DISTRICTS_MAP['3404']) {
-        setDistricts(STATIC_DISTRICTS_MAP['3404']);
-      } else {
-        setDistricts([]);
-      }
+      setDistricts([]);
       return;
     }
+    let isMounted = true;
     const fetchDistricts = async () => {
       setLoadingDistricts(true);
       try {
-        const res1 = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${selectedRegencyCode}.json`);
-        if (res1.ok) {
-          const data1 = await res1.json();
-          if (Array.isArray(data1) && data1.length > 0) {
-            setDistricts(data1.map(d => ({ id: String(d.id), code: String(d.id), name: String(d.name).toUpperCase() })));
-            setLoadingDistricts(false);
+        const res = await fetch(`/api/wilayah?type=districts&regencyId=${selectedRegencyCode}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && json.success && Array.isArray(json.data)) {
+            setDistricts(json.data);
             return;
           }
         }
-
-        const res2 = await fetch(`https://wilayah.id/api/districts/${selectedRegencyCode}.json`);
-        if (res2.ok) {
-          const data2 = await res2.json();
-          const list = data2.data || data2 || [];
-          if (Array.isArray(list) && list.length > 0) {
-            setDistricts(list.map((d: any) => ({ id: String(d.code || d.id), code: String(d.code || d.id), name: String(d.name).toUpperCase() })));
-            setLoadingDistricts(false);
-            return;
-          }
-        }
+        if (isMounted) setDistricts([]);
       } catch (err) {
-        console.warn('Gagal memuat kecamatan dari API eksternal.');
+        console.warn('Gagal memuat kecamatan:', err);
+        if (isMounted) setDistricts([]);
+      } finally {
+        if (isMounted) setLoadingDistricts(false);
       }
-
-      // FALLBACK KECAMATAN STATIS
-      if (STATIC_DISTRICTS_MAP[selectedRegencyCode]) {
-        setDistricts(STATIC_DISTRICTS_MAP[selectedRegencyCode]);
-      } else {
-        // Fallback default jika tidak ditemukan ID persis
-        setDistricts([
-          { id: '3404070', code: '3404070', name: 'GAMPING' },
-          { id: '3404120', code: '3404120', name: 'DEPOK' },
-          { id: '3404130', code: '3404130', name: 'NGAGLIK' },
-          { id: '3404140', code: '3404140', name: 'SLEMAN' }
-        ]);
-      }
-      setLoadingDistricts(false);
     };
-    fetchDistricts();
-  }, [selectedRegencyCode, selectedProvinceCode]);
 
-  // AUTO MATCH DISTRICT CODE SAAT MODAL EDIT DIBUKA
+    fetchDistricts();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedRegencyCode]);
+
+  // AUTO MATCH DISTRICT CODE SAAT MODAL DIBUKA
   useEffect(() => {
-    if (showModal && formData.subDistrict && districts.length > 0) {
+    if (showModal && formData.subDistrict && districts.length > 0 && !selectedDistrictCode) {
       const normDist = formData.subDistrict.trim().toLowerCase();
       const matchDist = districts.find((d: any) => {
         const dName = (d.name || '').trim().toLowerCase();
         return dName === normDist || normDist.includes(dName) || dName.includes(normDist);
       });
       if (matchDist) {
-        const code = String(matchDist.code || matchDist.id);
-        if (code !== selectedDistrictCode) {
-          setSelectedDistrictCode(code);
-        }
+        setSelectedDistrictCode(String(matchDist.code || matchDist.id));
       }
     }
   }, [showModal, formData.subDistrict, districts, selectedDistrictCode]);
 
-  // DUAL-API FETCHING KELURAHAN / DESA + KODE POS AUTO FILLER
+  // FETCH KELURAHAN / DESA KETIKA KECAMATAN DIPILIH
   useEffect(() => {
     if (!selectedDistrictCode) {
-      if (selectedRegencyCode && STATIC_VILLAGES_MAP['3404070']) {
-        setVillages(STATIC_VILLAGES_MAP['3404070']);
-      } else {
-        setVillages([]);
-      }
+      setVillages([]);
       return;
     }
+    let isMounted = true;
     const fetchVillages = async () => {
       setLoadingVillages(true);
       try {
-        const res1 = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${selectedDistrictCode}.json`);
-        if (res1.ok) {
-          const data1 = await res1.json();
-          if (Array.isArray(data1) && data1.length > 0) {
-            setVillages(data1.map(v => ({ 
-              id: String(v.id), 
-              code: String(v.id), 
-              name: String(v.name).toUpperCase(), 
-              postalCode: v.postal_code || v.postalCode || KNOWN_POSTAL_CODES[String(v.name).toLowerCase()] || '' 
-            })));
-            setLoadingVillages(false);
+        const res = await fetch(`/api/wilayah?type=villages&districtId=${selectedDistrictCode}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && json.success && Array.isArray(json.data)) {
+            setVillages(json.data);
             return;
           }
         }
-
-        const res2 = await fetch(`https://wilayah.id/api/villages/${selectedDistrictCode}.json`);
-        if (res2.ok) {
-          const data2 = await res2.json();
-          const list = data2.data || data2 || [];
-          if (Array.isArray(list) && list.length > 0) {
-            setVillages(list.map((v: any) => ({ 
-              id: String(v.code || v.id), 
-              code: String(v.code || v.id), 
-              name: String(v.name).toUpperCase(),
-              postalCode: v.postal_code || v.postalCode || KNOWN_POSTAL_CODES[String(v.name).toLowerCase()] || ''
-            })));
-            setLoadingVillages(false);
-            return;
-          }
-        }
+        if (isMounted) setVillages([]);
       } catch (err) {
-        console.warn('Gagal memuat kelurahan dari API eksternal.');
+        console.warn('Gagal memuat kelurahan/desa:', err);
+        if (isMounted) setVillages([]);
+      } finally {
+        if (isMounted) setLoadingVillages(false);
       }
-
-      // FALLBACK KELURAHAN STATIS
-      if (STATIC_VILLAGES_MAP[selectedDistrictCode]) {
-        setVillages(STATIC_VILLAGES_MAP[selectedDistrictCode]);
-      } else {
-        setVillages([
-          { id: '3404070001', code: '3404070001', name: 'NOGOTIRTO', postalCode: '55592' },
-          { id: '3404070002', code: '3404070002', name: 'TRIHANGGO', postalCode: '55592' },
-          { id: '3404070003', code: '3404070003', name: 'AMBARKETAWANG', postalCode: '55592' }
-        ]);
-      }
-      setLoadingVillages(false);
     };
-    fetchVillages();
-  }, [selectedDistrictCode, selectedRegencyCode]);
 
-  // AUTO MATCH VILLAGE CODE & AUTO KODE POS SAAT MODAL EDIT DIBUKA
+    fetchVillages();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDistrictCode]);
+
+  // AUTO MATCH VILLAGE CODE & AUTO KODE POS SAAT MODAL DIBUKA
   useEffect(() => {
-    if (showModal && formData.desaKelurahan && villages.length > 0) {
+    if (showModal && formData.desaKelurahan && villages.length > 0 && !selectedVillageCode) {
       const normVil = formData.desaKelurahan.trim().toLowerCase();
       const matchVil = villages.find((v: any) => {
         const vName = (v.name || '').trim().toLowerCase();
         return vName === normVil || normVil.includes(vName) || vName.includes(normVil);
       });
       if (matchVil) {
-        const code = String(matchVil.code || matchVil.id);
-        if (code !== selectedVillageCode) {
-          setSelectedVillageCode(code);
-        }
+        setSelectedVillageCode(String(matchVil.code || matchVil.id));
         if (matchVil.postalCode && (!formData.postalCode || formData.postalCode.trim() === '')) {
           setFormData(prev => ({ ...prev, postalCode: String(matchVil.postalCode) }));
         }
@@ -579,6 +516,7 @@ export default function PokjaIndustriesPage() {
       }
     }
   }, [formData.desaKelurahan, formData.postalCode]);
+
 
   // Inisialisasi OpenStreetMap / Leaflet Map pada Modal
   const initOpenStreetMap = useCallback((latStr: string, lngStr: string) => {
@@ -1013,10 +951,13 @@ export default function PokjaIndustriesPage() {
   // Open Modal Create
   const handleOpenCreateModal = () => {
     setEditingId(null);
-    setSelectedProvinceCode('34'); // Default DI Yogyakarta untuk kemudahan
-    setSelectedRegencyCode('3404'); // Default Sleman
-    setSelectedDistrictCode('3404070'); // Default Gamping
-    setSelectedVillageCode('3404070001'); // Default Nogotirto
+    setSelectedProvinceCode('');
+    setSelectedRegencyCode('');
+    setSelectedDistrictCode('');
+    setSelectedVillageCode('');
+    setRegencies([]);
+    setDistricts([]);
+    setVillages([]);
     setIsSectorDropdownOpen(false);
     setSectorSearchQuery('');
 
@@ -1028,15 +969,15 @@ export default function PokjaIndustriesPage() {
       npwp: '',
       logoUrl: '',
 
-      province: 'DI YOGYAKARTA',
-      regency: 'KABUPATEN SLEMAN',
+      province: '',
+      regency: '',
       address: '',
-      rt: '001',
-      rw: '002',
-      dusun: 'Dusun Krajan',
-      desaKelurahan: 'NOGOTIRTO',
-      subDistrict: 'GAMPING',
-      postalCode: '55592',
+      rt: '',
+      rw: '',
+      dusun: '',
+      desaKelurahan: '',
+      subDistrict: '',
+      postalCode: '',
       latitude: '-7.781845',
       longitude: '110.334052',
 
@@ -1059,6 +1000,9 @@ export default function PokjaIndustriesPage() {
     setSelectedRegencyCode('');
     setSelectedDistrictCode('');
     setSelectedVillageCode('');
+    setRegencies([]);
+    setDistricts([]);
+    setVillages([]);
     setIsSectorDropdownOpen(false);
     setSectorSearchQuery('');
 
@@ -1070,15 +1014,15 @@ export default function PokjaIndustriesPage() {
       npwp: ind.npwp || '',
       logoUrl: ind.logoUrl || '',
 
-      province: ind.province || 'DI YOGYAKARTA',
-      regency: ind.regency || 'KABUPATEN SLEMAN',
+      province: ind.province || '',
+      regency: ind.regency || '',
       address: ind.address || '',
       rt: ind.rt || '',
       rw: ind.rw || '',
       dusun: ind.dusun || '',
-      desaKelurahan: ind.desaKelurahan || 'NOGOTIRTO',
-      subDistrict: ind.subDistrict || 'GAMPING',
-      postalCode: ind.postalCode || '55592',
+      desaKelurahan: ind.desaKelurahan || '',
+      subDistrict: ind.subDistrict || '',
+      postalCode: ind.postalCode || '',
       latitude: ind.latitude || '-7.781845',
       longitude: ind.longitude || '110.334052',
 
@@ -2044,15 +1988,19 @@ export default function PokjaIndustriesPage() {
                     </label>
                     <select
                       value={selectedProvinceCode}
+                      disabled={loadingProvinces}
                       onChange={(e) => {
                         const code = e.target.value;
                         setSelectedProvinceCode(code);
                         setSelectedRegencyCode('');
                         setSelectedDistrictCode('');
                         setSelectedVillageCode('');
+                        setRegencies([]);
+                        setDistricts([]);
+                        setVillages([]);
 
                         const provObj = provinces.find((p: any) => String(p.code || p.id) === code);
-                        const provName = provObj ? provObj.name : (e.target.options[e.target.selectedIndex]?.text || '');
+                        const provName = provObj ? provObj.name : '';
 
                         setFormData(prev => ({
                           ...prev,
@@ -2062,11 +2010,17 @@ export default function PokjaIndustriesPage() {
                           desaKelurahan: ''
                         }));
                       }}
-                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold cursor-pointer ${
+                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                         isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                       }`}
                     >
-                      <option value="">{formData.province ? `-- ${formData.province} --` : '-- Pilih Provinsi --'}</option>
+                      <option value="">
+                        {loadingProvinces 
+                          ? 'Memuat daftar provinsi...' 
+                          : formData.province 
+                            ? `-- ${formData.province} --` 
+                            : '-- Pilih Provinsi --'}
+                      </option>
                       {provinces.map((p: any) => {
                         const pCode = String(p.code || p.id);
                         return (
@@ -2086,14 +2040,17 @@ export default function PokjaIndustriesPage() {
                     </label>
                     <select
                       value={selectedRegencyCode}
+                      disabled={!selectedProvinceCode || loadingRegencies}
                       onChange={(e) => {
                         const code = e.target.value;
                         setSelectedRegencyCode(code);
                         setSelectedDistrictCode('');
                         setSelectedVillageCode('');
+                        setDistricts([]);
+                        setVillages([]);
 
                         const regObj = regencies.find((r: any) => String(r.code || r.id) === code);
-                        const regName = regObj ? regObj.name : (e.target.options[e.target.selectedIndex]?.text || '');
+                        const regName = regObj ? regObj.name : '';
 
                         setFormData(prev => ({
                           ...prev,
@@ -2102,16 +2059,18 @@ export default function PokjaIndustriesPage() {
                           desaKelurahan: ''
                         }));
                       }}
-                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold cursor-pointer transition-all ${
+                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold cursor-pointer transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                         isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                       }`}
                     >
                       <option value="">
                         {loadingRegencies 
-                          ? 'Memuat daftar kabupaten...' 
-                          : formData.regency 
-                            ? `-- ${formData.regency} --` 
-                            : '-- Pilih Kabupaten/Kota --'}
+                          ? 'Memuat daftar kabupaten/kota...' 
+                          : !selectedProvinceCode 
+                            ? '-- Pilih Provinsi Terlebih Dahulu --'
+                            : formData.regency 
+                              ? `-- ${formData.regency} --` 
+                              : '-- Pilih Kabupaten/Kota --'}
                       </option>
                       {regencies.map((r: any) => {
                         const rCode = String(r.code || r.id);
@@ -2124,7 +2083,7 @@ export default function PokjaIndustriesPage() {
                     </select>
                   </div>
 
-                  {/* 3. KECAMATAN (🌟 DIBERSIHKAN MENJADI DROPDOWN INTERAKTIF DENGAN MATCHING AUTO) */}
+                  {/* 3. KECAMATAN */}
                   <div className="space-y-1.5">
                     <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                       <span>Kecamatan</span>
@@ -2132,13 +2091,15 @@ export default function PokjaIndustriesPage() {
                     </label>
                     <select
                       value={selectedDistrictCode}
+                      disabled={!selectedRegencyCode || loadingDistricts}
                       onChange={(e) => {
                         const code = e.target.value;
                         setSelectedDistrictCode(code);
                         setSelectedVillageCode('');
+                        setVillages([]);
 
                         const distObj = districts.find((d: any) => String(d.code || d.id) === code);
-                        const distName = distObj ? distObj.name : (e.target.options[e.target.selectedIndex]?.text || '');
+                        const distName = distObj ? distObj.name : '';
 
                         setFormData(prev => ({
                           ...prev,
@@ -2146,11 +2107,19 @@ export default function PokjaIndustriesPage() {
                           desaKelurahan: ''
                         }));
                       }}
-                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold cursor-pointer ${
+                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                         isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                       }`}
                     >
-                      <option value="">{formData.subDistrict ? `-- ${formData.subDistrict} --` : '-- Pilih Kecamatan --'}</option>
+                      <option value="">
+                        {loadingDistricts 
+                          ? 'Memuat daftar kecamatan...' 
+                          : !selectedRegencyCode 
+                            ? '-- Pilih Kabupaten/Kota Terlebih Dahulu --'
+                            : formData.subDistrict 
+                              ? `-- ${formData.subDistrict} --` 
+                              : '-- Pilih Kecamatan --'}
+                      </option>
                       {districts.map((d: any) => {
                         const dCode = String(d.code || d.id);
                         return (
@@ -2162,7 +2131,7 @@ export default function PokjaIndustriesPage() {
                     </select>
                   </div>
 
-                  {/* 4. KELURAHAN / DESA (🌟 DROPDOWN + AUTO FILLER KODE POS) */}
+                  {/* 4. KELURAHAN / DESA */}
                   <div className="space-y-1.5">
                     <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                       <span>Desa / Kelurahan</span>
@@ -2170,11 +2139,12 @@ export default function PokjaIndustriesPage() {
                     </label>
                     <select
                       value={selectedVillageCode}
+                      disabled={!selectedDistrictCode || loadingVillages}
                       onChange={(e) => {
                         const code = e.target.value;
                         setSelectedVillageCode(code);
                         const vilObj = villages.find((v: any) => String(v.code || v.id) === code);
-                        const vilName = vilObj ? vilObj.name : (e.target.options[e.target.selectedIndex]?.text || '');
+                        const vilName = vilObj ? vilObj.name : '';
                         
                         // Smart Auto-Fill Kode Pos dari Object Kelurahan
                         const fetchedPostalCode = vilObj?.postalCode || vilObj?.postal_code || KNOWN_POSTAL_CODES[vilName.toLowerCase()] || '';
@@ -2185,11 +2155,19 @@ export default function PokjaIndustriesPage() {
                           postalCode: fetchedPostalCode ? String(fetchedPostalCode) : prev.postalCode
                         }));
                       }}
-                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold cursor-pointer ${
+                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                         isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                       }`}
                     >
-                      <option value="">{formData.desaKelurahan ? `-- ${formData.desaKelurahan} --` : '-- Pilih Kelurahan/Desa --'}</option>
+                      <option value="">
+                        {loadingVillages 
+                          ? 'Memuat daftar kelurahan/desa...' 
+                          : !selectedDistrictCode 
+                            ? '-- Pilih Kecamatan Terlebih Dahulu --'
+                            : formData.desaKelurahan 
+                              ? `-- ${formData.desaKelurahan} --` 
+                              : '-- Pilih Kelurahan/Desa --'}
+                      </option>
                       {villages.map((v: any) => {
                         const vCode = String(v.code || v.id);
                         return (
