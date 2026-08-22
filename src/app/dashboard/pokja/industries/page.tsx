@@ -325,6 +325,7 @@ export default function PokjaIndustriesPage() {
   const mapInstanceRef = useRef<any>(null);
   const markerInstanceRef = useRef<any>(null);
   const [isMapSearching, setIsMapSearching] = useState(false);
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
 
   // State Form Data Lengkap Dapodik DUDI
   const [formData, setFormData] = useState({
@@ -764,8 +765,21 @@ export default function PokjaIndustriesPage() {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+      setMapSearchQuery('');
     }
   }, [showModal, initOpenStreetMap]);
+
+  // AUTO-SEARCH KOORDINAT SAAT MODAL BUKA & KOORDINAT BELUM ADA
+  useEffect(() => {
+    if (showModal && (!formData.latitude || !formData.longitude || formData.latitude === '' || formData.longitude === '')) {
+      // Tunda sedikit agar peta sempat render dulu
+      const timer = setTimeout(() => {
+        executeSearchMapLocation();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showModal]);
 
   // Fetch Data Industri & Master Kategori
   const fetchIndustries = async () => {
@@ -2358,7 +2372,7 @@ export default function PokjaIndustriesPage() {
                     <span>3. Peta Koordinat Presisi OpenStreetMap</span>
                   </h4>
 
-                  {/* 🌟 TOMBOL PENCARIAN ALAMAT LEAFLET DENGAN SMART MULTI-QUERY */}
+                  {/* 🌟 TOMBOL AUTO-CARI DARI DATA FORM */}
                   <button
                     type="button"
                     onClick={() => executeSearchMapLocation()}
@@ -2370,19 +2384,54 @@ export default function PokjaIndustriesPage() {
                   </button>
                 </div>
 
+                {/* 🔍 INPUT PENCARIAN MANUAL — ketik nama/alamat lalu Enter atau klik tombol */}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={mapSearchQuery}
+                      onChange={(e) => setMapSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && mapSearchQuery.trim()) {
+                          e.preventDefault();
+                          executeSearchMapLocation(mapSearchQuery.trim());
+                        }
+                      }}
+                      placeholder='Cari manual: "Jl. Sudirman No.1, Jakarta" atau nama gedung...'
+                      className={`w-full pl-9 pr-4 py-2.5 rounded-2xl border outline-none font-semibold text-sm transition-colors ${
+                        isDark
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-indigo-400'
+                      }`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const q = mapSearchQuery.trim();
+                      executeSearchMapLocation(q || undefined);
+                    }}
+                    disabled={isMapSearching}
+                    className="px-4 py-2.5 rounded-2xl bg-slate-700 hover:bg-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-md shrink-0 disabled:opacity-50"
+                  >
+                    {isMapSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    <span className="hidden sm:inline">Cari</span>
+                  </button>
+                </div>
+
                 {/* CONTAINER PETA LEAFLET */}
                 <div className="space-y-2">
-                  <div 
-                    ref={mapContainerRef} 
+                  <div
+                    ref={mapContainerRef}
                     className="w-full h-64 rounded-2xl border-2 border-slate-300 dark:border-slate-800 overflow-hidden shadow-inner bg-slate-200 dark:bg-slate-950 z-10"
                   />
-                  
+
                   {/* BOTTOM FOOTER MAP */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold flex items-center space-x-1">
-                      <span>💡 Tombol "Cari Lokasi dari Alamat" akan mencari berdasarkan: <strong>Nama Perusahaan + Alamat + Desa + Kec + Kota + Prov</strong>.</span>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                      💡 Otomatis mencari saat koordinat kosong · Ketik di kotak cari untuk pencarian manual · Geser/klik marker untuk presisi
                     </p>
-
                     <button
                       type="button"
                       onClick={handleOpenGoogleMaps}
