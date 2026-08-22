@@ -174,22 +174,96 @@ const STATIC_VILLAGES_MAP: Record<string, Array<{ id: string; code: string; name
   ]
 };
 
-// KODE POS DEFAULTS PER KOTA/KECAMATAN TERKENAL
+// KODE POS DEFAULTS PER DESA/KECAMATAN TERKENAL (CEPAT, TANPA API)
 const KNOWN_POSTAL_CODES: Record<string, string> = {
+  // --- TANGERANG SELATAN ---
+  'pondok jaya': '15224',
+  'pondok betung': '15221',
+  'jurang mangu timur': '15222',
+  'jurang mangu barat': '15223',
+  'pondok aren': '15224',
+  'pondok karya': '15225',
+  'pondok kacang timur': '15226',
+  'pondok kacang barat': '15226',
+  'perigi': '15227',
+  'perigi baru': '15228',
+  'pondok pucung': '15229',
+  'cipayung': '15411',
+  'ciputat': '15411',
+  'sawah baru': '15413',
+  'sawah lama': '15413',
+  'jombang': '15414',
+  'serua': '15414',
+  'serua indah': '15414',
+  'cireundeu': '15419',
+  'pisangan': '15419',
+  'cempaka putih': '15412',
+  'rempoa': '15412',
+  'rengas': '15412',
+  'pondok ranji': '15412',
+  'pondok benda': '15416',
+  'benda baru': '15418',
+  'bambu apus': '15415',
+  'kedaung': '15415',
+  'pamulang barat': '15417',
+  'pamulang timur': '15417',
+  'pondok cabe udik': '15418',
+  'pondok cabe ilir': '15418',
+  'buaran': '15310',
+  'ciater': '15310',
+  'cilenggang': '15310',
+  'rawa mekar jaya': '15310',
+  'rawa buntu': '15318',
+  'lengkong gudang': '15321',
+  'lengkong gudang timur': '15321',
+  'lengkong wetan': '15322',
+  'serpong': '15311',
+  'lengkong karya': '15320',
+  'pakualam': '15320',
+  'pakulonan': '15325',
+  'paku jaya': '15324',
+  'pondok jagung': '15326',
+  'pondok jagung timur': '15326',
+  'jelupang': '15323',
+  'setu': '15314',
+  'keranggan': '15312',
+  'muncul': '15314',
+  'babakan': '15315',
+  'bakti jaya': '15315',
+  'kademangan': '15313',
+  // --- YOGYAKARTA ---
   'nogotirto': '55592',
-  'trihanggo': '55592',
-  'ambarketawang': '55592',
-  'banyuraden': '55592',
-  'balecatur': '55592',
+  'trihanggo': '55291',
+  'ambarketawang': '55294',
+  'banyuraden': '55293',
+  'balecatur': '55295',
   'caturtunggal': '55281',
   'maguwoharjo': '55282',
   'condongcatur': '55283',
+  'sinduadi': '55284',
+  'sendangadi': '55285',
+  'tlogoadi': '55286',
   'gamping': '55592',
   'sleman': '55511',
   'bantul': '55711',
-  'tegal': '52111',
+  // --- JAWA BARAT ---
   'bandung': '40111',
-  'jakarta': '10110'
+  'bekasi': '17111',
+  'depok': '16421',
+  'bogor': '16111',
+  // --- DKI JAKARTA ---
+  'jakarta': '10110',
+  'menteng': '10310',
+  'kebayoran baru': '12110',
+  'tebet': '12810',
+  'pasar minggu': '12520',
+  // --- JAWA TENGAH / TIMUR ---
+  'semarang': '50111',
+  'surabaya': '60111',
+  'malang': '65111',
+  'tegal': '52111',
+  'solo': '57111',
+  'yogyakarta': '55111',
 };
 
 // DEFAULT KATEGORI BIDANG USAHA
@@ -2140,20 +2214,42 @@ export default function PokjaIndustriesPage() {
                     <select
                       value={selectedVillageCode}
                       disabled={!selectedDistrictCode || loadingVillages}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const code = e.target.value;
                         setSelectedVillageCode(code);
                         const vilObj = villages.find((v: any) => String(v.code || v.id) === code);
                         const vilName = vilObj ? vilObj.name : '';
-                        
-                        // Smart Auto-Fill Kode Pos dari Object Kelurahan
-                        const fetchedPostalCode = vilObj?.postalCode || vilObj?.postal_code || KNOWN_POSTAL_CODES[vilName.toLowerCase()] || '';
+                        const vilNameLower = vilName.toLowerCase();
+
+                        // Smart Auto-Fill Kode Pos: cek dari objek desa atau KNOWN_POSTAL_CODES dulu
+                        let resolvedPostalCode: string =
+                          vilObj?.postalCode ||
+                          vilObj?.postal_code ||
+                          KNOWN_POSTAL_CODES[vilNameLower] ||
+                          '';
 
                         setFormData(prev => ({
                           ...prev,
                           desaKelurahan: vilName,
-                          postalCode: fetchedPostalCode ? String(fetchedPostalCode) : prev.postalCode
+                          postalCode: resolvedPostalCode || prev.postalCode
                         }));
+
+                        // Jika belum ada kode pos, query ke API /wilayah?type=postalcode
+                        if (!resolvedPostalCode && vilName) {
+                          try {
+                            const q = encodeURIComponent(vilName);
+                            const res = await fetch(`/api/wilayah?type=postalcode&q=${q}`);
+                            const json = await res.json();
+                            if (json.postalCode) {
+                              setFormData(prev => ({
+                                ...prev,
+                                postalCode: json.postalCode
+                              }));
+                            }
+                          } catch {
+                            // Abaikan error, biarkan user isi manual
+                          }
+                        }
                       }}
                       className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                         isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'

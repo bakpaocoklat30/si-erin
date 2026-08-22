@@ -215,11 +215,337 @@ const FALLBACK_VILLAGES: Record<string, Array<{ id: string; code: string; name: 
   ]
 };
 
+// 📮 MASTER POSTAL CODE DATABASE MAP (INDONESIA LENGKAP JABODETABEK, JAWA, BALI & NASIONAL)
+const MASTER_POSTAL_CODES: Record<string, string> = {
+  // --- TANGERANG SELATAN (BANTEN) ---
+  'pondok jaya': '15224',
+  'pondok betung': '15221',
+  'jurang mangu timur': '15222',
+  'jurang mangu barat': '15223',
+  'pondok aren': '15224',
+  'pondok karya': '15225',
+  'pondok kacang timur': '15226',
+  'pondok kacang barat': '15226',
+  'perigi': '15227',
+  'perigi baru': '15228',
+  'pondok pucung': '15229',
+  'cipayung': '15411',
+  'ciputat': '15411',
+  'sawah baru': '15413',
+  'sawah lama': '15413',
+  'jombang': '15414',
+  'serua': '15414',
+  'serua indah': '15414',
+  'cireundeu': '15419',
+  'pisangan': '15419',
+  'cempaka putih': '15412',
+  'rempoa': '15412',
+  'rengas': '15412',
+  'pondok ranji': '15412',
+  'pondok benda': '15416',
+  'benda baru': '15418',
+  'bambu apus': '15415',
+  'kedaung': '15415',
+  'pamulang barat': '15417',
+  'pamulang timur': '15417',
+  'pondok cabe udik': '15418',
+  'pondok cabe ilir': '15418',
+  'buaran': '15310',
+  'ciater': '15310',
+  'cilenggang': '15310',
+  'rawa mekar jaya': '15310',
+  'rawa buntu': '15318',
+  'lengkong gudang': '15321',
+  'lengkong gudang timur': '15321',
+  'lengkong wetan': '15322',
+  'serpong': '15311',
+  'lengkong karya': '15320',
+  'pakualam': '15320',
+  'pakulonan': '15325',
+  'paku jaya': '15324',
+  'pondok jagung': '15326',
+  'pondok jagung timur': '15326',
+  'jelupang': '15323',
+  'setu': '15314',
+  'keranggan': '15312',
+  'muncul': '15314',
+  'babakan': '15315',
+  'bakti jaya': '15315',
+  'kademangan': '15313',
+
+  // --- KOTA TANGERANG & KAB. TANGERANG ---
+  'paninggilan': '15153',
+  'paninggilan utara': '15153',
+  'parung serab': '15153',
+  'sudimara barat': '15151',
+  'sudimara jaya': '15151',
+  'sudimara selatan': '15151',
+  'sudimara timur': '15151',
+  'tajur': '15152',
+  'sukasari': '15118',
+  'sukarasa': '15111',
+  'sukaasih': '15111',
+  'tanah tinggi': '15119',
+  'buaran indah': '15119',
+  'cikokol': '15117',
+  'kelapa indah': '15117',
+  'bojong jaya': '15115',
+  'bugel': '15113',
+  'cimone': '15114',
+  'cimone jaya': '15114',
+  'karawaci': '15115',
+  'karawaci baru': '15116',
+  'kelapa dua': '15810',
+  'curug': '15810',
+  'bencongan': '15810',
+  'bojong nangka': '15810',
+
+  // --- DKI JAKARTA ---
+  'kebayoran baru': '12110',
+  'senayan': '12190',
+  'gandaria utara': '12140',
+  'gandaria selatan': '12420',
+  'cipete utara': '12150',
+  'cipete selatan': '12410',
+  'melawai': '12160',
+  'gunung': '12120',
+  'kramat pela': '12130',
+  'pulo': '12160',
+  'petogogan': '12170',
+  'rawa barat': '12180',
+  'selong': '12110',
+  'kebayoran lama utara': '12240',
+  'kebayoran lama selatan': '12240',
+  'pondok pinang': '12310',
+  'cilandak barat': '12430',
+  'lebak bulus': '12440',
+  'pondok labu': '12450',
+  'pejaten barat': '12510',
+  'pejaten timur': '12510',
+  'pasar minggu': '12520',
+  'kebagusan': '12520',
+  'jati padang': '12540',
+  'ragunan': '12550',
+  'ciganjur': '12630',
+  'srengseng sawah': '12640',
+  'jagakarsa': '12620',
+  'lenteng agung': '12610',
+  'tanjung barat': '12530',
+  'mampang prapatan': '12790',
+  'kuningan barat': '12710',
+  'pela mampang': '12720',
+  'bangka': '12730',
+  'tebet barat': '12810',
+  'tebet timur': '12820',
+  'menteng dalam': '12870',
+  'karet': '12920',
+  'karet semanggi': '12930',
+  'karet kuningan': '12940',
+  'kuningan timur': '12950',
+  'menteng': '10310',
+  'pegangsaan': '10320',
+  'cikini': '10330',
+  'gondangdia': '10350',
+  'gambir': '10110',
+  'kebon kelapa': '10120',
+  'petojo utara': '10130',
+  'petojo selatan': '10160',
+  'cideng': '10150',
+  'duri pulo': '10140',
+
+  // --- JAWA BARAT (BANDUNG, BEKASI, BOGOR, DEPOK) ---
+  'dago': '40135',
+  'sekeloa': '40134',
+  'lebak siliwangi': '40132',
+  'sadang serang': '40133',
+  'lebakgede': '40132',
+  'cipaganti': '40131',
+  'sukasari bandung': '40151',
+  'gegerkalong': '40153',
+  'sukagalih': '40163',
+  'sukawarna': '40164',
+  'sukabungah': '40162',
+  'sukajadi': '40162',
+  'pasteur': '40161',
+  'ciroyom': '40182',
+  'kebon jeruk': '40181',
+  'dunguscariang': '40183',
+  'campaka': '40184',
+  'maleber': '40184',
+  'garuda': '40184',
+  'braga': '40111',
+  'merdeka': '40113',
+  'babakan ciamis': '40117',
+  'kebon pisang': '40112',
+  'margahayu': '40286',
+  'ciwastra': '40287',
+  'buaran bekasi': '17124',
+  'margahayu bekasi': '17113',
+  'pekayon jaya': '17148',
+  'jakasetia': '17147',
+  'kayuringin jaya': '17144',
+  'bintara': '17134',
+  'kranji': '17135',
+  'harapan indah': '17131',
+  'margonda': '16424',
+  'kemirimuka': '16423',
+  'beji': '16421',
+  'pondok cina': '16424',
+  'kukusan': '16425',
+  'tanah baru': '16426',
+  'sukmajaya': '16412',
+  'mekarjaya': '16411',
+  'baktijaya': '16418',
+  'abadijaya': '16417',
+  'tirtajaya': '16412',
+  'cilodong': '16414',
+  'kalibaru': '16413',
+
+  // --- DI YOGYAKARTA ---
+  'nogotirto': '55592',
+  'trihanggo': '55291',
+  'banyuraden': '55293',
+  'ambarketawang': '55294',
+  'balecatur': '55295',
+  'caturtunggal': '55281',
+  'maguwoharjo': '55282',
+  'condongcatur': '55283',
+  'sinduadi': '55284',
+  'sendangadi': '55285',
+  'tlogoadi': '55286',
+  'tirtoadi': '55287',
+  'sumberadi': '55288',
+  'sariharjo': '55581',
+  'minomartani': '55581',
+  'sinduharjo': '55581',
+  'sukoharjo': '55581',
+  'sardonoharjo': '55581',
+  'donoharjo': '55581',
+  'tamanmartani': '55571',
+  'tirtomartani': '55571',
+  'kalitirto': '55573',
+  'sendangtirto': '55573',
+  'jogotirto': '55573',
+  'tegaltirto': '55573',
+  'bokoharjo': '55572',
+  'sambirejo': '55572',
+  'sumberharjo': '55572',
+  'wukirharjo': '55572',
+  'gondomanan': '55121',
+  'ngupasan': '55122',
+  'prau': '55122',
+  'danurejan': '55211',
+  'bausasran': '55211',
+  'tegalpanggung': '55212',
+  'suryatmajan': '55213',
+  'sosromenduran': '55271',
+  'pringgokusuman': '55272',
+  'terban': '55223',
+  'kotabaru': '55224',
+  'klitren': '55222',
+  'baciro': '55225',
+  'demangan': '55221',
+  'bumijo': '55231',
+  'gowongan': '55232',
+  'cokrodiningratan': '55233',
+  'purbayan': '55173',
+  'rejwobangun': '55171',
+  'prenggan': '55172',
+  'panembahan': '55131',
+  'kadipaten': '55132',
+  'patehan': '55133',
+  'suryodiningratan': '55141',
+  'gedongkiwo': '55142',
+  'mantrijeron': '55143',
+  'brontokusuman': '55153',
+  'keparakan': '55152',
+  'wirogunan': '55151',
+  'ngampilan': '55261',
+  'notoprajan': '55262',
+  'gunungketur': '55111',
+  'purwokinanti': '55112',
+  'bener': '55243',
+  'karangwaru': '55241',
+  'kricak': '55242',
+  'tegalrejo': '55244',
+  'giwangan': '55163',
+  'muja muju': '55165',
+  'pandeyan': '55161',
+  'semaki': '55166',
+  'tahunan': '55167',
+  'sorosutan': '55162',
+  'warungboto': '55164',
+  'pakuncen': '55253',
+  'patangpuluhan': '55251',
+  'wirobrajan': '55252',
+
+  // --- SURABAYA & JAWA TIMUR ---
+  'gubeng': '60281',
+  'airlangga': '60286',
+  'barata jaya': '60284',
+  'mojo': '60285',
+  'kertajaya': '60282',
+  'pucang sewu': '60283',
+  'tegalsari': '60261',
+  'wonorejo': '60263',
+  'dr soetomo': '60264',
+  'kedungdoro': '60261',
+  'keputran': '60265',
+  'genteng': '60275',
+  'embong kaliasin': '60271',
+  'ketabang': '60272',
+  'kapasari': '60273',
+  'peneleh': '60274',
+  'wonokromo': '60241',
+  'darmo': '60241',
+  'sawunggaling': '60242',
+  'jagir': '60244',
+  'ngagel': '60246',
+  'ngagelrejo': '60245',
+  'sukolilo': '60111',
+  'keputih': '60111',
+  'gepengan': '60117',
+  'klampis ngasem': '60117',
+  'medokan semampir': '60119',
+  'menur pumpungan': '60118',
+  'nginden jangkungan': '60118',
+  'semolowaru': '60119',
+  'rungkut': '60293',
+  'kalirungkut': '60293',
+  'rungkut kidul': '60293',
+  'medokan ayu': '60295',
+  'wonorejo rungkut': '60296',
+  'penjaringan sari': '60297',
+  'kedung baruk': '60298',
+  'lowokwaru': '65141',
+  'klojen': '65111',
+  'blimbing': '65126',
+  'sukun': '65147',
+  'kedungkandang': '65137'
+};
+
 // Global memory cache untuk mencegah request berulang
 const memoryCache = new Map<string, any>();
 
+// Helper cari kode pos dari database map lokal
+function resolveLocalPostalCode(queryText: string): string {
+  if (!queryText) return '';
+  const clean = queryText.toLowerCase().trim();
+  
+  // 1. Cek exact match
+  if (MASTER_POSTAL_CODES[clean]) return MASTER_POSTAL_CODES[clean];
+
+  // 2. Cek keyword match
+  for (const [name, code] of Object.entries(MASTER_POSTAL_CODES)) {
+    if (clean.includes(name) || name.includes(clean)) {
+      return code;
+    }
+  }
+  return '';
+}
+
 // Helper fetch JSON dengan timeout aman (3 detik)
-async function fetchWithTimeout(url: string, timeoutMs: number = 3000): Promise<any> {
+async function fetchWithTimeout(url: string, timeoutMs: number = 3500): Promise<any> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -237,13 +563,14 @@ export async function GET(request: NextRequest) {
   const provinceId = (searchParams.get('provinceId') || searchParams.get('provinceCode') || '').trim();
   const regencyId = (searchParams.get('regencyId') || searchParams.get('regencyCode') || '').trim();
   const districtId = (searchParams.get('districtId') || searchParams.get('districtCode') || '').trim();
+  const qParam = (searchParams.get('q') || searchParams.get('query') || '').trim();
 
   // Bersihkan karakter titik (misal '34.04' -> '3404')
   const cleanProvId = provinceId.replace(/\./g, '');
   const cleanRegId = regencyId.replace(/\./g, '');
   const cleanDistId = districtId.replace(/\./g, '');
 
-  const cacheKey = `${type}:${cleanProvId}:${cleanRegId}:${cleanDistId}`;
+  const cacheKey = `${type}:${cleanProvId}:${cleanRegId}:${cleanDistId}:${qParam.toLowerCase()}`;
   if (memoryCache.has(cacheKey)) {
     return NextResponse.json({ success: true, source: 'cache', data: memoryCache.get(cacheKey) });
   }
@@ -399,12 +726,11 @@ export async function GET(request: NextRequest) {
     try {
       const data = await fetchWithTimeout(`https://emsifa.github.io/api-wilayah-indonesia/api/villages/${cleanDistId}.json`);
       if (Array.isArray(data) && data.length > 0) {
-        const result = data.map((v: any) => ({
-          id: String(v.id),
-          code: String(v.id),
-          name: String(v.name).toUpperCase(),
-          postalCode: v.postal_code || v.postalCode || ''
-        }));
+        const result = data.map((v: any) => {
+          const name = String(v.name).toUpperCase();
+          const postalCode = v.postal_code || v.postalCode || resolveLocalPostalCode(name) || '';
+          return { id: String(v.id), code: String(v.id), name, postalCode };
+        });
         memoryCache.set(cacheKey, result);
         return NextResponse.json({ success: true, source: 'emsifa', data: result });
       }
@@ -412,12 +738,11 @@ export async function GET(request: NextRequest) {
       try {
         const data = await fetchWithTimeout(`https://kanglerian.github.io/api-wilayah-indonesia/api/villages/${cleanDistId}.json`);
         if (Array.isArray(data) && data.length > 0) {
-          const result = data.map((v: any) => ({
-            id: String(v.id),
-            code: String(v.id),
-            name: String(v.name).toUpperCase(),
-            postalCode: v.postal_code || v.postalCode || ''
-          }));
+          const result = data.map((v: any) => {
+            const name = String(v.name).toUpperCase();
+            const postalCode = v.postal_code || v.postalCode || resolveLocalPostalCode(name) || '';
+            return { id: String(v.id), code: String(v.id), name, postalCode };
+          });
           memoryCache.set(cacheKey, result);
           return NextResponse.json({ success: true, source: 'kanglerian', data: result });
         }
@@ -428,6 +753,39 @@ export async function GET(request: NextRequest) {
 
     const fallback = FALLBACK_VILLAGES[cleanDistId] || [];
     return NextResponse.json({ success: true, source: 'static_fallback', data: fallback });
+  }
+
+  // 5. LOOKUP KODE POS LANGSUNG
+  if (type === 'postalcode') {
+    if (!qParam) {
+      return NextResponse.json({ success: false, error: 'Parameter q wajib disertakan' }, { status: 400 });
+    }
+
+    // 1) Cek di database lokal dulu (instan)
+    const localCode = resolveLocalPostalCode(qParam);
+    if (localCode) {
+      memoryCache.set(cacheKey, localCode);
+      return NextResponse.json({ success: true, source: 'local_dict', postalCode: localCode });
+    }
+
+    // 2) Fallback ke Nominatim
+    try {
+      const encoded = encodeURIComponent(`${qParam}, Indonesia`);
+      const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&addressdetails=1&limit=1`;
+      const nominatimData = await fetchWithTimeout(nominatimUrl);
+      if (Array.isArray(nominatimData) && nominatimData.length > 0) {
+        const addr = nominatimData[0]?.address || {};
+        const postcode = addr.postcode || '';
+        if (postcode) {
+          memoryCache.set(cacheKey, postcode);
+          return NextResponse.json({ success: true, source: 'nominatim', postalCode: String(postcode) });
+        }
+      }
+    } catch {
+      // Do nothing
+    }
+
+    return NextResponse.json({ success: true, source: 'not_found', postalCode: '' });
   }
 
   return NextResponse.json({ success: false, error: 'Tipe wilayah tidak dikenali' }, { status: 400 });
