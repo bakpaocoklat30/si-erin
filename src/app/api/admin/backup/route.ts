@@ -105,77 +105,44 @@ export async function POST(request: Request) {
         sqlDumpContent += `-- SYSTEM: SI-ERIN v2.0 Enterprise Architecture\n`;
         sqlDumpContent += `-- ==================================================\n\n`;
 
-        // 1. SchoolSetting
-        sqlDumpContent += `-- 1. TABLE "SchoolSetting" (${schoolSettings.length} RECORDS)\n`;
-        schoolSettings.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "SchoolSetting" ("id", "name", "shortName", "logoUrl", "address", "phone", "email", "headmaster", "headmasterNip", "accreditation", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.shortName)}, ${escapeSqlVal(item.logoUrl)}, ${escapeSqlVal(item.address)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.email)}, ${escapeSqlVal(item.headmaster)}, ${escapeSqlVal(item.headmasterNip)}, ${escapeSqlVal(item.accreditation)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO UPDATE SET "name"=EXCLUDED."name", "logoUrl"=EXCLUDED."logoUrl";\n`;
-        });
+        // Helper: Generic Insert Generator
+        function generateInsert(tableName, records, conflictKey = 'id') {
+          if (!records || records.length === 0) return '';
+          let sql = `-- TABLE "${tableName}" (${records.length} RECORDS)\n`;
+          records.forEach(item => {
+            const keys = Object.keys(item).map(k => `"${k}"`).join(', ');
+            const vals = Object.values(item).map(v => escapeSqlVal(v)).join(', ');
+            
+            if (conflictKey === 'DO NOTHING') {
+              sql += `INSERT INTO "${tableName}" (${keys}) VALUES (${vals}) ON CONFLICT DO NOTHING;\n`;
+            } else {
+              const updates = Object.keys(item)
+                .filter(k => k !== conflictKey)
+                .map(k => `"${k}"=EXCLUDED."${k}"`)
+                .join(', ');
+              sql += `INSERT INTO "${tableName}" (${keys}) VALUES (${vals}) ON CONFLICT ("${conflictKey}") DO UPDATE SET ${updates};\n`;
+            }
+          });
+          return sql + '\n';
+        }
 
-        // 2. User
-        sqlDumpContent += `\n-- 2. TABLE "User" (${users.length} RECORDS)\n`;
-        users.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "User" ("id", "username", "name", "password", "role", "department", "phone", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.username)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.password)}, ${escapeSqlVal(item.role)}, ${escapeSqlVal(item.department)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
+        const systemSettings = prisma.systemSetting ? await prisma.systemSetting.findMany() : [];
+        const auditLogs = prisma.auditLog ? await prisma.auditLog.findMany() : [];
 
-        // 3. AcademicYear
-        sqlDumpContent += `\n-- 3. TABLE "AcademicYear" (${academicYears.length} RECORDS)\n`;
-        academicYears.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "AcademicYear" ("id", "year", "isActive", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.year)}, ${escapeSqlVal(item.isActive)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
-
-        // 4. Department
-        sqlDumpContent += `\n-- 4. TABLE "Department" (${departments.length} RECORDS)\n`;
-        departments.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "Department" ("id", "code", "name", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.code)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
-
-        // 5. InternshipPeriod
-        sqlDumpContent += `\n-- 5. TABLE "InternshipPeriod" (${internshipPeriods.length} RECORDS)\n`;
-        internshipPeriods.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "InternshipPeriod" ("id", "name", "startDate", "endDate", "department", "isActive", "academicYearId", "activeIndustries", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.startDate)}, ${escapeSqlVal(item.endDate)}, ${escapeSqlVal(item.department)}, ${escapeSqlVal(item.isActive)}, ${escapeSqlVal(item.academicYearId)}, ${escapeSqlVal(item.activeIndustries)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
-
-        // 6. ClassRoom
-        sqlDumpContent += `\n-- 6. TABLE "ClassRoom" (${classRooms.length} RECORDS)\n`;
-        classRooms.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "ClassRoom" ("id", "name", "departmentId", "isAllowedPkl", "periodId", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.departmentId)}, ${escapeSqlVal(item.isAllowedPkl)}, ${escapeSqlVal(item.periodId)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
-
-        // 7. InternshipCoefficient
-        sqlDumpContent += `\n-- 7. TABLE "InternshipCoefficient" (${coefficients.length} RECORDS)\n`;
-        coefficients.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "InternshipCoefficient" ("id", "periodId", "academicYear", "periodName", "totalClasses", "hoursPerClass", "totalStudents", "coefficient", "notes", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.periodId)}, ${escapeSqlVal(item.academicYear)}, ${escapeSqlVal(item.periodName)}, ${escapeSqlVal(item.totalClasses)}, ${escapeSqlVal(item.hoursPerClass)}, ${escapeSqlVal(item.totalStudents)}, ${escapeSqlVal(item.coefficient)}, ${escapeSqlVal(item.notes)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
-
-        // 8. IndustryCategory
-        sqlDumpContent += `\n-- 8. TABLE "IndustryCategory" (${categories.length} RECORDS)\n`;
-        categories.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "IndustryCategory" ("id", "name", "description", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.description)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
-
-        // 9. Industry
-        sqlDumpContent += `\n-- 9. TABLE "Industry" (${industries.length} RECORDS)\n`;
-        industries.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "Industry" ("id", "name", "nib", "sector", "npwp", "logoUrl", "address", "rt", "rw", "dusun", "desaKelurahan", "subDistrict", "postalCode", "latitude", "longitude", "contactPerson", "phone", "fax", "email", "website", "totalQuota", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.nib)}, ${escapeSqlVal(item.sector)}, ${escapeSqlVal(item.npwp)}, ${escapeSqlVal(item.logoUrl)}, ${escapeSqlVal(item.address)}, ${escapeSqlVal(item.rt)}, ${escapeSqlVal(item.rw)}, ${escapeSqlVal(item.dusun)}, ${escapeSqlVal(item.desaKelurahan)}, ${escapeSqlVal(item.subDistrict)}, ${escapeSqlVal(item.postalCode)}, ${escapeSqlVal(item.latitude)}, ${escapeSqlVal(item.longitude)}, ${escapeSqlVal(item.contactPerson)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.fax)}, ${escapeSqlVal(item.email)}, ${escapeSqlVal(item.website)}, ${escapeSqlVal(item.totalQuota)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
-
-        // 10. Student
-        sqlDumpContent += `\n-- 10. TABLE "Student" (${students.length} RECORDS)\n`;
-        students.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "Student" ("id", "userId", "nis", "nisn", "name", "className", "department", "phone", "parentName", "parentRelation", "parentPhone", "bpjsStatus", "bpjsUrl", "cvStatus", "cvUrl", "isAllowedPkl", "teacherId", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.userId)}, ${escapeSqlVal(item.nis)}, ${escapeSqlVal(item.nisn)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.className)}, ${escapeSqlVal(item.department)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.parentName)}, ${escapeSqlVal(item.parentRelation)}, ${escapeSqlVal(item.parentPhone)}, ${escapeSqlVal(item.bpjsStatus)}, ${escapeSqlVal(item.bpjsUrl)}, ${escapeSqlVal(item.cvStatus)}, ${escapeSqlVal(item.cvUrl)}, ${escapeSqlVal(item.isAllowedPkl)}, ${escapeSqlVal(item.teacherId)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
-
-        // 11. InternshipPlacement
-        sqlDumpContent += `\n-- 11. TABLE "InternshipPlacement" (${placements.length} RECORDS)\n`;
-        placements.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "InternshipPlacement" ("id", "studentId", "industryId", "status", "notes", "suratTugasUrl", "suratBalasanUrl", "suratBalasanStatus", "startDate", "endDate", "appliedAt", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.studentId)}, ${escapeSqlVal(item.industryId)}, ${escapeSqlVal(item.status)}, ${escapeSqlVal(item.notes)}, ${escapeSqlVal(item.suratTugasUrl)}, ${escapeSqlVal(item.suratBalasanUrl)}, ${escapeSqlVal(item.suratBalasanStatus)}, ${escapeSqlVal(item.startDate)}, ${escapeSqlVal(item.endDate)}, ${escapeSqlVal(item.appliedAt)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
-
-        // 12. TeacherHourAllocation
-        sqlDumpContent += `\n-- 12. TABLE "TeacherHourAllocation" (${teacherHours.length} RECORDS)\n`;
-        teacherHours.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "TeacherHourAllocation" ("id", "className", "teacherId", "totalHours", "academicYear", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.className)}, ${escapeSqlVal(item.teacherId)}, ${escapeSqlVal(item.totalHours)}, ${escapeSqlVal(item.academicYear)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
-        });
+        sqlDumpContent += generateInsert('SchoolSetting', schoolSettings, 'id');
+        sqlDumpContent += generateInsert('SystemSetting', systemSettings, 'key');
+        sqlDumpContent += generateInsert('User', users, 'DO NOTHING');
+        sqlDumpContent += generateInsert('AcademicYear', academicYears, 'DO NOTHING');
+        sqlDumpContent += generateInsert('Department', departments, 'DO NOTHING');
+        sqlDumpContent += generateInsert('InternshipPeriod', internshipPeriods, 'DO NOTHING');
+        sqlDumpContent += generateInsert('ClassRoom', classRooms, 'DO NOTHING');
+        sqlDumpContent += generateInsert('InternshipCoefficient', coefficients, 'DO NOTHING');
+        sqlDumpContent += generateInsert('IndustryCategory', categories, 'DO NOTHING');
+        sqlDumpContent += generateInsert('Industry', industries, 'DO NOTHING');
+        sqlDumpContent += generateInsert('Student', students, 'DO NOTHING');
+        sqlDumpContent += generateInsert('InternshipPlacement', placements, 'DO NOTHING');
+        sqlDumpContent += generateInsert('TeacherHourAllocation', teacherHours, 'DO NOTHING');
+        sqlDumpContent += generateInsert('AuditLog', auditLogs, 'DO NOTHING');
 
         fs.writeFileSync(sqlFilePath, sqlDumpContent);
         dumpSuccess = true;
