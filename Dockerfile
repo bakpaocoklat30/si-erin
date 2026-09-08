@@ -37,6 +37,8 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN mkdir -p public/uploads
 
 # Generate Prisma Client & Build Next.js
+# Berikan dummy DATABASE_URL agar Next.js static generation tidak crash saat build
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 RUN npm run build
 
