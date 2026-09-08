@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Trigger restart untuk reload Prisma Client
 const nextConfig = {
   output: 'standalone',
 

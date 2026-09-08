@@ -177,6 +177,8 @@ export async function POST(request: Request) {
             fax: cleanOptionalString(item.fax),
             email: cleanOptionalString(item.email),
             website: cleanOptionalString(item.website),
+            workType: cleanRequiredString(item.workType, 'Onsite'),
+            jobDescription: cleanOptionalString(item.jobDescription),
             totalQuota: cleanQuotaInteger(item.totalQuota || item.quota, item.isUnlimited)
           };
 
@@ -225,6 +227,8 @@ export async function POST(request: Request) {
       fax: cleanOptionalString(body.fax),
       email: cleanOptionalString(body.email),
       website: cleanOptionalString(body.website),
+      workType: cleanRequiredString(body.workType, 'Onsite'),
+      jobDescription: cleanOptionalString(body.jobDescription),
       totalQuota: cleanQuotaInteger(body.totalQuota, body.isUnlimited)
     };
 
@@ -292,6 +296,8 @@ export async function PUT(request: Request) {
       fax: cleanOptionalString(body.fax),
       email: cleanOptionalString(body.email),
       website: cleanOptionalString(body.website),
+      workType: cleanRequiredString(body.workType, 'Onsite'),
+      jobDescription: cleanOptionalString(body.jobDescription),
       totalQuota: cleanQuotaInteger(body.totalQuota, body.isUnlimited)
     };
 

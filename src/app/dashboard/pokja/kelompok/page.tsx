@@ -44,7 +44,8 @@ import {
   Building,
   Download,
   Trash2,
-  ShieldAlert
+  ShieldAlert,
+  MessageCircle
 } from 'lucide-react';
 
 interface TeacherItem {
@@ -82,7 +83,8 @@ interface GroupItem {
   startDate?: string;
   endDate?: string;
   suratTugasUrl?: string;
-  letterNumber?: string; // Nomor Surat Resmi (letterNumber)
+  suratBalasanUrl?: string;
+  letterNumber?: string;
   letterUploadedBy?: string;
   letterUploadedAt?: string;
   students?: StudentItem[];
@@ -264,6 +266,76 @@ export default function PokjaKelompokPrakerinPage() {
     URL.revokeObjectURL(url);
 
     setSuccessMsg('Data kelompok prakerin berhasil diekspor ke format CSV!');
+  };
+
+  // 🌟 EKSPOR 1 KELOMPOK KE TAB BARU (HTML TABLE UNTUK SPREADSHEET)
+  const handleExportGroupToNewTab = (group: GroupItem) => {
+    const industryName = group.industryName || '-';
+    const industryAddress = group.industryAddress || '-';
+    const periodName = group.periodName || '-';
+    const studentList = group.students || group.placements || [];
+
+    let tableRows = '';
+    
+    studentList.forEach((item: StudentItem) => {
+      const student = item.student || item;
+      const studentName = student.name || student.studentName || '-';
+      const nis = student.nis || '-';
+      const className = student.className || '-';
+      const phone = student.phone || student.parentPhone || '-'; 
+      
+      tableRows += `
+        <tr>
+          <td>${industryName}</td>
+          <td>${industryAddress}</td>
+          <td>${periodName}</td>
+          <td>${studentName}</td>
+          <td>&nbsp;${nis}</td>
+          <td>${className}</td>
+          <td>&nbsp;${phone}</td>
+        </tr>
+      `;
+    });
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Export Kelompok - ${industryName}</title>
+          <style>
+            body { padding: 20px; font-family: sans-serif; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background-color: #f4f4f4; }
+          </style>
+        </head>
+        <body>
+          <h2>Data Kelompok: ${industryName}</h2>
+          <p><em>Silakan Ctrl+A lalu Ctrl+C tabel di bawah ini, kemudian Paste (Ctrl+V) di Spreadsheet Anda.</em></p>
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Industri</th>
+                <th>Alamat Industri</th>
+                <th>Periode</th>
+                <th>Nama Siswa</th>
+                <th>NIS</th>
+                <th>Kelas</th>
+                <th>Nomor HP</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(htmlContent);
+      newWindow.document.close();
+    }
   };
 
   // Picker Berkas Surat
@@ -670,6 +742,20 @@ export default function PokjaKelompokPrakerinPage() {
 
                     <button
                       type="button"
+                      onClick={() => handleExportGroupToNewTab(group)}
+                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                        theme === 'dark'
+                          ? 'bg-emerald-900/30 hover:bg-emerald-800/40 text-emerald-400 border-emerald-800'
+                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                      }`}
+                      title="Export Kelompok ke Spreadsheet"
+                    >
+                      <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                      <span>Export</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => {
                         setTargetGroup(group);
                         setInputLetterNumber(group.letterNumber || '');
@@ -710,6 +796,27 @@ export default function PokjaKelompokPrakerinPage() {
                         <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                       </button>
                     )}
+
+                    {(group.suratBalasanUrl || (group.placements && group.placements.some(p => p.suratBalasanUrl))) && (() => {
+                      const balasanUrl = group.suratBalasanUrl || group.placements?.find(p => p.suratBalasanUrl)?.suratBalasanUrl;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActivePreviewUrl(balasanUrl || null);
+                            setActivePreviewTitle(`Surat Balasan Industri - ${group.industryName}`);
+                          }}
+                          className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
+                            theme === 'dark'
+                              ? 'bg-sky-900/30 hover:bg-sky-800/40 text-sky-400 border-sky-800'
+                              : 'bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-200 shadow-sm'
+                          }`}
+                          title="Pratinjau Surat Balasan Industri"
+                        >
+                          <FileCheck2 className="w-4 h-4 text-sky-600 dark:text-sky-500" />
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -755,6 +862,19 @@ export default function PokjaKelompokPrakerinPage() {
                           >
                             <X className="w-4 h-4" />
                           </button>
+
+                          {/* TOMBOL WHATSAPP SISWA */}
+                          {student.phone && (
+                            <a
+                              href={`https://wa.me/${student.phone.replace(/\D/g, '').replace(/^0/, '62')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="absolute top-3 right-10 p-1 rounded-xl text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 transition-all cursor-pointer"
+                              title={`Hubungi ${student.name || 'Siswa'} via WhatsApp`}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </a>
+                          )}
 
                           {/* GURU PEMBIMBING ASSIGNMENT */}
                           <div className="pt-2.5 border-t border-slate-300 dark:border-slate-800 flex items-center justify-between text-[11px]">

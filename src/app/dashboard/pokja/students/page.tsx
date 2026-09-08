@@ -112,6 +112,9 @@ export default function PokjaStudentsPage() {
     }
   }, [status]);
 
+  const [selectedStatusFilters, setSelectedStatusFilters] = useState<string[]>([]);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+
   // Ekstrak Daftar Unik Kelas untuk Dropdown Filter
   const uniqueClasses = useMemo(() => {
     const setCls = new Set<string>();
@@ -119,7 +122,7 @@ export default function PokjaStudentsPage() {
     return Array.from(setCls).sort();
   }, [students]);
 
-  // Filter Data Berdasarkan Pencarian & Filter Kelas
+  // Filter Data Berdasarkan Pencarian & Filter Kelas & Status
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
       const matchName = s.name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -130,9 +133,19 @@ export default function PokjaStudentsPage() {
       const matchSearch = matchName || matchNis || matchClass || matchDept;
       const matchFilterClass = selectedClassFilter === 'ALL' || s.className === selectedClassFilter;
 
-      return matchSearch && matchFilterClass;
+      let studentStatus = 'BELUM_MENDAFTAR';
+      if (s.placement) {
+        studentStatus = s.placement.status;
+      }
+      
+      let matchFilterStatus = true;
+      if (selectedStatusFilters.length > 0) {
+        matchFilterStatus = selectedStatusFilters.includes(studentStatus);
+      }
+
+      return matchSearch && matchFilterClass && matchFilterStatus;
     });
-  }, [students, searchTerm, selectedClassFilter]);
+  }, [students, searchTerm, selectedClassFilter, selectedStatusFilters]);
 
   // Hitung Data Terpaginasi
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage) || 1;
@@ -145,7 +158,7 @@ export default function PokjaStudentsPage() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedStudentIds([]); // Clear checklist saat filter berubah
-  }, [searchTerm, selectedClassFilter, itemsPerPage]);
+  }, [searchTerm, selectedClassFilter, selectedStatusFilters, itemsPerPage]);
 
   // ----------------------------------------------------------------------
   // 🌟 LOGIKA CHECKLIST & SELECTION (SINGLE & MASSAL)
@@ -443,6 +456,69 @@ export default function PokjaStudentsPage() {
 
         {/* FILTER KELAS & LIMIT CONTROLLER */}
         <div className="flex flex-wrap items-center gap-3 self-end md:self-auto">
+          {/* MULTI-SELECT DROPDOWN STATUS */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+              className={`px-4 py-2.5 rounded-2xl text-xs font-bold border outline-none cursor-pointer transition-all flex items-center space-x-2 ${
+                theme === 'dark' ? 'bg-slate-950 border-slate-800 text-sky-300 focus:border-sky-500' : 'bg-slate-50 border-slate-200 text-sky-600 focus:border-sky-500'
+              }`}
+            >
+              <span>{selectedStatusFilters.length === 0 ? 'Semua Status' : `${selectedStatusFilters.length} Status Dipilih`}</span>
+              <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+            </button>
+
+            {isStatusDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsStatusDropdownOpen(false)}></div>
+                <div className={`absolute right-0 md:left-0 md:right-auto mt-2 w-64 rounded-2xl shadow-xl border z-50 overflow-hidden flex flex-col max-h-[22rem] ${
+                  theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
+                  <div className="overflow-y-auto p-2 space-y-1">
+                    {[
+                      { value: 'BELUM_MENDAFTAR', label: 'Belum Mendaftar / Kosong' },
+                      { value: 'PENGAJUAN_DIKIRIM', label: 'Mengajukan (Review Pokja)' },
+                      { value: 'REVIEW_POKJA', label: 'Review Pokja' },
+                      { value: 'DITOLAK_POKJA', label: 'Ditolak Pokja' },
+                      { value: 'PEMBUATAN_SURAT', label: 'Pembuatan Surat' },
+                      { value: 'SURAT_DITERBITKAN', label: 'Surat Diterbitkan' },
+                      { value: 'DISETUJUI_INDUSTRI', label: 'Disetujui Industri' },
+                      { value: 'DITOLAK_INDUSTRI', label: 'Ditolak Industri' },
+                    ].map(opt => (
+                      <label key={opt.value} className={`flex items-center space-x-3 px-3 py-2 rounded-xl cursor-pointer hover:bg-slate-500/10 transition-colors ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedStatusFilters.includes(opt.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStatusFilters(prev => [...prev, opt.value]);
+                            } else {
+                              setSelectedStatusFilters(prev => prev.filter(v => v !== opt.value));
+                            }
+                          }}
+                          className="w-4 h-4 accent-sky-500 rounded cursor-pointer shrink-0"
+                        />
+                        <span className="text-[11px] font-bold leading-tight">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedStatusFilters.length > 0 && (
+                    <div className="p-2 border-t border-slate-500/20 bg-slate-500/5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStatusFilters([])}
+                        className="w-full py-1.5 text-[10px] font-extrabold text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                      >
+                        Reset Status
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* DROPDOWN KELAS */}
           <select
             value={selectedClassFilter}
@@ -506,6 +582,7 @@ export default function PokjaStudentsPage() {
                 <th className="p-4">Siswa</th>
                 <th className="p-4">Kelas & Jurusan</th>
                 <th className="p-4">Status Izin PKL</th>
+                <th className="p-4">Status Pengajuan</th>
                 <th className="p-4">Berkas CV</th>
                 <th className="p-4">Kartu BPJS</th>
                 <th className="p-4">Penempatan DUDI</th>
@@ -571,6 +648,25 @@ export default function PokjaStudentsPage() {
                             </>
                           )}
                         </button>
+                      </td>
+
+                      {/* STATUS PENGAJUAN */}
+                      <td className="p-4">
+                        {(() => {
+                          if (!s.placement) {
+                            return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700 w-fit block">BELUM MENDAFTAR</span>;
+                          }
+                          const st = s.placement.status;
+                          if (st === 'PENGAJUAN_DIKIRIM') return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20 w-fit block whitespace-nowrap">MENGAJUKAN</span>;
+                          if (st === 'REVIEW_POKJA') return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit block whitespace-nowrap">REVIEW POKJA</span>;
+                          if (st === 'DITOLAK_POKJA') return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 w-fit block whitespace-nowrap">DITOLAK POKJA</span>;
+                          if (st === 'DITOLAK_INDUSTRI') return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 w-fit block whitespace-nowrap">DITOLAK INDUSTRI</span>;
+                          if (st === 'PEMBUATAN_SURAT') return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit block whitespace-nowrap">PEMBUATAN SURAT</span>;
+                          if (st === 'SURAT_DITERBITKAN') return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit block whitespace-nowrap">SURAT DITERBITKAN</span>;
+                          if (st === 'DISETUJUI_INDUSTRI') return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit block whitespace-nowrap">DISETUJUI INDUSTRI</span>;
+                          
+                          return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700 w-fit block whitespace-nowrap">{st.replace(/_/g, ' ')}</span>;
+                        })()}
                       </td>
 
                       {/* STATUS BERKAS CV */}

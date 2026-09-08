@@ -24,6 +24,13 @@ export async function GET(request: Request) {
     const userDepartment = (session.user as any)?.department;
     const userRole = (session.user as any)?.role;
 
+    const url = new URL(request.url);
+    const classesParam = url.searchParams.get('classes') || '';
+    const classNames = classesParam ? classesParam.split(',').filter(c => c.trim() !== '') : [];
+    const periodIdFilter = url.searchParams.get('periodId') || '';
+    const academicYearFilter = url.searchParams.get('academicYear') || '';
+    const classNameFilter = url.searchParams.get('className') || '';
+
     // Filter berdasarkan jurusan jika Pokja memiliki spesifikasi departemen
     let classWhere: any = {};
     if (userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan') {
@@ -69,14 +76,67 @@ export async function GET(request: Request) {
     );
 
     // Ambil master daftar periode dan departemen untuk dropdown penugasan
-    const periods = await db.internshipPeriod.findMany({ orderBy: { startDate: 'desc' } });
+    const periods = await db.internshipPeriod.findMany({ 
+      orderBy: { startDate: 'desc' },
+      include: { academicYear: true }
+    });
+    
+    // Hitung status penempatan untuk Donut Chart
+    let targetClassNames = [...classNames];
+    
+    // Jika ada filter periodId atau academicYear
+    if (periodIdFilter || academicYearFilter) {
+      const classesInPeriod = await db.classRoom.findMany({
+        where: periodIdFilter 
+          ? { periodId: periodIdFilter } 
+          : { period: { academicYear: { year: academicYearFilter } } },
+        select: { name: true }
+      });
+      const periodClassNames = classesInPeriod.map(c => c.name);
+      
+      if (targetClassNames.length > 0) {
+        // Intersect
+        targetClassNames = targetClassNames.filter(c => periodClassNames.includes(c));
+      } else {
+        targetClassNames = periodClassNames;
+      }
+      
+      // Jika setelah filter period ternyata kosong, set ke array dummy agar tidak return semua
+      if (targetClassNames.length === 0) {
+        targetClassNames = ['__NO_MATCH__']; 
+      }
+    }
+
+    const studentCondition = targetClassNames.length > 0 
+      ? { OR: targetClassNames.map(name => ({ className: { equals: name, mode: 'insensitive' } })) } 
+      : {};
+      
+    const placementCondition = targetClassNames.length > 0 
+      ? { OR: targetClassNames.map(name => ({ student: { className: { equals: name, mode: 'insensitive' } } })) } 
+      : {};
+
+    const statusDiterima = await db.internshipPlacement.count({ where: { status: { in: ['DITERIMA', 'DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'COMPLETED'] }, ...placementCondition } });
+    const statusDitolak = await db.internshipPlacement.count({ where: { status: { in: ['DITOLAK', 'DITOLAK_INDUSTRI', 'DITOLAK_POKJA'] }, ...placementCondition } });
+    const statusPengajuan = await db.internshipPlacement.count({ where: { status: { in: ['PENGAJUAN_DIKIRIM', 'MENUNGGU_PERSETUJUAN_POKJA'] }, ...placementCondition } });
+    const statusProses = await db.internshipPlacement.count({ where: { status: { in: ['DIPROSES_INDUSTRI', 'SURAT_DITERBITKAN', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SENT_DUDI', 'SURAT_TERBIT'] }, ...placementCondition } });
+    const totalPlaced = statusDiterima + statusDitolak + statusPengajuan + statusProses;
+    const totalSiswaFiltered = await db.student.count({ where: studentCondition as any });
+    const belumMengajukan = Math.max(0, totalSiswaFiltered - totalPlaced);
+
     const departments = await db.department.findMany({ orderBy: { name: 'asc' } });
 
     return NextResponse.json({
       success: true,
       data: classesWithCounts,
       periods,
-      departments
+      departments,
+      stats: {
+        diterima: statusDiterima,
+        ditolak: statusDitolak,
+        menunggu: statusPengajuan + statusProses,
+        belum: belumMengajukan,
+        total: totalSiswaFiltered
+      }
     });
 
   } catch (error: any) {

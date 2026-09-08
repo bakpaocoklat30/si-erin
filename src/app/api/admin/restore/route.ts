@@ -35,7 +35,8 @@ export async function POST(request: Request) {
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const tmpDir = path.join(process.cwd(), 'tmp');
+    const os = require('os');
+    const tmpDir = path.join(os.tmpdir(), 'sierin_tmp');
     if (!fs.existsSync(tmpDir)) {
       fs.mkdirSync(tmpDir, { recursive: true });
     }
@@ -45,8 +46,7 @@ export async function POST(request: Request) {
     fs.mkdirSync(extractDir, { recursive: true });
 
     // 1. Unduh file ZIP dari Google Drive
-    console.log('☁️ Mengunduh arsip backup dari Google Drive...');
-    const drive = getDriveClient();
+    const drive = await getDriveClient();
     
     const response = await drive.files.get(
       { fileId: fileId, alt: 'media', supportsAllDrives: true },

@@ -49,16 +49,20 @@ export async function GET() {
 }
 
 // POST: Mengeksekusi Backup Baru (Full Database SQL + Foto Uploads -> ZIP -> Google Drive)
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized - Akses khusus Admin Utama' }, { status: 401 });
+    const isCron = request && request.headers && typeof request.headers.get === 'function' && request.headers.get('x-cron-secret') === (process.env.CRON_SECRET || 'super-secret-cron-key-123');
+    
+    if (!isCron) {
+      const session = await getServerSession(authOptions);
+      if (!session || ((session.user as any)?.role !== 'ADMIN')) {
+        return NextResponse.json({ error: 'Unauthorized - Akses khusus Admin Utama' }, { status: 401 });
+      }
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const tmpDir = path.join(process.cwd(), 'tmp');
-    
+    const os = require('os');
+    const tmpDir = path.join(os.tmpdir(), 'sierin_tmp');
     if (!fs.existsSync(tmpDir)) {
       fs.mkdirSync(tmpDir, { recursive: true });
     }
@@ -73,35 +77,13 @@ export async function POST() {
       throw new Error('DATABASE_URL tidak ditemukan di lingkungan server');
     }
 
-    // 1. EKSTRAKSI DATABASE POSTGRESQL (3-STAGE HYBRID EXTRACTOR)
-    console.log('🔄 Mengekstrak seluruh data PostgreSQL SI-ERIN...');
+    // EKSTRAKSI DATABASE POSTGRESQL MENGGUNAKAN UNIVERSAL PRISMA FULL-SCHEMA DUMPER
+    // Kita gunakan fallback murni 100% ini karena mengamankan urutan Foreign Key (Parent -> Child)
+    console.log('🔄 Mengekstrak seluruh data PostgreSQL via Prisma Dumper...');
     let dumpSuccess = false;
 
-    // TAHAP A: Coba `pg_dump` CLI Lokal
     try {
-      await execPromise(`pg_dump "${dbUrl}" -f "${sqlFilePath}"`);
-      dumpSuccess = true;
-      console.log('✅ Ekstraksi via local pg_dump CLI sukses!');
-    } catch (localPgErr) {
-      console.warn('⚠️ pg_dump lokal tidak tersedia, mencoba via Docker Container...');
-    }
-
-    // TAHAP B: Coba `docker exec` ke kontainer PostgreSQL
-    if (!dumpSuccess) {
-      try {
-        const dockerDumpCmd = `docker exec sierin_postgres pg_dump -U sierin_user sierin_db > "${sqlFilePath}"`;
-        await execPromise(dockerDumpCmd);
-        dumpSuccess = true;
-        console.log('✅ Ekstraksi via Docker Container CLI sukses!');
-      } catch (dockerPgErr) {
-        console.warn('⚠️ Ekstraksi via Docker Container tidak tersedia, beralih ke Universal Prisma Full-Schema Dumper...');
-      }
-    }
-
-    // TAHAP C: Universal Prisma Full-Schema Dumper (Fallback Murni 100% Kebal OS)
-    if (!dumpSuccess) {
-      try {
-        const prisma = db as any;
+      const prisma = db as any;
 
         // Ambil data dari seluruh tabel skema SI-ERIN
         const schoolSettings = prisma.schoolSetting ? await prisma.schoolSetting.findMany() : [];
@@ -132,76 +114,75 @@ export async function POST() {
         // 2. User
         sqlDumpContent += `\n-- 2. TABLE "User" (${users.length} RECORDS)\n`;
         users.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "User" ("id", "username", "name", "password", "role", "department", "phone", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.username)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.password)}, ${escapeSqlVal(item.role)}, ${escapeSqlVal(item.department)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "User" ("id", "username", "name", "password", "role", "department", "phone", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.username)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.password)}, ${escapeSqlVal(item.role)}, ${escapeSqlVal(item.department)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 3. AcademicYear
         sqlDumpContent += `\n-- 3. TABLE "AcademicYear" (${academicYears.length} RECORDS)\n`;
         academicYears.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "AcademicYear" ("id", "year", "isActive", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.year)}, ${escapeSqlVal(item.isActive)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "AcademicYear" ("id", "year", "isActive", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.year)}, ${escapeSqlVal(item.isActive)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 4. Department
         sqlDumpContent += `\n-- 4. TABLE "Department" (${departments.length} RECORDS)\n`;
         departments.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "Department" ("id", "code", "name", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.code)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "Department" ("id", "code", "name", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.code)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 5. InternshipPeriod
         sqlDumpContent += `\n-- 5. TABLE "InternshipPeriod" (${internshipPeriods.length} RECORDS)\n`;
         internshipPeriods.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "InternshipPeriod" ("id", "name", "startDate", "endDate", "department", "isActive", "academicYearId", "activeIndustries", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.startDate)}, ${escapeSqlVal(item.endDate)}, ${escapeSqlVal(item.department)}, ${escapeSqlVal(item.isActive)}, ${escapeSqlVal(item.academicYearId)}, ${escapeSqlVal(item.activeIndustries)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "InternshipPeriod" ("id", "name", "startDate", "endDate", "department", "isActive", "academicYearId", "activeIndustries", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.startDate)}, ${escapeSqlVal(item.endDate)}, ${escapeSqlVal(item.department)}, ${escapeSqlVal(item.isActive)}, ${escapeSqlVal(item.academicYearId)}, ${escapeSqlVal(item.activeIndustries)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 6. ClassRoom
         sqlDumpContent += `\n-- 6. TABLE "ClassRoom" (${classRooms.length} RECORDS)\n`;
         classRooms.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "ClassRoom" ("id", "name", "departmentId", "isAllowedPkl", "periodId", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.departmentId)}, ${escapeSqlVal(item.isAllowedPkl)}, ${escapeSqlVal(item.periodId)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "ClassRoom" ("id", "name", "departmentId", "isAllowedPkl", "periodId", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.departmentId)}, ${escapeSqlVal(item.isAllowedPkl)}, ${escapeSqlVal(item.periodId)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 7. InternshipCoefficient
         sqlDumpContent += `\n-- 7. TABLE "InternshipCoefficient" (${coefficients.length} RECORDS)\n`;
         coefficients.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "InternshipCoefficient" ("id", "periodId", "academicYear", "periodName", "totalClasses", "hoursPerClass", "totalStudents", "coefficient", "notes", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.periodId)}, ${escapeSqlVal(item.academicYear)}, ${escapeSqlVal(item.periodName)}, ${escapeSqlVal(item.totalClasses)}, ${escapeSqlVal(item.hoursPerClass)}, ${escapeSqlVal(item.totalStudents)}, ${escapeSqlVal(item.coefficient)}, ${escapeSqlVal(item.notes)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "InternshipCoefficient" ("id", "periodId", "academicYear", "periodName", "totalClasses", "hoursPerClass", "totalStudents", "coefficient", "notes", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.periodId)}, ${escapeSqlVal(item.academicYear)}, ${escapeSqlVal(item.periodName)}, ${escapeSqlVal(item.totalClasses)}, ${escapeSqlVal(item.hoursPerClass)}, ${escapeSqlVal(item.totalStudents)}, ${escapeSqlVal(item.coefficient)}, ${escapeSqlVal(item.notes)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 8. IndustryCategory
         sqlDumpContent += `\n-- 8. TABLE "IndustryCategory" (${categories.length} RECORDS)\n`;
         categories.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "IndustryCategory" ("id", "name", "description", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.description)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "IndustryCategory" ("id", "name", "description", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.description)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 9. Industry
         sqlDumpContent += `\n-- 9. TABLE "Industry" (${industries.length} RECORDS)\n`;
         industries.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "Industry" ("id", "name", "nib", "sector", "npwp", "logoUrl", "address", "rt", "rw", "dusun", "desaKelurahan", "subDistrict", "postalCode", "latitude", "longitude", "contactPerson", "phone", "fax", "email", "website", "totalQuota", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.nib)}, ${escapeSqlVal(item.sector)}, ${escapeSqlVal(item.npwp)}, ${escapeSqlVal(item.logoUrl)}, ${escapeSqlVal(item.address)}, ${escapeSqlVal(item.rt)}, ${escapeSqlVal(item.rw)}, ${escapeSqlVal(item.dusun)}, ${escapeSqlVal(item.desaKelurahan)}, ${escapeSqlVal(item.subDistrict)}, ${escapeSqlVal(item.postalCode)}, ${escapeSqlVal(item.latitude)}, ${escapeSqlVal(item.longitude)}, ${escapeSqlVal(item.contactPerson)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.fax)}, ${escapeSqlVal(item.email)}, ${escapeSqlVal(item.website)}, ${escapeSqlVal(item.totalQuota)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "Industry" ("id", "name", "nib", "sector", "npwp", "logoUrl", "address", "rt", "rw", "dusun", "desaKelurahan", "subDistrict", "postalCode", "latitude", "longitude", "contactPerson", "phone", "fax", "email", "website", "totalQuota", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.nib)}, ${escapeSqlVal(item.sector)}, ${escapeSqlVal(item.npwp)}, ${escapeSqlVal(item.logoUrl)}, ${escapeSqlVal(item.address)}, ${escapeSqlVal(item.rt)}, ${escapeSqlVal(item.rw)}, ${escapeSqlVal(item.dusun)}, ${escapeSqlVal(item.desaKelurahan)}, ${escapeSqlVal(item.subDistrict)}, ${escapeSqlVal(item.postalCode)}, ${escapeSqlVal(item.latitude)}, ${escapeSqlVal(item.longitude)}, ${escapeSqlVal(item.contactPerson)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.fax)}, ${escapeSqlVal(item.email)}, ${escapeSqlVal(item.website)}, ${escapeSqlVal(item.totalQuota)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 10. Student
         sqlDumpContent += `\n-- 10. TABLE "Student" (${students.length} RECORDS)\n`;
         students.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "Student" ("id", "userId", "nis", "nisn", "name", "className", "department", "phone", "parentName", "parentRelation", "parentPhone", "bpjsStatus", "bpjsUrl", "cvStatus", "cvUrl", "isAllowedPkl", "teacherId", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.userId)}, ${escapeSqlVal(item.nis)}, ${escapeSqlVal(item.nisn)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.className)}, ${escapeSqlVal(item.department)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.parentName)}, ${escapeSqlVal(item.parentRelation)}, ${escapeSqlVal(item.parentPhone)}, ${escapeSqlVal(item.bpjsStatus)}, ${escapeSqlVal(item.bpjsUrl)}, ${escapeSqlVal(item.cvStatus)}, ${escapeSqlVal(item.cvUrl)}, ${escapeSqlVal(item.isAllowedPkl)}, ${escapeSqlVal(item.teacherId)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "Student" ("id", "userId", "nis", "nisn", "name", "className", "department", "phone", "parentName", "parentRelation", "parentPhone", "bpjsStatus", "bpjsUrl", "cvStatus", "cvUrl", "isAllowedPkl", "teacherId", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.userId)}, ${escapeSqlVal(item.nis)}, ${escapeSqlVal(item.nisn)}, ${escapeSqlVal(item.name)}, ${escapeSqlVal(item.className)}, ${escapeSqlVal(item.department)}, ${escapeSqlVal(item.phone)}, ${escapeSqlVal(item.parentName)}, ${escapeSqlVal(item.parentRelation)}, ${escapeSqlVal(item.parentPhone)}, ${escapeSqlVal(item.bpjsStatus)}, ${escapeSqlVal(item.bpjsUrl)}, ${escapeSqlVal(item.cvStatus)}, ${escapeSqlVal(item.cvUrl)}, ${escapeSqlVal(item.isAllowedPkl)}, ${escapeSqlVal(item.teacherId)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 11. InternshipPlacement
         sqlDumpContent += `\n-- 11. TABLE "InternshipPlacement" (${placements.length} RECORDS)\n`;
         placements.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "InternshipPlacement" ("id", "studentId", "industryId", "status", "notes", "suratTugasUrl", "suratBalasanUrl", "suratBalasanStatus", "startDate", "endDate", "appliedAt", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.studentId)}, ${escapeSqlVal(item.industryId)}, ${escapeSqlVal(item.status)}, ${escapeSqlVal(item.notes)}, ${escapeSqlVal(item.suratTugasUrl)}, ${escapeSqlVal(item.suratBalasanUrl)}, ${escapeSqlVal(item.suratBalasanStatus)}, ${escapeSqlVal(item.startDate)}, ${escapeSqlVal(item.endDate)}, ${escapeSqlVal(item.appliedAt)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "InternshipPlacement" ("id", "studentId", "industryId", "status", "notes", "suratTugasUrl", "suratBalasanUrl", "suratBalasanStatus", "startDate", "endDate", "appliedAt", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.studentId)}, ${escapeSqlVal(item.industryId)}, ${escapeSqlVal(item.status)}, ${escapeSqlVal(item.notes)}, ${escapeSqlVal(item.suratTugasUrl)}, ${escapeSqlVal(item.suratBalasanUrl)}, ${escapeSqlVal(item.suratBalasanStatus)}, ${escapeSqlVal(item.startDate)}, ${escapeSqlVal(item.endDate)}, ${escapeSqlVal(item.appliedAt)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         // 12. TeacherHourAllocation
         sqlDumpContent += `\n-- 12. TABLE "TeacherHourAllocation" (${teacherHours.length} RECORDS)\n`;
         teacherHours.forEach((item: any) => {
-          sqlDumpContent += `INSERT INTO "TeacherHourAllocation" ("id", "className", "teacherId", "totalHours", "academicYear", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.className)}, ${escapeSqlVal(item.teacherId)}, ${escapeSqlVal(item.totalHours)}, ${escapeSqlVal(item.academicYear)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT ("id") DO NOTHING;\n`;
+          sqlDumpContent += `INSERT INTO "TeacherHourAllocation" ("id", "className", "teacherId", "totalHours", "academicYear", "createdAt", "updatedAt") VALUES (${escapeSqlVal(item.id)}, ${escapeSqlVal(item.className)}, ${escapeSqlVal(item.teacherId)}, ${escapeSqlVal(item.totalHours)}, ${escapeSqlVal(item.academicYear)}, ${escapeSqlVal(item.createdAt)}, ${escapeSqlVal(item.updatedAt)}) ON CONFLICT DO NOTHING;\n`;
         });
 
         fs.writeFileSync(sqlFilePath, sqlDumpContent);
         dumpSuccess = true;
         console.log('✅ Ekstraksi via Universal Prisma Full-Schema Dumper SUKSES!');
-      } catch (prismaDumpErr: any) {
-        console.error('❌ Gagal membuat Full-Schema SQL dump:', prismaDumpErr);
-        fs.writeFileSync(sqlFilePath, `-- SI-ERIN DUMP HEADER TIMESTAMP: ${new Date().toISOString()}\n`);
-      }
+    } catch (prismaDumpErr: any) {
+      console.error('❌ Gagal membuat Full-Schema SQL dump:', prismaDumpErr);
+      fs.writeFileSync(sqlFilePath, `-- SI-ERIN DUMP HEADER TIMESTAMP: ${new Date().toISOString()}\n`);
     }
 
     // 2. MENGARSIPKAN KE ZIP (SQL + BERKAS MEDIA UPLOADS)

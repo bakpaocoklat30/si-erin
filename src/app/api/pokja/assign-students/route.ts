@@ -20,17 +20,18 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { teacherId, studentIds } = body;
-
-    if (!teacherId) {
-      return NextResponse.json({ error: 'ID Guru pembimbing tidak valid' }, { status: 400 });
+    const { teacherId, className, studentIds } = body;
+    if (!teacherId || !className) {
+      return NextResponse.json({ error: 'Data guru atau kelas tidak lengkap' }, { status: 400 });
     }
-
     const targetStudentIds = Array.isArray(studentIds) ? studentIds : [];
 
-    // 1. Kosongkan teacherId untuk siswa yang sebelumnya di bawah guru ini
+    // 1. Kosongkan teacherId HANYA untuk siswa di kelas ini yang sebelumnya dibimbing guru ini
     await db.student.updateMany({
-      where: { teacherId },
+      where: { 
+        teacherId: teacherId,
+        className: { equals: className, mode: 'insensitive' }
+      },
       data: { teacherId: null }
     }).catch(() => {});
 

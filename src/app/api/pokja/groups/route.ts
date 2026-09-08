@@ -119,6 +119,7 @@ export async function GET(request: Request) {
           startDate: startDate,
           endDate: endDate,
           suratTugasUrl: placement.suratTugasUrl || null,
+          suratBalasanUrl: placement.suratBalasanUrl || null,
           letterNumber: savedLetterNumber, 
           letterUploadedBy: placement.letterUploadedBy || null,
           letterUploadedAt: placement.letterUploadedAt || null,
@@ -139,7 +140,8 @@ export async function GET(request: Request) {
         status: placement.status,
         startDate: startDate,
         endDate: endDate,
-        letterNumber: savedLetterNumber
+        letterNumber: savedLetterNumber,
+        suratBalasanUrl: placement.suratBalasanUrl || null
       };
 
       groupedMap[groupKey].placements.push({
@@ -147,6 +149,7 @@ export async function GET(request: Request) {
         placementId: placement.id,
         status: placement.status,
         suratTugasUrl: placement.suratTugasUrl,
+        suratBalasanUrl: placement.suratBalasanUrl,
         letterNumber: savedLetterNumber,
         student: formattedStudent
       });

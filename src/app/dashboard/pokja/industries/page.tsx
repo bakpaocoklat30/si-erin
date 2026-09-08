@@ -347,6 +347,8 @@ export default function PokjaIndustriesPage() {
     latitude: '-6.917464',
     longitude: '107.619123',
 
+    workType: 'Onsite',
+    jobDescription: '',
     contactPerson: '',
     phone: '',
     fax: '',
@@ -1074,6 +1076,8 @@ export default function PokjaIndustriesPage() {
       fax: '',
       email: '',
       website: '',
+      workType: 'Onsite',
+      jobDescription: '',
       totalQuota: '5',
       isUnlimited: false
     });
@@ -1119,6 +1123,8 @@ export default function PokjaIndustriesPage() {
       fax: ind.fax || '',
       email: ind.email || '',
       website: ind.website || '',
+      workType: ind.workType || 'Onsite',
+      jobDescription: ind.jobDescription || '',
       totalQuota: isUnlim ? '5' : String(ind.totalQuota || '5'),
       isUnlimited: isUnlim
     });
@@ -1583,6 +1589,18 @@ export default function PokjaIndustriesPage() {
                         </div>
                       )}
 
+                      <div className="flex items-center space-x-1.5">
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${
+                          ind.workType === 'Remote' 
+                            ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                            : ind.workType === 'Hybrid'
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                        }`}>
+                          {ind.workType || 'Onsite'}
+                        </span>
+                      </div>
+
                       <div className="flex items-start space-x-2">
                         <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
                         <span className="line-clamp-2">
@@ -1742,6 +1760,16 @@ export default function PokjaIndustriesPage() {
                                 NIB Belum Diisi
                               </span>
                             )}
+                            
+                            <span className={`px-2 py-0.5 mt-1 rounded-md text-[9px] font-bold uppercase tracking-wider block w-max ${
+                              ind.workType === 'Remote' 
+                                ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                                : ind.workType === 'Hybrid'
+                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                            }`}>
+                              {ind.workType || 'Onsite'}
+                            </span>
                           </div>
                         </td>
 
@@ -2549,6 +2577,34 @@ export default function PokjaIndustriesPage() {
                       onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
                       placeholder="Ibu Sarah (Manager HRD)"
                       className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-semibold ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Jenis Pekerjaan</label>
+                    <select
+                      value={formData.workType}
+                      onChange={(e) => setFormData({ ...formData, workType: e.target.value })}
+                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-semibold ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                      }`}
+                    >
+                      <option value="Onsite">Onsite (Di Kantor)</option>
+                      <option value="Remote">Remote (WFH)</option>
+                      <option value="Hybrid">Hybrid (Campuran)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Gambaran Pekerjaan (Opsional)</label>
+                    <textarea
+                      value={formData.jobDescription}
+                      onChange={(e) => setFormData({ ...formData, jobDescription: e.target.value })}
+                      placeholder="Deskripsikan secara singkat apa yang akan dikerjakan siswa..."
+                      rows={2}
+                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-semibold resize-none ${
                         isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                       }`}
                     />

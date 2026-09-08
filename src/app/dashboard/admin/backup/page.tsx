@@ -37,6 +37,42 @@ export default function AdminBackupPage() {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [autoBackupTime, setAutoBackupTime] = useState('00:00');
+  const [isSavingAutoBackup, setIsSavingAutoBackup] = useState(false);
+
+  const fetchAutoBackupSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/auto-backup');
+      if (res.ok) {
+        const data = await res.json();
+        setAutoBackupEnabled(data.enabled);
+        setAutoBackupTime(data.time);
+      }
+    } catch(e) {}
+  };
+
+  const saveAutoBackupSettings = async () => {
+    setIsSavingAutoBackup(true);
+    try {
+      const res = await fetch('/api/admin/settings/auto-backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: autoBackupEnabled, time: autoBackupTime })
+      });
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Pengaturan Auto Backup berhasil disimpan!' });
+      } else {
+        setMessage({ type: 'error', text: 'Gagal menyimpan pengaturan Auto Backup.' });
+      }
+    } catch(e) {
+      setMessage({ type: 'error', text: 'Gagal menyimpan pengaturan.' });
+    } finally {
+      setIsSavingAutoBackup(false);
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
 
   // Modal & Form Kredensial GDrive State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -84,6 +120,7 @@ export default function AdminBackupPage() {
   useEffect(() => {
     fetchCredentials();
     fetchBackups();
+    fetchAutoBackupSettings();
   }, []);
 
   const handleSaveCredentials = async (e: React.FormEvent) => {
@@ -271,6 +308,59 @@ export default function AdminBackupPage() {
           {isCredentialReady ? 'Ubah' : 'Atur Sekarang'}
         </button>
       </div>
+
+      
+      {/* AUTO BACKUP SETTINGS */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-start space-x-4">
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl text-indigo-500 shrink-0">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">Jadwal Backup Otomatis</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mt-1 leading-relaxed">
+                Konfigurasikan jadwal harian backup database otomatis ke Cloud. Pastikan server lokal Anda aktif pada jam yang ditentukan agar backup berhasil berjalan.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-4 bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center space-x-3">
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Status:</label>
+              <button
+                onClick={() => setAutoBackupEnabled(!autoBackupEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${autoBackupEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoBackupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            
+            <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
+
+            <div className="flex items-center space-x-2">
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Jam:</label>
+              <input 
+                type="time" 
+                disabled={!autoBackupEnabled}
+                value={autoBackupTime}
+                onChange={(e) => setAutoBackupTime(e.target.value)}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-50 cursor-pointer"
+              />
+            </div>
+            
+            <button
+              onClick={saveAutoBackupSettings}
+              disabled={isSavingAutoBackup}
+              className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center space-x-2 shadow-sm hover:shadow-md"
+            >
+              {isSavingAutoBackup ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              <span>Simpan Jadwal</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
 
       {/* NOTIFICATION ALERT */}
       {message && (

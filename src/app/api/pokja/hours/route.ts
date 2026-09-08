@@ -161,7 +161,23 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID alokasi tidak valid' }, { status: 400 });
     }
 
-    await db.teacherHourAllocation.delete({ where: { id } });
+    const allocation = await db.teacherHourAllocation.findUnique({ where: { id } });
+    
+    if (allocation) {
+      // Hapus (null-kan) teacherId pada seluruh siswa di kelas tersebut yang dibimbing oleh guru ini
+      await db.student.updateMany({
+        where: {
+          className: allocation.className,
+          teacherId: allocation.teacherId
+        },
+        data: {
+          teacherId: null
+        }
+      });
+      
+      // Baru hapus alokasinya
+      await db.teacherHourAllocation.delete({ where: { id } });
+    }
 
     return NextResponse.json({ success: true, message: 'Alokasi jam berhasil dihapus' });
   } catch (error: any) {

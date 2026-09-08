@@ -27,6 +27,7 @@ import {
   Building2
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
+import { PieChart as RePieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function PokjaClassesPage() {
   const { status } = useSession();
@@ -40,6 +41,10 @@ export default function PokjaClassesPage() {
   const [classes, setClasses] = useState<any[]>([]);
   const [periods, setPeriods] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [stats, setStats] = useState<any>(null);
+  const [selectedStatClasses, setSelectedStatClasses] = useState<string[]>([]);
+  const [selectedStatPeriod, setSelectedStatPeriod] = useState<string>('');
+  const [selectedStatAcademicYear, setSelectedStatAcademicYear] = useState<string>('');
 
   // State Centang Kelas
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
@@ -53,12 +58,17 @@ export default function PokjaClassesPage() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const res = await fetch('/api/pokja/classes');
+      const query = new URLSearchParams();
+      if (selectedStatClasses.length > 0) query.append('classes', selectedStatClasses.join(','));
+      if (selectedStatPeriod) query.append('periodId', selectedStatPeriod);
+      if (selectedStatAcademicYear) query.append('academicYear', selectedStatAcademicYear);
+      const res = await fetch('/api/pokja/classes' + (query.toString() ? '?' + query.toString() : ''));
       const json = await res.json();
 
       if (res.ok && json.success) {
         setClasses(json.data || []);
         setPeriods(json.periods || []);
+        setStats(json.stats || null);
       } else {
         setErrorMsg(json.error || 'Gagal memuat data kelas.');
       }
@@ -74,7 +84,7 @@ export default function PokjaClassesPage() {
     if (status === 'authenticated') {
       fetchData();
     }
-  }, [status]);
+  }, [status, selectedStatClasses, selectedStatPeriod, selectedStatAcademicYear]);
 
   // Filter Kelas berdasarkan Pencarian
   const filteredClasses = useMemo(() => {
@@ -192,6 +202,125 @@ export default function PokjaClassesPage() {
       theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
       
+      
+      {/* DONUT CHART STATISTIK GLOBAL */}
+      {stats && (
+        <div className={`p-6 sm:p-8 rounded-3xl border shadow-xl flex flex-col md:flex-row items-center gap-8 ${
+          theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex-1 space-y-4 text-center md:text-left">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight flex items-center justify-center md:justify-start space-x-2">
+                <span className="text-indigo-500">📊</span>
+                <span>Status Penempatan</span>
+              </h2>
+              
+              <div className="flex gap-2">
+                {/* FILTER TAHUN PELAJARAN */}
+                <select
+                  value={selectedStatAcademicYear}
+                  onChange={(e) => {
+                    setSelectedStatAcademicYear(e.target.value);
+                    setSelectedStatPeriod('');
+                    setSelectedStatClasses([]);
+                  }}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer max-w-[150px]"
+                >
+                  <option value="">Semua Tapel</option>
+                  {Array.from(new Set(periods.filter(p => p.academicYear).map(p => p.academicYear.year))).map(year => (
+                    <option key={year as string} value={year as string}>{year as string}</option>
+                  ))}
+                </select>
+
+                {/* FILTER PERIODE */}
+                <select
+                  value={selectedStatPeriod}
+                  onChange={(e) => {
+                    setSelectedStatPeriod(e.target.value);
+                    setSelectedStatClasses([]); // reset class filter on period change
+                  }}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer max-w-[150px]"
+                >
+                  <option value="">Semua Periode</option>
+                  {periods.filter(p => !selectedStatAcademicYear || (p.academicYear && p.academicYear.year === selectedStatAcademicYear)).map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+
+                {/* FILTER KELAS MULTI-SELECT */}
+                <select
+                  multiple
+                  value={selectedStatClasses}
+                  onChange={(e) => setSelectedStatClasses(Array.from(e.target.selectedOptions, option => option.value))}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer max-h-24 min-w-[150px]"
+                >
+                  {classes
+                    .filter(c => !selectedStatPeriod || c.periodId === selectedStatPeriod)
+                    .map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="text-sm text-slate-400 max-w-md mx-auto md:mx-0">
+              Persentase keseluruhan siswa berdasarkan status pengajuan Praktik Kerja Lapangan (PKL) saat ini.
+            </p>
+            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-4">
+              <div className="px-4 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                Diterima: {stats.diterima}
+              </div>
+              <div className="px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold">
+                Menunggu: {stats.menunggu}
+              </div>
+              <div className="px-4 py-2 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold">
+                Ditolak: {stats.ditolak}
+              </div>
+              <div className="px-4 py-2 rounded-2xl bg-slate-500/10 border border-slate-500/20 text-slate-600 dark:text-slate-400 text-xs font-bold">
+                Belum: {stats.belum}
+              </div>
+            </div>
+          </div>
+          
+          <div className="w-full md:w-1/2 h-64 flex justify-center items-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <RePieChart>
+                <Pie
+                  data={[
+                    { name: 'Diterima', value: stats.diterima, color: '#10b981' },
+                    { name: 'Menunggu', value: stats.menunggu, color: '#f59e0b' },
+                    { name: 'Ditolak', value: stats.ditolak, color: '#ef4444' },
+                    { name: 'Belum Mengajukan', value: stats.belum, color: theme === 'dark' ? '#334155' : '#cbd5e1' },
+                  ].filter(d => d.value > 0)}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={5}
+                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {[
+                    { name: 'Diterima', value: stats.diterima, color: '#10b981' },
+                    { name: 'Menunggu', value: stats.menunggu, color: '#f59e0b' },
+                    { name: 'Ditolak', value: stats.ditolak, color: '#ef4444' },
+                    { name: 'Belum Mengajukan', value: stats.belum, color: theme === 'dark' ? '#334155' : '#cbd5e1' },
+                  ].filter(d => d.value > 0).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ fontWeight: 'bold' }}
+                />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold' }} />
+              </RePieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {/* BANNER HEADER */}
       <div className={`p-8 rounded-3xl border shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${
         theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'

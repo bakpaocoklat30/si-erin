@@ -81,18 +81,35 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
   const rawRole = (session?.user as any)?.role || 'SISWA';
   const userRole = String(rawRole).toUpperCase().trim();
   const userClassName = (session?.user as any)?.className;
+  
+  const [isStudentAccepted, setIsStudentAccepted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    if (userRole === 'SISWA' && userClassName) {
-      fetch(`/api/students/permission?className=${encodeURIComponent(userClassName)}`)
+    if (userRole === 'SISWA') {
+      if (userClassName) {
+        fetch(`/api/students/permission?className=${encodeURIComponent(userClassName)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.success) {
+              setIsClassAllowedPkl(data.isAllowedPkl);
+            }
+          })
+          .catch(err => console.error('Error fetching class permission:', err));
+      }
+      
+      // Cek status penempatan untuk memunculkan menu Lengkapi Data Industri
+      fetch('/api/students/apply')
         .then(res => res.json())
-        .then(data => {
-          if (data && data.success) {
-            setIsClassAllowedPkl(data.isAllowedPkl);
+        .then(resData => {
+          if (resData && resData.success && resData.data && resData.data.activePlacement) {
+            const st = resData.data.activePlacement.status;
+            if (st === 'DISETUJUI_INDUSTRI' || st === 'PEMBUATAN_SURAT' || st === 'SURAT_DITERBITKAN') {
+              setIsStudentAccepted(true);
+            }
           }
         })
-        .catch(err => console.error('Error fetching class permission:', err));
+        .catch(err => console.error('Error fetching student apply status:', err));
     }
   }, [userRole, userClassName]);
 
@@ -151,6 +168,9 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
         ...(isClassAllowedPkl ? [
           { name: 'Pengajuan Tempat PKL', href: '/dashboard/students/pengajuan', icon: Send }
         ] : []),
+        ...(isStudentAccepted ? [
+          { name: 'Lengkapi Data Industri', href: '/dashboard/students/industry-edit', icon: Building2 }
+        ] : []),
         { name: 'Teman Satu Kelompok', href: '/dashboard/students/kelompok', icon: Users },
       ]
     },
@@ -171,6 +191,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
       groupLabel: 'Utama & Analytics TU',
       items: [
         { name: 'Dashboard Utama', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Analytics & Ekspor', href: '/dashboard/admin/analytics', icon: BarChart3 },
         { name: 'Analytics Persuratan TU', href: '/dashboard/tata-usaha', icon: ShieldCheck },
       ]
     },

@@ -314,6 +314,7 @@ export default function PokjaTeacherHoursPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           teacherId: activeTeacherForAssign.teacherId,
+          className: activeTeacherForAssign.className,
           studentIds: selectedStudentIds
         })
       });

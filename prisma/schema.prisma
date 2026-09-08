@@ -130,6 +130,8 @@ model Industry {
   fax           String?
   email         String?
   website       String?
+  workType      String?               @default("Onsite") // Onsite, Remote, atau Hybrid
+  jobDescription String?              @db.Text
   totalQuota    Int                   @default(0)
   placements    InternshipPlacement[]
   createdAt     DateTime              @default(now())
