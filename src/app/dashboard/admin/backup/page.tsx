@@ -158,7 +158,7 @@ export default function AdminBackupPage() {
       return;
     }
 
-    if (!confirm('Apakah Anda yakin ingin memulai proses Backup Seluruh Database & Berkas Media (public/uploads) ke Google Drive sekarang?')) return;
+    if (!confirm('Apakah Anda yakin ingin memulai proses Backup Seluruh Database (SQL) dan Sinkronisasi Dokumen Terstruktur (Surat Pengajuan, Jawaban Industri, CV Siswa, & Kartu BPJS) ke Google Drive sekarang?')) return;
 
     setIsBackingUp(true);
     setMessage(null);
@@ -168,7 +168,11 @@ export default function AdminBackupPage() {
       const data = await res.json();
 
       if (data.success) {
-        setMessage({ type: 'success', text: data.message });
+        const syncedCount = data.summary ? (data.summary.totalSynced + data.summary.totalUpdated) : 0;
+        const successText = syncedCount > 0 
+          ? `${data.message} (${syncedCount} dokumen siap dibuka langsung di Drive).`
+          : data.message;
+        setMessage({ type: 'success', text: successText });
         fetchBackups();
       } else {
         setMessage({ type: 'error', text: data.error || 'Gagal melakukan backup ke Google Drive' });
@@ -179,6 +183,7 @@ export default function AdminBackupPage() {
       setIsBackingUp(false);
     }
   };
+
 
   const handleRestoreBackup = async (fileId: string, fileName: string) => {
     if (!confirm(`PERINGATAN KRITIS!\n\nApakah Anda yakin ingin memulihkan (Restore) sistem dari arsip "${fileName}"?\n\nTindakan ini akan menimpa data database dan berkas media saat ini dengan data dari cadangan tersebut.`)) return;
@@ -244,8 +249,9 @@ export default function AdminBackupPage() {
               Pencadangan & Pemulihan (Backup & Restore)
             </h1>
             <p className="text-indigo-200 text-xs sm:text-sm max-w-xl leading-relaxed">
-              Mencakup pencadangan **100% Seluruh Database PostgreSQL (Seluruh Model Prisma)** dan seluruh berkas lampiran <code className="bg-indigo-950/60 px-1.5 py-0.5 rounded text-indigo-300 font-mono">public/uploads/</code> secara otomatis ke Google Drive.
+              Mencakup pencadangan <strong>Database PostgreSQL & Berkas Media (ZIP)</strong> serta <strong>Sinkronisasi Dokumen Terstruktur</strong> (Surat Pengajuan, Jawaban Industri, CV, dan Kartu BPJS) langsung ke folder Google Drive tanpa perlu ekstrak arsip.
             </p>
+
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -318,10 +324,11 @@ export default function AdminBackupPage() {
               <Clock className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">Jadwal Backup Otomatis</h2>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">Jadwal Backup Otomatis (WIB)</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mt-1 leading-relaxed">
-                Konfigurasikan jadwal harian backup database otomatis ke Cloud. Pastikan server lokal Anda aktif pada jam yang ditentukan agar backup berhasil berjalan.
+                Konfigurasikan jadwal harian backup database (ZIP) & sinkronisasi dokumen siswa/industri otomatis ke Google Drive berdasarkan Waktu Indonesia Barat (WIB).
               </p>
+
             </div>
           </div>
           

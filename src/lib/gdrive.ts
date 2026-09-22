@@ -129,3 +129,106 @@ export async function listDriveBackups() {
 
   return response.data.files || [];
 }
+
+/**
+ * 📁 Mencari atau membuat folder di Google Drive (dengan in-memory caching untuk performa tinggi)
+ */
+export async function getOrCreateFolder(
+  drive: any,
+  folderName: string,
+  parentFolderId: string,
+  cache?: Map<string, string>
+): Promise<string> {
+  const cleanName = folderName.trim();
+  const cacheKey = `${parentFolderId}:::${cleanName}`;
+
+  if (cache && cache.has(cacheKey)) {
+    return cache.get(cacheKey)!;
+  }
+
+  const escapedName = cleanName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+  // 1. Cari apakah folder sudah ada di dalam parentFolderId
+  const searchRes = await drive.files.list({
+    q: `'${parentFolderId}' in parents and name = '${escapedName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    fields: 'files(id, name)',
+    pageSize: 1,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+
+  if (searchRes.data.files && searchRes.data.files.length > 0) {
+    const existingId = searchRes.data.files[0].id!;
+    if (cache) cache.set(cacheKey, existingId);
+    return existingId;
+  }
+
+  // 2. Buat folder baru jika belum ditemukan
+  const createRes = await drive.files.create({
+    requestBody: {
+      name: cleanName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [parentFolderId],
+    },
+    supportsAllDrives: true,
+    fields: 'id, name',
+  });
+
+  const newId = createRes.data.id!;
+  if (cache) cache.set(cacheKey, newId);
+  return newId;
+}
+
+/**
+ * 📄 Mengunggah berkas buffer ke folder Google Drive atau memperbarui berkas yang sudah ada
+ */
+export async function uploadOrUpdateFileInDrive(
+  drive: any,
+  fileName: string,
+  mimeType: string,
+  buffer: Buffer,
+  parentFolderId: string
+): Promise<{ action: 'created' | 'updated'; file: any }> {
+  const { Readable } = await import('stream');
+  const cleanName = fileName.trim();
+  const escapedName = cleanName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+  // Cek apakah berkas dengan nama tersebut sudah ada di folder tujuan
+  const searchRes = await drive.files.list({
+    q: `'${parentFolderId}' in parents and name = '${escapedName}' and trashed = false`,
+    fields: 'files(id, name)',
+    pageSize: 1,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+
+  if (searchRes.data.files && searchRes.data.files.length > 0) {
+    const fileId = searchRes.data.files[0].id!;
+    const updateRes = await drive.files.update({
+      fileId: fileId,
+      media: {
+        mimeType: mimeType,
+        body: Readable.from(buffer),
+      },
+      supportsAllDrives: true,
+      fields: 'id, name, webViewLink, size',
+    });
+    return { action: 'updated', file: updateRes.data };
+  }
+
+  // Jika belum ada, buat berkas baru
+  const createRes = await drive.files.create({
+    requestBody: {
+      name: cleanName,
+      parents: [parentFolderId],
+    },
+    media: {
+      mimeType: mimeType,
+      body: Readable.from(buffer),
+    },
+    supportsAllDrives: true,
+    fields: 'id, name, webViewLink, size',
+  });
+
+  return { action: 'created', file: createRes.data };
+}
