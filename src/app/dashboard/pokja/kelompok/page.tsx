@@ -78,6 +78,18 @@ interface GroupItem {
   industryId?: string;
   industryName?: string;
   industryAddress?: string;
+  rawAddress?: string;
+  jalan?: string;
+  rt?: string;
+  rw?: string;
+  dusun?: string;
+  desaKelurahan?: string;
+  subDistrict?: string;
+  regency?: string;
+  postalCode?: string;
+  province?: string;
+  fullAddress?: string;
+  industryPhone?: string;
   departmentName?: string;
   periodId?: string;
   periodName?: string;
@@ -221,7 +233,7 @@ export default function PokjaKelompokPrakerinPage() {
 
   // ----------------------------------------------------------------------
   // 🌟 FUNGSI EKSPOR CSV DATA KELOMPOK PRAKERIN
-  // Format Kolom: nama pembimbing, nama industri, tanggal mulai, tanggal selesai, nama siswa, kelas
+  // Format Kolom Lengkap: pembimbing, industri, jalan, rt, rw, kelurahan, kecamatan, kabupaten, kodepos, alamat lengkap, tanggal, siswa, nis, kelas, hp
   // ----------------------------------------------------------------------
   const handleExportCSV = () => {
     if (!filteredGroups || filteredGroups.length === 0) {
@@ -229,11 +241,36 @@ export default function PokjaKelompokPrakerinPage() {
       return;
     }
 
-    const headers = ['nama pembimbing', 'nama industri', 'tanggal mulai', 'tanggal selesai', 'nama siswa', 'kelas'];
+    const headers = [
+      'nama pembimbing',
+      'nama industri',
+      'jalan',
+      'rt',
+      'rw',
+      'kelurahan',
+      'kecamatan',
+      'kabupaten',
+      'kodepos',
+      'alamat lengkap',
+      'tanggal mulai',
+      'tanggal selesai',
+      'nama siswa',
+      'nis',
+      'kelas',
+      'no hp'
+    ];
     const rows: string[][] = [];
 
     filteredGroups.forEach((group) => {
       const industryName = group.industryName || '-';
+      const jalan = group.jalan || group.rawAddress || group.industryAddress || '-';
+      const rt = group.rt || '-';
+      const rw = group.rw || '-';
+      const kelurahan = group.desaKelurahan || '-';
+      const kecamatan = group.subDistrict || '-';
+      const kabupaten = group.regency || '-';
+      const kodepos = group.postalCode || '-';
+      const fullAddress = group.fullAddress || group.industryAddress || '-';
       const startDateFormatted = formatDateIndonesia(group.startDate);
       const endDateFormatted = formatDateIndonesia(group.endDate);
       const studentList = group.students || group.placements || [];
@@ -241,16 +278,28 @@ export default function PokjaKelompokPrakerinPage() {
       studentList.forEach((item: StudentItem) => {
         const student = item.student || item;
         const studentName = student.name || student.studentName || '-';
+        const nis = student.nis || '-';
         const className = student.className || '-';
+        const phone = student.phone || student.parentPhone || '-';
         const teacherName = student.teacher?.name || student.teacherName || 'Belum Di-assign';
 
         rows.push([
           teacherName,
           industryName,
+          jalan,
+          rt,
+          rw,
+          kelurahan,
+          kecamatan,
+          kabupaten,
+          kodepos,
+          fullAddress,
           startDateFormatted,
           endDateFormatted,
           studentName,
-          className
+          nis,
+          className,
+          phone
         ]);
       });
     });
@@ -274,13 +323,20 @@ export default function PokjaKelompokPrakerinPage() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    setSuccessMsg('Data kelompok prakerin berhasil diekspor ke format CSV!');
+    setSuccessMsg('Data kelompok prakerin dengan rincian alamat lengkap berhasil diekspor ke format CSV!');
   };
 
-  // 🌟 EKSPOR 1 KELOMPOK KE TAB BARU (HTML TABLE UNTUK SPREADSHEET)
+  // 🌟 EKSPOR 1 KELOMPOK KE TAB BARU (HTML TABLE UNTUK SPREADSHEET DENGAN ALAMAT LENGKAP)
   const handleExportGroupToNewTab = (group: GroupItem) => {
     const industryName = group.industryName || '-';
-    const industryAddress = group.industryAddress || '-';
+    const jalan = group.jalan || group.rawAddress || group.industryAddress || '-';
+    const rt = group.rt || '-';
+    const rw = group.rw || '-';
+    const kelurahan = group.desaKelurahan || '-';
+    const kecamatan = group.subDistrict || '-';
+    const kabupaten = group.regency || '-';
+    const kodepos = group.postalCode || '-';
+    const fullAddress = group.fullAddress || group.industryAddress || '-';
     const periodName = group.periodName || '-';
     const studentList = group.students || group.placements || [];
 
@@ -292,16 +348,25 @@ export default function PokjaKelompokPrakerinPage() {
       const nis = student.nis || '-';
       const className = student.className || '-';
       const phone = student.phone || student.parentPhone || '-'; 
+      const teacherName = student.teacher?.name || student.teacherName || 'Belum Di-assign';
       
       tableRows += `
         <tr>
           <td>${industryName}</td>
-          <td>${industryAddress}</td>
+          <td>${jalan}</td>
+          <td>&nbsp;${rt}</td>
+          <td>&nbsp;${rw}</td>
+          <td>${kelurahan}</td>
+          <td>${kecamatan}</td>
+          <td>${kabupaten}</td>
+          <td>&nbsp;${kodepos}</td>
+          <td>${fullAddress}</td>
           <td>${periodName}</td>
           <td>${studentName}</td>
           <td>&nbsp;${nis}</td>
           <td>${className}</td>
           <td>&nbsp;${phone}</td>
+          <td>${teacherName}</td>
         </tr>
       `;
     });
@@ -311,25 +376,43 @@ export default function PokjaKelompokPrakerinPage() {
         <head>
           <title>Export Kelompok - ${industryName}</title>
           <style>
-            body { padding: 20px; font-family: sans-serif; }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-            th { background-color: #f4f4f4; }
+            body { padding: 24px; font-family: sans-serif; font-size: 13px; color: #0f172a; }
+            h2 { margin-bottom: 4px; color: #1e293b; }
+            .meta { margin-bottom: 16px; color: #475569; font-size: 13px; }
+            table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+            th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; }
+            th { background-color: #f1f5f9; font-weight: 700; color: #334155; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .tip { background: #e0f2fe; border: 1px solid #bae6fd; padding: 10px 14px; border-radius: 8px; color: #0369a1; margin-bottom: 16px; font-size: 12px; }
           </style>
         </head>
         <body>
-          <h2>Data Kelompok: ${industryName}</h2>
-          <p><em>Silakan Ctrl+A lalu Ctrl+C tabel di bawah ini, kemudian Paste (Ctrl+V) di Spreadsheet Anda.</em></p>
+          <h2>Data Kelompok Prakerin: ${industryName}</h2>
+          <div class="meta">
+            <p><strong>Alamat Lengkap:</strong> ${fullAddress}</p>
+            <p><strong>Rincian Wilayah:</strong> Jalan: ${jalan} • RT/RW: ${rt}/${rw} • Kelurahan: ${kelurahan} • Kecamatan: ${kecamatan} • Kabupaten/Kota: ${kabupaten} • Kode Pos: ${kodepos}</p>
+          </div>
+          <div class="tip">
+            💡 <strong>Petunjuk:</strong> Tekan <strong>Ctrl + A</strong> lalu <strong>Ctrl + C</strong> pada halaman ini, kemudian <strong>Paste (Ctrl + V)</strong> langsung ke Spreadsheet / Microsoft Excel Anda.
+          </div>
           <table>
             <thead>
               <tr>
                 <th>Nama Industri</th>
-                <th>Alamat Industri</th>
+                <th>Jalan</th>
+                <th>RT</th>
+                <th>RW</th>
+                <th>Kelurahan/Desa</th>
+                <th>Kecamatan</th>
+                <th>Kabupaten/Kota</th>
+                <th>Kode Pos</th>
+                <th>Alamat Lengkap</th>
                 <th>Periode</th>
                 <th>Nama Siswa</th>
                 <th>NIS</th>
                 <th>Kelas</th>
                 <th>Nomor HP</th>
+                <th>Guru Pembimbing</th>
               </tr>
             </thead>
             <tbody>
@@ -1151,6 +1234,22 @@ export default function PokjaKelompokPrakerinPage() {
                   </div>
                   <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 font-mono font-bold text-xs border border-emerald-500/30">
                     {formatDateIndonesia(detailModalGroup.startDate)} s/d {formatDateIndonesia(detailModalGroup.endDate)}
+                  </div>
+                </div>
+
+                {/* 🌟 RINCIAN ALAMAT LENGKAP INDUSTRI */}
+                <div className="space-y-1.5 sm:col-span-2 pt-2 border-t border-slate-300 dark:border-slate-800/60">
+                  <span className="text-slate-800 dark:text-slate-300 font-extrabold block">Alamat Lengkap Industri:</span>
+                  <p className="font-bold text-slate-900 dark:text-slate-100 leading-relaxed bg-slate-100 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+                    {detailModalGroup.fullAddress || detailModalGroup.industryAddress || '-'}
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-[11px] text-slate-600 dark:text-slate-400">
+                    <div>Jalan: <strong className="text-slate-900 dark:text-slate-200">{detailModalGroup.jalan || detailModalGroup.rawAddress || '-'}</strong></div>
+                    <div>RT / RW: <strong className="text-slate-900 dark:text-slate-200">{detailModalGroup.rt || '-'}/{detailModalGroup.rw || '-'}</strong></div>
+                    <div>Kelurahan/Desa: <strong className="text-slate-900 dark:text-slate-200">{detailModalGroup.desaKelurahan || '-'}</strong></div>
+                    <div>Kecamatan: <strong className="text-slate-900 dark:text-slate-200">{detailModalGroup.subDistrict || '-'}</strong></div>
+                    <div>Kabupaten/Kota: <strong className="text-slate-900 dark:text-slate-200">{detailModalGroup.regency || '-'}</strong></div>
+                    <div>Kode Pos: <strong className="text-slate-900 dark:text-slate-200">{detailModalGroup.postalCode || '-'}</strong></div>
                   </div>
                 </div>
 

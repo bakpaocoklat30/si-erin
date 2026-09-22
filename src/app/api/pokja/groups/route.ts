@@ -128,12 +128,37 @@ export async function GET(request: Request) {
       const savedLetterNumber = placement.letterNumber || null;
 
       if (!groupedMap[groupKey]) {
+        // Susun komponen alamat detail dan gabungan alamat lengkap
+        const jalan = industry?.address || '-';
+        const rt = industry?.rt ? `RT ${industry.rt}` : '';
+        const rw = industry?.rw ? `RW ${industry.rw}` : '';
+        const rtRw = (rt || rw) ? `${rt}${rt && rw ? '/' : ''}${rw}` : '';
+        const dusun = industry?.dusun ? `Dusun ${industry.dusun}` : '';
+        const kel = industry?.desaKelurahan ? `Kel. ${industry.desaKelurahan}` : '';
+        const kec = industry?.subDistrict ? `Kec. ${industry.subDistrict}` : '';
+        const kab = industry?.regency || '';
+        const kodepos = industry?.postalCode ? `Kode Pos ${industry.postalCode}` : '';
+
+        const fullAddressParts = [jalan, rtRw, dusun, kel, kec, kab, kodepos].filter(Boolean);
+        const completeAddress = fullAddressParts.length > 0 ? fullAddressParts.join(', ') : jalan;
+
         groupedMap[groupKey] = {
           groupId: groupKey,
           groupKey: groupKey,
           industryId: industryId,
           industryName: industryName,
-          industryAddress: industry?.address || '-',
+          industryAddress: completeAddress,
+          rawAddress: industry?.address || '-',
+          jalan: industry?.address || '-',
+          rt: industry?.rt || '-',
+          rw: industry?.rw || '-',
+          dusun: industry?.dusun || '-',
+          desaKelurahan: industry?.desaKelurahan || '-',
+          subDistrict: industry?.subDistrict || '-',
+          regency: industry?.regency || '-',
+          postalCode: industry?.postalCode || '-',
+          province: industry?.province || '-',
+          fullAddress: completeAddress,
           industryPhone: industry?.phone || '-',
           departmentName: departmentName,
           periodId: periodId,
@@ -156,7 +181,8 @@ export async function GET(request: Request) {
         name: student?.name,
         className: student?.className,
         department: student?.department,
-        phone: student?.phone,
+        phone: student?.phone || student?.parentPhone || '-',
+        parentPhone: student?.parentPhone || '-',
         teacher: student?.teacher || null,
         placementId: placement.id,
         status: placement.status,
