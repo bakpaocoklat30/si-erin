@@ -45,7 +45,8 @@ import {
   Download,
   Trash2,
   ShieldAlert,
-  MessageCircle
+  MessageCircle,
+  UserCheck
 } from 'lucide-react';
 
 interface TeacherItem {
@@ -115,6 +116,7 @@ export default function PokjaKelompokPrakerinPage() {
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [periods, setPeriods] = useState<PeriodItem[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Target Kelompok untuk Upload Surat & Input Nomor Surat Pokja
@@ -145,14 +147,16 @@ export default function PokjaKelompokPrakerinPage() {
     }
   };
 
-  // Fetch Data Kelompok dari API Pokja (Dukung query periodId)
-  const fetchGroupsData = useCallback(async (periodId = selectedPeriodId) => {
+  // Fetch Data Kelompok dari API Pokja (Dukung query periodId & status)
+  const fetchGroupsData = useCallback(async (periodId = selectedPeriodId, status = selectedStatus) => {
     setLoading(true);
     setErrorMsg('');
     try {
-      const url = periodId && periodId !== 'ALL' 
-        ? `/api/pokja/groups?periodId=${encodeURIComponent(periodId)}`
-        : '/api/pokja/groups';
+      const params = new URLSearchParams();
+      if (periodId && periodId !== 'ALL') params.set('periodId', periodId);
+      if (status && status !== 'ALL') params.set('status', status);
+      const queryString = params.toString();
+      const url = queryString ? `/api/pokja/groups?${queryString}` : '/api/pokja/groups';
 
       const res = await fetch(url);
       const json = await res.json();
@@ -172,16 +176,21 @@ export default function PokjaKelompokPrakerinPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPeriodId]);
+  }, [selectedPeriodId, selectedStatus]);
 
   useEffect(() => {
     fetchGroupsData();
   }, [fetchGroupsData]);
 
-  // Handler Ganti Filter Periode
+  // Handler Ganti Filter Periode & Status
   const handlePeriodChange = (newPeriodId: string) => {
     setSelectedPeriodId(newPeriodId);
-    fetchGroupsData(newPeriodId);
+    fetchGroupsData(newPeriodId, selectedStatus);
+  };
+
+  const handleStatusChange = (newStatus: string) => {
+    setSelectedStatus(newStatus);
+    fetchGroupsData(selectedPeriodId, newStatus);
   };
 
   // Filter Pencarian Berdasarkan Kata Kunci (Industri, Periode, Nomor Surat, Nama Siswa, NIS)
@@ -586,45 +595,67 @@ export default function PokjaKelompokPrakerinPage() {
         </div>
       )}
 
-      {/* SEARCH BAR & FILTER PERIODE SECTION */}
-      <div className={`p-6 rounded-3xl border shadow-xl flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 transition-all ${
+      {/* SEARCH BAR & FILTER PERIODE/STATUS SECTION */}
+      <div className={`p-6 rounded-3xl border shadow-xl flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 transition-all ${
         theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/90 shadow-slate-200/50'
       }`}>
-        {/* 🌟 DROPDOWN FILTER PERIODE PKL */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* 🌟 DROPDOWN FILTER PERIODE PKL & STATUS */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          {/* FILTER PERIODE */}
           <div className="flex items-center space-x-2">
-            <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Periode PKL:
+              Periode:
             </span>
+            <select
+              value={selectedPeriodId}
+              onChange={(e) => handlePeriodChange(e.target.value)}
+              className={`px-3.5 py-2 rounded-2xl text-xs font-extrabold border outline-none cursor-pointer transition-all ${
+                theme === 'dark'
+                  ? 'bg-slate-950 border-slate-800 text-indigo-300 focus:border-indigo-500'
+                  : 'bg-slate-50 border-slate-300 text-indigo-900 focus:border-indigo-600 shadow-sm'
+              }`}
+            >
+              <option value="ALL">Semua Periode</option>
+              {periods.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} {p.isActive ? '(AKTIF)' : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <select
-            value={selectedPeriodId}
-            onChange={(e) => handlePeriodChange(e.target.value)}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold border outline-none cursor-pointer transition-all ${
-              theme === 'dark'
-                ? 'bg-slate-950 border-slate-800 text-indigo-300 focus:border-indigo-500'
-                : 'bg-slate-50 border-slate-300 text-indigo-900 focus:border-indigo-600 shadow-sm'
-            }`}
-          >
-            <option value="ALL">Semua Periode PKL</option>
-            {periods.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} {p.isActive ? '(AKTIF)' : ''}
-              </option>
-            ))}
-          </select>
+          {/* FILTER STATUS TERVERIFIKASI */}
+          <div className="flex items-center space-x-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Status:
+            </span>
+            <select
+              value={selectedStatus}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className={`px-3.5 py-2 rounded-2xl text-xs font-extrabold border outline-none cursor-pointer transition-all ${
+                theme === 'dark'
+                  ? 'bg-slate-950 border-slate-800 text-emerald-300 focus:border-emerald-500'
+                  : 'bg-slate-50 border-slate-300 text-emerald-900 focus:border-emerald-600 shadow-sm'
+              }`}
+            >
+              <option value="ALL">Semua Status Terverifikasi</option>
+              <option value="PEMBUATAN_SURAT">Pembuatan Surat (Menunggu No/File Surat)</option>
+              <option value="SURAT_DITERBITKAN">Surat Diterbitkan</option>
+              <option value="DISETUJUI_INDUSTRI">Disetujui Industri</option>
+            </select>
+          </div>
         </div>
 
         {/* SEARCH BAR */}
-        <div className="relative w-full md:w-80">
+        <div className="relative w-full lg:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Cari Industri, Periode, No Surat, Nama Siswa, Pembimbing..."
+            placeholder="Cari Industri, Periode, No Surat, Siswa..."
             className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs font-semibold border outline-none transition-all ${
               theme === 'dark' 
                 ? 'bg-slate-950 border-slate-800 text-slate-100 focus:border-indigo-500' 
@@ -635,9 +666,9 @@ export default function PokjaKelompokPrakerinPage() {
       </div>
 
       {/* STATISTIK KELOMPOK */}
-      <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300 px-2">
-        <span>Menampilkan <strong>{filteredGroups.length}</strong> Kelompok Penempatan DUDI ({pokjaDepartment})</span>
-        <span>Total Siswa: <strong>{filteredGroups.reduce((acc, g) => acc + (g.students || g.placements || []).length, 0)}</strong> Orang</span>
+      <div className="flex flex-wrap justify-between items-center gap-2 text-xs font-extrabold text-slate-700 dark:text-slate-300 px-2">
+        <span>Menampilkan <strong>{filteredGroups.length}</strong> Kelompok Terverifikasi ({pokjaDepartment})</span>
+        <span>Total Siswa Terverifikasi: <strong>{filteredGroups.reduce((acc, g) => acc + (g.students || g.placements || []).length, 0)}</strong> Orang</span>
       </div>
 
       {/* INPUT FILE HIDDEN UNTUK PICKER */}
@@ -841,16 +872,50 @@ export default function PokjaKelompokPrakerinPage() {
                               : 'bg-slate-50 border-slate-200'
                           }`}
                         >
-                          <div className="space-y-1 overflow-hidden pr-6">
+                          <div className="space-y-1.5 overflow-hidden pr-6">
                             <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block truncate">
                               {student.name || student.studentName || 'Nama Siswa'}
                             </span>
                             <p className="text-[11px] text-slate-700 dark:text-slate-400 font-bold">
                               NIS: {student.nis || '-'} • {student.className || '-'}
                             </p>
-                            <span className="text-[10px] text-indigo-700 dark:text-indigo-400 font-black block truncate">
-                              {student.department || student.departmentName || groupDeptName}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              <span className="text-[10px] text-indigo-700 dark:text-indigo-400 font-black truncate max-w-[120px]">
+                                {student.department || student.departmentName || groupDeptName}
+                              </span>
+                              {(() => {
+                                const st = (student as any).status || (item as any).status;
+                                if (st === 'PEMBUATAN_SURAT') {
+                                  return (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 whitespace-nowrap">
+                                      SIAP SURAT
+                                    </span>
+                                  );
+                                }
+                                if (st === 'SURAT_DITERBITKAN' || st === 'LETTER_ISSUED') {
+                                  return (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+                                      SURAT TERBIT
+                                    </span>
+                                  );
+                                }
+                                if (st === 'DISETUJUI_INDUSTRI' || st === 'DITERIMA' || st === 'DITERIMA_INDUSTRI') {
+                                  return (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/30 whitespace-nowrap">
+                                      DISETUJUI DUDI
+                                    </span>
+                                  );
+                                }
+                                if (st) {
+                                  return (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/30 whitespace-nowrap">
+                                      {st.replace(/_/g, ' ')}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
                           </div>
 
                           {/* TOMBOL KELUARKAN SISWA INDIVIDUAL */}
@@ -898,14 +963,29 @@ export default function PokjaKelompokPrakerinPage() {
             );
           })
         ) : (
-          <div className={`p-12 text-center rounded-3xl border space-y-3 ${
+          <div className={`p-12 text-center rounded-3xl border space-y-4 ${
             theme === 'dark' ? 'bg-slate-900/40 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-700'
           }`}>
-            <Building className="w-10 h-10 mx-auto text-slate-400" />
-            <p className="font-black text-sm text-slate-900 dark:text-slate-200">Tidak Ada Kelompok Prakerin Terdaftar untuk {pokjaDepartment}</p>
-            <p className="text-xs max-w-md mx-auto font-medium">
-              Data kelompok prakerin siswa terverifikasi pada jurusan ini belum tersedia untuk kriteria filter yang dipilih.
-            </p>
+            <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center border border-indigo-500/20">
+              <Users className="w-7 h-7" />
+            </div>
+            <div className="space-y-1.5 max-w-md mx-auto">
+              <p className="font-black text-base text-slate-900 dark:text-slate-200">
+                Tidak Ada Kelompok Terverifikasi untuk {pokjaDepartment}
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                Hanya siswa yang telah diverifikasi oleh Tim Pokja yang ditampilkan pada halaman ini. Siswa yang baru mengajukan tempat PKL dapat Anda tinjau dan setujui terlebih dahulu pada menu <strong>Verifikasi Pengajuan PKL</strong>.
+              </p>
+            </div>
+            <div className="pt-2">
+              <a
+                href="/dashboard/pokja/verifikasi"
+                className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-2xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Buka Menu Verifikasi Pengajuan</span>
+              </a>
+            </div>
           </div>
         )}
       </div>

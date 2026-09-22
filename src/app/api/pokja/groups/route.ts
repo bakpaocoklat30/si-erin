@@ -40,6 +40,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const selectedPeriodId = searchParams.get('periodId');
+    const selectedStatus = searchParams.get('status');
 
     // Ambil daftar seluruh periode untuk pilihan filter di frontend
     const periods = await db.internshipPeriod.findMany({
@@ -53,9 +54,30 @@ export async function GET(request: Request) {
       studentWhere.department = { equals: userDepartment, mode: 'insensitive' };
     }
 
+    // 🌟 STATUS TERVERIFIKASI: Hanya kelompok/siswa yang sudah diverifikasi Pokja yang boleh tampil di modul ini
+    const VERIFIED_STATUSES = [
+      'PEMBUATAN_SURAT',
+      'SURAT_DITERBITKAN',
+      'LETTER_ISSUED',
+      'KIRIM_SURAT',
+      'SENT_DUDI',
+      'DISETUJUI_INDUSTRI',
+      'DITERIMA',
+      'DITERIMA_INDUSTRI',
+      'COMPLETED',
+      'SELESAI_PKL'
+    ];
+
+    let statusCondition: any;
+    if (selectedStatus && selectedStatus !== 'ALL') {
+      statusCondition = selectedStatus;
+    } else {
+      statusCondition = { in: VERIFIED_STATUSES };
+    }
+
     let placementWhere: any = {
       student: studentWhere,
-      status: { in: ['PENGAJUAN_DIKIRIM', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'KIRIM_SURAT', 'DISETUJUI_INDUSTRI'] }
+      status: statusCondition
     };
 
     // Ambil data penempatan dari database Prisma
@@ -283,10 +305,15 @@ export async function DELETE(request: Request) {
       }
     }
 
-    // Kasus C: Hapus seluruh penempatan berdasarkan industryId
+    // Kasus C: Hapus seluruh penempatan berdasarkan industryId (dengan isolasi jurusan Pokja)
     if (industryId) {
+      const deleteWhere: any = { industryId: industryId };
+      if ((userRole === 'POKJA' || userRole === 'TIM_POKJA') && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan') {
+        deleteWhere.student = { department: { equals: userDepartment, mode: 'insensitive' } };
+      }
+
       const deleted = await db.internshipPlacement.deleteMany({
-        where: { industryId: industryId }
+        where: deleteWhere
       });
 
       return NextResponse.json({

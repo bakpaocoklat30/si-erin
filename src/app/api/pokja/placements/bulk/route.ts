@@ -50,6 +50,41 @@ export async function GET(request: Request) {
       orderBy: { startDate: 'desc' }
     });
 
+    // 🌟 QUERY PENEMPATAN YANG SUDAH TERVERIFIKASI PADA INDUSTRI TERKAIT
+    const industryIds = Array.from(new Set(placements.map(p => p.industryId).filter(Boolean)));
+    const existingPlacements = await db.internshipPlacement.findMany({
+      where: {
+        industryId: { in: industryIds },
+        status: {
+          in: [
+            'PEMBUATAN_SURAT',
+            'SURAT_DITERBITKAN',
+            'LETTER_ISSUED',
+            'KIRIM_SURAT',
+            'SENT_DUDI',
+            'DISETUJUI_INDUSTRI',
+            'DITERIMA',
+            'DITERIMA_INDUSTRI',
+            'COMPLETED',
+            'SELESAI_PKL'
+          ]
+        }
+      },
+      select: {
+        id: true,
+        industryId: true,
+        status: true,
+        student: {
+          select: {
+            id: true,
+            name: true,
+            className: true,
+            department: true
+          }
+        }
+      }
+    });
+
     // Pengelompokan berdasarkan (Industri + Periode)
     const groupedMap: Record<string, any> = {};
 
@@ -71,13 +106,59 @@ export async function GET(request: Request) {
       const groupKey = `${industryId}___${periodId}`;
 
       if (!groupedMap[groupKey]) {
+        // Kalkulasi kuota dan penempatan aktif yang sudah mengisi industri ini
+        const verifiedForThisInd = existingPlacements.filter(ep => ep.industryId === industryId);
+        const verifiedCount = verifiedForThisInd.length;
+
+        let effectiveQuota = industry?.totalQuota ?? 0;
+        let isUnlimited = effectiveQuota === -1 || effectiveQuota >= 999;
+
+        if (matchedPeriod?.activeIndustries) {
+          try {
+            let parsed: any[] = [];
+            if (typeof matchedPeriod.activeIndustries === 'string') {
+              parsed = JSON.parse(matchedPeriod.activeIndustries);
+            } else if (Array.isArray(matchedPeriod.activeIndustries)) {
+              parsed = matchedPeriod.activeIndustries;
+            }
+            const cfg = parsed.find((item: any) => (item.industryId || item.id) === industryId);
+            if (cfg) {
+              if (cfg.isUnlimited) {
+                isUnlimited = true;
+                effectiveQuota = -1;
+              } else if (typeof cfg.quota === 'number') {
+                effectiveQuota = cfg.quota;
+                isUnlimited = false;
+              }
+            }
+          } catch (err) {
+            // fallback ke kuota default industri
+          }
+        }
+
+        const remainingQuota = isUnlimited ? 999 : Math.max(0, effectiveQuota - verifiedCount);
+        const isFull = !isUnlimited && remainingQuota <= 0;
+
         groupedMap[groupKey] = {
           groupKey: groupKey,
           industryId: industryId,
           industryName: industryName,
           industryAddress: industry?.address || '-',
           industryPhone: industry?.phone || '-',
-          totalQuota: industry?.totalQuota || 0,
+          totalQuota: isUnlimited ? 'Bebas' : effectiveQuota,
+          quotaNumber: effectiveQuota,
+          verifiedCount: verifiedCount,
+          remainingQuota: isUnlimited ? 'Bebas' : remainingQuota,
+          remainingNumber: remainingQuota,
+          isUnlimited: isUnlimited,
+          isFull: isFull,
+          verifiedStudents: verifiedForThisInd.map(ep => ({
+            id: ep.id,
+            name: ep.student?.name || 'Siswa',
+            className: ep.student?.className || '-',
+            department: ep.student?.department || '-',
+            status: ep.status
+          })),
           periodId: periodId,
           periodName: periodName,
           startDate: matchedPeriod?.startDate || placement.startDate,
