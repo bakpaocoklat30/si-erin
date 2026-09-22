@@ -65,85 +65,89 @@ function sanitizeIndustryFileName(name: string): string {
  * agar Google Drive dapat mempratinjau (preview) dokumen secara langsung tanpa aplikasi tambahan.
  */
 function imageBufferToPdf(imgBuffer: Buffer, mimeType: string): Buffer {
-  // Jika buffer sudah berupa berkas PDF (magic header %PDF-), kembalikan langsung
-  if (imgBuffer.length >= 5 && imgBuffer.slice(0, 5).toString('ascii') === '%PDF-') {
-    return imgBuffer;
-  }
+  try {
+    // Jika buffer sudah berupa berkas PDF (magic header %PDF-), kembalikan langsung
+    if (imgBuffer.length >= 5 && imgBuffer.slice(0, 5).toString('ascii') === '%PDF-') {
+      return imgBuffer;
+    }
 
-  let width = 595;  // Standar A4 lebar (poin)
-  let height = 842; // Standar A4 tinggi (poin)
-  const isJpeg = mimeType.includes('jpeg') || mimeType.includes('jpg') || 
-                 (imgBuffer.length > 2 && imgBuffer[0] === 0xFF && imgBuffer[1] === 0xD8);
+    let width = 595;  // Standar A4 lebar (poin)
+    let height = 842; // Standar A4 tinggi (poin)
+    const isJpeg = mimeType.includes('jpeg') || mimeType.includes('jpg') || 
+                   (imgBuffer.length > 2 && imgBuffer[0] === 0xFF && imgBuffer[1] === 0xD8);
 
-  if (isJpeg) {
-    try {
-      let offset = 2;
-      while (offset < imgBuffer.length - 8) {
-        if (imgBuffer[offset] === 0xFF) {
-          const marker = imgBuffer[offset + 1];
-          if (marker === 0xC0 || marker === 0xC2) { // SOF0 / SOF2
-            height = imgBuffer.readUInt16BE(offset + 5);
-            width = imgBuffer.readUInt16BE(offset + 7);
-            break;
-          } else if (marker === 0xD9 || marker === 0xDA) {
-            break;
+    if (isJpeg) {
+      try {
+        let offset = 2;
+        while (offset < imgBuffer.length - 8) {
+          if (imgBuffer[offset] === 0xFF) {
+            const marker = imgBuffer[offset + 1];
+            if (marker === 0xC0 || marker === 0xC2) { // SOF0 / SOF2
+              height = imgBuffer.readUInt16BE(offset + 5);
+              width = imgBuffer.readUInt16BE(offset + 7);
+              break;
+            } else if (marker === 0xD9 || marker === 0xDA) {
+              break;
+            } else {
+              const len = imgBuffer.readUInt16BE(offset + 2);
+              offset += 2 + len;
+            }
           } else {
-            const len = imgBuffer.readUInt16BE(offset + 2);
-            offset += 2 + len;
+            offset++;
           }
-        } else {
-          offset++;
         }
+      } catch (e) {
+        width = 595;
+        height = 842;
       }
-    } catch (e) {
-      width = 595;
-      height = 842;
+
+      const obj1 = '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
+      const obj2 = '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n';
+      const obj3 = `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`;
+      const obj4Header = `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBuffer.length} >>\nstream\n`;
+      const obj4Footer = '\nendstream\nendobj\n';
+      const contentStream = `q ${width} 0 0 ${height} 0 0 cm /Im1 Do Q`;
+      const obj5 = `5 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`;
+
+      const header = '%PDF-1.4\n';
+      const offsets: number[] = [];
+
+      let currentOffset = header.length;
+      offsets.push(currentOffset);
+      currentOffset += Buffer.byteLength(obj1, 'ascii');
+      offsets.push(currentOffset);
+      currentOffset += Buffer.byteLength(obj2, 'ascii');
+      offsets.push(currentOffset);
+      currentOffset += Buffer.byteLength(obj3, 'ascii');
+      offsets.push(currentOffset);
+      currentOffset += Buffer.byteLength(obj4Header, 'ascii') + imgBuffer.length + Buffer.byteLength(obj4Footer, 'ascii');
+      offsets.push(currentOffset);
+      currentOffset += Buffer.byteLength(obj5, 'ascii');
+
+      let xref = `xref\n0 6\n0000000000 65535 f \n`;
+      for (const off of offsets) {
+        xref += String(off).padStart(10, '0') + ' 00000 n \n';
+      }
+      const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${currentOffset}\n%%EOF\n`;
+
+      return Buffer.concat([
+        Buffer.from(header, 'ascii'),
+        Buffer.from(obj1, 'ascii'),
+        Buffer.from(obj2, 'ascii'),
+        Buffer.from(obj3, 'ascii'),
+        Buffer.from(obj4Header, 'ascii'),
+        imgBuffer,
+        Buffer.from(obj4Footer, 'ascii'),
+        Buffer.from(obj5, 'ascii'),
+        Buffer.from(xref, 'ascii'),
+        Buffer.from(trailer, 'ascii')
+      ]);
     }
-
-    const obj1 = '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
-    const obj2 = '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n';
-    const obj3 = `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`;
-    const obj4Header = `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBuffer.length} >>\nstream\n`;
-    const obj4Footer = '\nendstream\nendobj\n';
-    const contentStream = `q ${width} 0 0 ${height} 0 0 cm /Im1 Do Q`;
-    const obj5 = `5 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`;
-
-    const header = '%PDF-1.4\n';
-    const offsets: number[] = [];
-
-    let currentOffset = header.length;
-    offsets.push(currentOffset);
-    currentOffset += Buffer.byteLength(obj1, 'ascii');
-    offsets.push(currentOffset);
-    currentOffset += Buffer.byteLength(obj2, 'ascii');
-    offsets.push(currentOffset);
-    currentOffset += Buffer.byteLength(obj3, 'ascii');
-    offsets.push(currentOffset);
-    currentOffset += Buffer.byteLength(obj4Header, 'ascii') + imgBuffer.length + Buffer.byteLength(obj4Footer, 'ascii');
-    offsets.push(currentOffset);
-    currentOffset += Buffer.byteLength(obj5, 'ascii');
-
-    let xref = `xref\n0 6\n0000000000 65535 f \n`;
-    for (const off of offsets) {
-      xref += String(off).padStart(10, '0') + ' 00000 n \n';
-    }
-    const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${currentOffset}\n%%EOF\n`;
-
-    return Buffer.concat([
-      Buffer.from(header, 'ascii'),
-      Buffer.from(obj1, 'ascii'),
-      Buffer.from(obj2, 'ascii'),
-      Buffer.from(obj3, 'ascii'),
-      Buffer.from(obj4Header, 'ascii'),
-      imgBuffer,
-      Buffer.from(obj4Footer, 'ascii'),
-      Buffer.from(obj5, 'ascii'),
-      Buffer.from(xref, 'ascii'),
-      Buffer.from(trailer, 'ascii')
-    ]);
+  } catch (pdfErr) {
+    console.warn('[BACKUP SERVICE] Warning pembuatan PDF dari gambar:', pdfErr);
   }
 
-  // Jika berupa berkas lain, kembalikan buffer apa adanya
+  // Jika berupa berkas lain atau konversi dilewati, kembalikan buffer apa adanya
   return imgBuffer;
 }
 
@@ -159,13 +163,24 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
 
   // 1. Data URL Base64 (Format paling umum dari unggahan profil dan surat)
   if (trimmed.startsWith('data:')) {
-    const match = trimmed.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-    if (match) {
-      const mimeType = match[1];
-      const rawBuffer = Buffer.from(match[2], 'base64');
-      if (rawBuffer.length === 0) return null;
-      const pdfBuffer = imageBufferToPdf(rawBuffer, mimeType);
-      return { buffer: pdfBuffer, mimeType: 'application/pdf' };
+    const commaIdx = trimmed.indexOf(',');
+    if (commaIdx !== -1) {
+      const meta = trimmed.substring(0, commaIdx);
+      const base64Data = trimmed.substring(commaIdx + 1).replace(/\s+/g, '');
+      let mimeType = 'application/pdf';
+      const mimeMatch = meta.match(/data:([^;]+)/);
+      if (mimeMatch) {
+        mimeType = mimeMatch[1].toLowerCase().trim();
+      }
+      try {
+        const rawBuffer = Buffer.from(base64Data, 'base64');
+        if (rawBuffer.length > 0) {
+          const pdfBuffer = imageBufferToPdf(rawBuffer, mimeType);
+          return { buffer: pdfBuffer, mimeType: 'application/pdf' };
+        }
+      } catch (err) {
+        console.warn('[BACKUP SERVICE] Gagal decode buffer dari data URL base64:', err);
+      }
     }
   }
 
@@ -174,13 +189,18 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
     const cleanPath = trimmed.replace(/^\//, '');
     const localPath = path.join(process.cwd(), 'public', cleanPath);
     if (fs.existsSync(localPath)) {
-      const rawBuffer = fs.readFileSync(localPath);
-      if (rawBuffer.length === 0) return null;
-      let mimeType = 'application/pdf';
-      if (cleanPath.endsWith('.jpg') || cleanPath.endsWith('.jpeg')) mimeType = 'image/jpeg';
-      else if (cleanPath.endsWith('.png')) mimeType = 'image/png';
-      const pdfBuffer = imageBufferToPdf(rawBuffer, mimeType);
-      return { buffer: pdfBuffer, mimeType: 'application/pdf' };
+      try {
+        const rawBuffer = fs.readFileSync(localPath);
+        if (rawBuffer.length > 0) {
+          let mimeType = 'application/pdf';
+          if (cleanPath.endsWith('.jpg') || cleanPath.endsWith('.jpeg')) mimeType = 'image/jpeg';
+          else if (cleanPath.endsWith('.png')) mimeType = 'image/png';
+          const pdfBuffer = imageBufferToPdf(rawBuffer, mimeType);
+          return { buffer: pdfBuffer, mimeType: 'application/pdf' };
+        }
+      } catch (err) {
+        console.warn(`[BACKUP SERVICE] Gagal membaca berkas lokal ${localPath}:`, err);
+      }
     }
   }
 
@@ -190,10 +210,11 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
       const res = await fetch(trimmed);
       if (res.ok) {
         const rawBuffer = Buffer.from(await res.arrayBuffer());
-        if (rawBuffer.length === 0) return null;
-        const contentType = res.headers.get('content-type') || 'application/pdf';
-        const pdfBuffer = imageBufferToPdf(rawBuffer, contentType);
-        return { buffer: pdfBuffer, mimeType: 'application/pdf' };
+        if (rawBuffer.length > 0) {
+          const contentType = res.headers.get('content-type') || 'application/pdf';
+          const pdfBuffer = imageBufferToPdf(rawBuffer, contentType);
+          return { buffer: pdfBuffer, mimeType: 'application/pdf' };
+        }
       }
     } catch (e) {
       console.warn(`[BACKUP SERVICE] Gagal mengunduh file dari URL: ${trimmed}`);
@@ -201,9 +222,10 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
   }
 
   // 4. Raw base64 string tanpa prefix data:
-  if (trimmed.length > 100 && /^[A-Za-z0-9+/=]+$/.test(trimmed.slice(0, 100))) {
+  const cleanBase64 = trimmed.replace(/\s+/g, '');
+  if (cleanBase64.length > 50) {
     try {
-      const rawBuffer = Buffer.from(trimmed, 'base64');
+      const rawBuffer = Buffer.from(cleanBase64, 'base64');
       if (rawBuffer.length > 0) {
         const pdfBuffer = imageBufferToPdf(rawBuffer, 'application/pdf');
         return { buffer: pdfBuffer, mimeType: 'application/pdf' };
@@ -213,6 +235,7 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
 
   return null;
 }
+
 
 export interface BackupSyncSummary {
   zipFile: any;
@@ -597,11 +620,17 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     details: syncDetails,
   };
 
-  console.log(`[BACKUP SERVICE] ✅ Full Backup SUKSES! Arsip ZIP terunggah, ${totalSynced + totalUpdated} dokumen terstruktur berhasil disinkronkan ke Google Drive.`);
+  const successCount = totalSynced + totalUpdated;
+  const statusMessage = totalFailed > 0
+    ? `Backup Sistem selesai: Arsip ZIP terunggah, ${successCount} dokumen disinkronkan, namun ada ${totalFailed} dokumen yang gagal.`
+    : `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Pengajuan, Jawaban, CV, & BPJS) telah disinkronkan ke folder Google Drive.`;
+
+  console.log(`[BACKUP SERVICE] 🏁 ${statusMessage}`);
 
   return {
     success: true,
-    message: `Backup Sistem berhasil! Arsip ZIP dan ${totalSynced + totalUpdated} dokumen (Pengajuan, Jawaban, CV, & BPJS) telah disinkronkan ke folder Google Drive.`,
+    message: statusMessage,
     summary: summaryResult,
   };
 }
+

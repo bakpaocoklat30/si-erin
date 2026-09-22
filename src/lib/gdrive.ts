@@ -189,46 +189,81 @@ export async function uploadOrUpdateFileInDrive(
   buffer: Buffer,
   parentFolderId: string
 ): Promise<{ action: 'created' | 'updated'; file: any }> {
-  const { Readable } = await import('stream');
+  const os = await import('os');
+  const path = await import('path');
+  const fs = await import('fs');
+
   const cleanName = fileName.trim();
-  const escapedName = cleanName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeSearchName = cleanName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
-  // Cek apakah berkas dengan nama tersebut sudah ada di folder tujuan
-  const searchRes = await drive.files.list({
-    q: `'${parentFolderId}' in parents and name = '${escapedName}' and trashed = false`,
-    fields: 'files(id, name)',
-    pageSize: 1,
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-  });
-
-  if (searchRes.data.files && searchRes.data.files.length > 0) {
-    const fileId = searchRes.data.files[0].id!;
-    const updateRes = await drive.files.update({
-      fileId: fileId,
-      media: {
-        mimeType: mimeType,
-        body: Readable.from(buffer),
-      },
+  // 1. Cek apakah berkas dengan nama tersebut sudah ada di folder tujuan
+  let existingFileId: string | null = null;
+  try {
+    const searchRes = await drive.files.list({
+      q: `'${parentFolderId}' in parents and name = '${safeSearchName}' and trashed = false`,
+      fields: 'files(id, name)',
+      pageSize: 1,
       supportsAllDrives: true,
-      fields: 'id, name, webViewLink, size',
+      includeItemsFromAllDrives: true,
     });
-    return { action: 'updated', file: updateRes.data };
+
+    if (searchRes.data.files && searchRes.data.files.length > 0) {
+      existingFileId = searchRes.data.files[0].id!;
+    }
+  } catch (searchErr: any) {
+    console.warn(`[GDRIVE] Warning list files untuk "${cleanName}":`, searchErr?.message || searchErr);
   }
 
-  // Jika belum ada, buat berkas baru
-  const createRes = await drive.files.create({
-    requestBody: {
-      name: cleanName,
-      parents: [parentFolderId],
-    },
-    media: {
-      mimeType: mimeType,
-      body: Readable.from(buffer),
-    },
-    supportsAllDrives: true,
-    fields: 'id, name, webViewLink, size',
-  });
+  // 2. Simpan buffer ke berkas temporer lokal agar fs.createReadStream dapat mengirim stream secara 100% stabil ke Google API Client
+  const tempDir = path.join(os.tmpdir(), 'sierin_docs_tmp');
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
 
-  return { action: 'created', file: createRes.data };
-}
+  const tempFilePath = path.join(
+    tempDir,
+    `sync_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.tmp`
+  );
+  fs.writeFileSync(tempFilePath, buffer);
+
+  try {
+    const media = {
+      mimeType: mimeType || 'application/pdf',
+      body: fs.createReadStream(tempFilePath),
+    };
+
+    if (existingFileId) {
+      const updateRes = await drive.files.update({
+        fileId: existingFileId,
+        media: media,
+        supportsAllDrives: true,
+        fields: 'id, name, webViewLink, size',
+      });
+      console.log(`[GDRIVE] 🔄 Berkas "${cleanName}" diperbarui di Drive (ID: ${existingFileId})`);
+      return { action: 'updated', file: updateRes.data };
+    } else {
+      const createRes = await drive.files.create({
+        requestBody: {
+          name: cleanName,
+          parents: [parentFolderId],
+        },
+        media: media,
+        supportsAllDrives: true,
+        fields: 'id, name, webViewLink, size',
+      });
+      console.log(`[GDRIVE] ➕ Berkas "${cleanName}" baru berhasil dibuat di Drive (ID: ${createRes.data.id})`);
+      return { action: 'created', file: createRes.data };
+    }
+  } catch (uploadErr: any) {
+    console.error(`[GDRIVE ERROR] Gagal uploadOrUpdate berkas "${cleanName}":`, uploadErr?.message || uploadErr);
+    throw uploadErr;
+  } finally {
+    // 3. Bersihkan berkas temporer
+    try {
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+    } catch (e) {}
+  }
+}
+
