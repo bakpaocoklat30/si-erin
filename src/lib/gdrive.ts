@@ -10,6 +10,7 @@
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
 import fs from 'fs';
+import { Readable } from 'stream';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'];
 
@@ -189,8 +190,6 @@ export async function uploadOrUpdateFileInDrive(
   buffer: Buffer,
   parentFolderId: string
 ): Promise<{ action: 'created' | 'updated'; file: any }> {
-  const { Readable } = await import('stream');
-
   const cleanName = fileName.trim();
   const safeSearchName = cleanName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
@@ -212,10 +211,21 @@ export async function uploadOrUpdateFileInDrive(
     console.warn(`[GDRIVE] Warning list files untuk "${cleanName}":`, searchErr?.message || searchErr);
   }
 
-  // 2. Buat Readable stream langsung dari Buffer in-memory (100% aman tanpa ketergantungan disk/tmp)
+  // 2. Buat Readable stream langsung dari Buffer in-memory (universal across all Node.js / Next.js bundlers)
+  const safeBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || '');
+  function bufferToStream(buf: Buffer) {
+    if (typeof Readable?.from === 'function') {
+      return Readable.from(buf);
+    }
+    const stream = new Readable();
+    stream.push(buf);
+    stream.push(null);
+    return stream;
+  }
+
   const media = {
     mimeType: mimeType || 'application/pdf',
-    body: Readable.from(buffer),
+    body: bufferToStream(safeBuffer),
   };
 
   try {
