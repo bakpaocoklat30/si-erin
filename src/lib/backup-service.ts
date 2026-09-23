@@ -66,9 +66,11 @@ function sanitizeIndustryFileName(name: string): string {
  */
 function imageBufferToPdf(imgBuffer: Buffer, mimeType: string): Buffer {
   try {
-    // Jika buffer sudah berupa berkas PDF (magic header %PDF-), kembalikan langsung
-    if (imgBuffer.length >= 5 && imgBuffer.slice(0, 5).toString('ascii') === '%PDF-') {
-      return imgBuffer;
+    // 1. Jika buffer sudah berupa berkas PDF (magic header %PDF- dalam 1024 byte pertama), kembalikan langsung
+    const headChunk = imgBuffer.slice(0, 1024).toString('latin1');
+    const pdfIdx = headChunk.indexOf('%PDF-');
+    if (pdfIdx !== -1) {
+      return imgBuffer.slice(pdfIdx);
     }
 
     let width = 595;  // Standar A4 lebar (poin)
@@ -159,7 +161,18 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
     return null;
   }
 
-  const trimmed = fileSource.trim();
+  let trimmed = fileSource.trim();
+
+  // 0. Cek jika data disimpan sebagai JSON string (misal: {"url": "..."} atau {"path": "..."})
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const inner = parsed.url || parsed.data || parsed.path || parsed.base64 || parsed.file;
+      if (inner && typeof inner === 'string') {
+        return resolveFileBuffer(inner);
+      }
+    } catch (e) {}
+  }
 
   // 1. Data URL Base64 (Format paling umum dari unggahan profil dan surat)
   if (trimmed.startsWith('data:')) {
@@ -184,22 +197,29 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
     }
   }
 
-  // 2. Berkas lokal di disk server (/uploads/...)
-  if (trimmed.startsWith('/') || trimmed.startsWith('uploads/')) {
-    const cleanPath = trimmed.replace(/^\//, '');
-    const localPath = path.join(process.cwd(), 'public', cleanPath);
-    if (fs.existsSync(localPath)) {
-      try {
-        const rawBuffer = fs.readFileSync(localPath);
-        if (rawBuffer.length > 0) {
-          let mimeType = 'application/pdf';
-          if (cleanPath.endsWith('.jpg') || cleanPath.endsWith('.jpeg')) mimeType = 'image/jpeg';
-          else if (cleanPath.endsWith('.png')) mimeType = 'image/png';
-          const pdfBuffer = imageBufferToPdf(rawBuffer, mimeType);
-          return { buffer: pdfBuffer, mimeType: 'application/pdf' };
+  // 2. Berkas lokal di disk server (/uploads/...) dengan dukungan path absolut Docker & Standalone
+  if (trimmed.startsWith('/') || trimmed.startsWith('uploads/') || trimmed.startsWith('public/')) {
+    const cleanPath = trimmed.replace(/^\/?(public\/)?/, '');
+    const candidatePaths = [
+      path.join(process.cwd(), 'public', cleanPath),
+      path.join(process.cwd(), cleanPath),
+      path.join('/app', 'public', cleanPath),
+      path.join('/app', cleanPath)
+    ];
+    for (const localPath of candidatePaths) {
+      if (fs.existsSync(localPath)) {
+        try {
+          const rawBuffer = fs.readFileSync(localPath);
+          if (rawBuffer.length > 0) {
+            let mimeType = 'application/pdf';
+            if (cleanPath.endsWith('.jpg') || cleanPath.endsWith('.jpeg')) mimeType = 'image/jpeg';
+            else if (cleanPath.endsWith('.png')) mimeType = 'image/png';
+            const pdfBuffer = imageBufferToPdf(rawBuffer, mimeType);
+            return { buffer: pdfBuffer, mimeType: 'application/pdf' };
+          }
+        } catch (err) {
+          console.warn(`[BACKUP SERVICE] Gagal membaca berkas lokal ${localPath}:`, err);
         }
-      } catch (err) {
-        console.warn(`[BACKUP SERVICE] Gagal membaca berkas lokal ${localPath}:`, err);
       }
     }
   }
@@ -221,13 +241,19 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
     }
   }
 
-  // 4. Raw base64 string tanpa prefix data:
+  // 4. Raw base64 string tanpa prefix data: (misal diawali JVBERi0... untuk PDF atau /9j/... untuk JPEG)
   const cleanBase64 = trimmed.replace(/\s+/g, '');
-  if (cleanBase64.length > 50) {
+  if (cleanBase64.length > 50 && /^[A-Za-z0-9+/=]+$/.test(cleanBase64)) {
     try {
       const rawBuffer = Buffer.from(cleanBase64, 'base64');
       if (rawBuffer.length > 0) {
-        const pdfBuffer = imageBufferToPdf(rawBuffer, 'application/pdf');
+        let detectedMime = 'application/pdf';
+        if (rawBuffer.length > 3 && rawBuffer[0] === 0xFF && rawBuffer[1] === 0xD8 && rawBuffer[2] === 0xFF) {
+          detectedMime = 'image/jpeg';
+        } else if (rawBuffer.length > 4 && rawBuffer[0] === 0x89 && rawBuffer[1] === 0x50 && rawBuffer[2] === 0x4E && rawBuffer[3] === 0x47) {
+          detectedMime = 'image/png';
+        }
+        const pdfBuffer = imageBufferToPdf(rawBuffer, detectedMime);
         return { buffer: pdfBuffer, mimeType: 'application/pdf' };
       }
     } catch (e) {}
@@ -236,17 +262,25 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
   return null;
 }
 
-
 export interface BackupSyncSummary {
   zipFile: any;
   totalSynced: number;
   totalUpdated: number;
   totalFailed: number;
+  stats?: {
+    totalStudents: number;
+    studentsWithCv: number;
+    studentsWithBpjs: number;
+    totalPlacements: number;
+    placementsWithSuratTugas: number;
+    placementsWithSuratBalasan: number;
+  };
   details: Array<{
     type: 'PENGAJUAN' | 'JAWABAN' | 'CV' | 'BPJS';
     path: string;
     fileName: string;
     action: 'created' | 'updated' | 'failed';
+    error?: string;
   }>;
 }
 
@@ -437,6 +471,18 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     return { periodName, academicYearName };
   }
 
+  // Analisis statistik ketersediaan berkas di database SI-ERIN
+  const stats = {
+    totalStudents: students.length,
+    studentsWithCv: students.filter((s: any) => Boolean(s.cvUrl && String(s.cvUrl).trim() !== '')).length,
+    studentsWithBpjs: students.filter((s: any) => Boolean(s.bpjsUrl && String(s.bpjsUrl).trim() !== '')).length,
+    totalPlacements: placements.length,
+    placementsWithSuratTugas: placements.filter((p: any) => Boolean((p.suratTugasUrl || p.letterFile) && String(p.suratTugasUrl || p.letterFile).trim() !== '')).length,
+    placementsWithSuratBalasan: placements.filter((p: any) => Boolean(p.suratBalasanUrl && String(p.suratBalasanUrl).trim() !== '')).length,
+  };
+
+  console.log('[BACKUP SERVICE] 📊 Statistik Ketersediaan Berkas di Database SI-ERIN:', JSON.stringify(stats));
+
   const syncDetails: BackupSyncSummary['details'] = [];
   let totalSynced = 0;
   let totalUpdated = 0;
@@ -454,13 +500,14 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     const { periodName, academicYearName } = resolvePeriodAndYear(student?.className, student?.department);
     const safeIndustryName = sanitizeIndustryFileName(industry.name);
 
-    // 1. Surat Pengajuan Resmi (suratTugasUrl)
-    if (placement.suratTugasUrl) {
+    // 1. Surat Pengajuan Resmi (suratTugasUrl atau fallback letterFile)
+    const suratTugasSource = placement.suratTugasUrl || (placement as any).letterFile;
+    if (suratTugasSource && String(suratTugasSource).trim() !== '') {
       const pengajuanKey = `PENGAJUAN:::${academicYearName}:::${periodName}:::${safeIndustryName}`;
       if (!processedIndustryLetters.has(pengajuanKey)) {
         processedIndustryLetters.add(pengajuanKey);
         try {
-          const resolved = await resolveFileBuffer(placement.suratTugasUrl);
+          const resolved = await resolveFileBuffer(suratTugasSource);
           if (resolved) {
             // Dapatkan ID folder: Tahun Pelajaran -> Periode Prakerin -> Pengajuan
             const yearFolderId = await getOrCreateFolder(drive, academicYearName, rootDriveFolderId, folderCache);
@@ -487,6 +534,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
             path: `${academicYearName}/${periodName}/Pengajuan`,
             fileName: `${safeIndustryName}.pdf`,
             action: 'failed',
+            error: err?.message || String(err),
           });
           console.error(`[BACKUP SERVICE] Gagal mengunggah Surat Pengajuan ${safeIndustryName}:`, err?.message || err);
         }
@@ -494,7 +542,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     }
 
     // 2. Surat Balasan / Jawaban Industri (suratBalasanUrl)
-    if (placement.suratBalasanUrl) {
+    if (placement.suratBalasanUrl && String(placement.suratBalasanUrl).trim() !== '') {
       const jawabanKey = `JAWABAN:::${academicYearName}:::${periodName}:::${safeIndustryName}`;
       if (!processedIndustryLetters.has(jawabanKey)) {
         processedIndustryLetters.add(jawabanKey);
@@ -526,6 +574,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
             path: `${academicYearName}/${periodName}/Jawaban`,
             fileName: `${safeIndustryName}.pdf`,
             action: 'failed',
+            error: err?.message || String(err),
           });
           console.error(`[BACKUP SERVICE] Gagal mengunggah Surat Jawaban ${safeIndustryName}:`, err?.message || err);
         }
@@ -542,7 +591,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     const safeStudentName = sanitizeStudentFileName(student.name);
 
     // 1. Dokumen CV Siswa
-    if (student.cvUrl) {
+    if (student.cvUrl && String(student.cvUrl).trim() !== '') {
       try {
         const resolved = await resolveFileBuffer(student.cvUrl);
         if (resolved) {
@@ -571,13 +620,14 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           path: `${academicYearName}/${periodName}/${safeClassName}/CV`,
           fileName: `cv_${safeStudentName}.pdf`,
           action: 'failed',
+          error: err?.message || String(err),
         });
         console.error(`[BACKUP SERVICE] Gagal mengunggah CV siswa ${student.name}:`, err?.message || err);
       }
     }
 
     // 2. Dokumen Kartu BPJS TK Siswa
-    if (student.bpjsUrl) {
+    if (student.bpjsUrl && String(student.bpjsUrl).trim() !== '') {
       try {
         const resolved = await resolveFileBuffer(student.bpjsUrl);
         if (resolved) {
@@ -606,6 +656,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           path: `${academicYearName}/${periodName}/${safeClassName}/BPJS`,
           fileName: `bpjs_${safeStudentName}.pdf`,
           action: 'failed',
+          error: err?.message || String(err),
         });
         console.error(`[BACKUP SERVICE] Gagal mengunggah BPJS siswa ${student.name}:`, err?.message || err);
       }
@@ -617,13 +668,20 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     totalSynced,
     totalUpdated,
     totalFailed,
+    stats,
     details: syncDetails,
   };
 
   const successCount = totalSynced + totalUpdated;
-  const statusMessage = totalFailed > 0
-    ? `Backup Sistem selesai: Arsip ZIP terunggah, ${successCount} dokumen disinkronkan, namun ada ${totalFailed} dokumen yang gagal.`
-    : `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Pengajuan, Jawaban, CV, & BPJS) telah disinkronkan ke folder Google Drive.`;
+  let statusMessage = '';
+
+  if (totalFailed > 0) {
+    statusMessage = `Backup Sistem selesai: Arsip ZIP terunggah, ${successCount} dokumen disinkronkan, namun ada ${totalFailed} dokumen yang gagal diunggah ke Google Drive.`;
+  } else if (successCount > 0) {
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Surat Pengajuan, Jawaban, CV, & BPJS) telah disinkronkan ke folder Google Drive.`;
+  } else {
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP terunggah ke Google Drive. Belum ada dokumen siswa/industri yang disinkronkan karena database SI-ERIN saat ini belum memiliki berkas unggahan (${stats.studentsWithCv} CV, ${stats.studentsWithBpjs} BPJS, ${stats.placementsWithSuratTugas} Surat Pengajuan, ${stats.placementsWithSuratBalasan} Surat Balasan).`;
+  }
 
   console.log(`[BACKUP SERVICE] 🏁 ${statusMessage}`);
 

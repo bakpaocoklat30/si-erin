@@ -189,9 +189,7 @@ export async function uploadOrUpdateFileInDrive(
   buffer: Buffer,
   parentFolderId: string
 ): Promise<{ action: 'created' | 'updated'; file: any }> {
-  const os = await import('os');
-  const path = await import('path');
-  const fs = await import('fs');
+  const { Readable } = await import('stream');
 
   const cleanName = fileName.trim();
   const safeSearchName = cleanName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -214,24 +212,13 @@ export async function uploadOrUpdateFileInDrive(
     console.warn(`[GDRIVE] Warning list files untuk "${cleanName}":`, searchErr?.message || searchErr);
   }
 
-  // 2. Simpan buffer ke berkas temporer lokal agar fs.createReadStream dapat mengirim stream secara 100% stabil ke Google API Client
-  const tempDir = path.join(os.tmpdir(), 'sierin_docs_tmp');
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-  }
-
-  const tempFilePath = path.join(
-    tempDir,
-    `sync_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.tmp`
-  );
-  fs.writeFileSync(tempFilePath, buffer);
+  // 2. Buat Readable stream langsung dari Buffer in-memory (100% aman tanpa ketergantungan disk/tmp)
+  const media = {
+    mimeType: mimeType || 'application/pdf',
+    body: Readable.from(buffer),
+  };
 
   try {
-    const media = {
-      mimeType: mimeType || 'application/pdf',
-      body: fs.createReadStream(tempFilePath),
-    };
-
     if (existingFileId) {
       const updateRes = await drive.files.update({
         fileId: existingFileId,
@@ -255,15 +242,9 @@ export async function uploadOrUpdateFileInDrive(
       return { action: 'created', file: createRes.data };
     }
   } catch (uploadErr: any) {
-    console.error(`[GDRIVE ERROR] Gagal uploadOrUpdate berkas "${cleanName}":`, uploadErr?.message || uploadErr);
-    throw uploadErr;
-  } finally {
-    // 3. Bersihkan berkas temporer
-    try {
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
-    } catch (e) {}
+    const errorDetails = uploadErr?.response?.data?.error?.message || uploadErr?.message || String(uploadErr);
+    console.error(`[GDRIVE ERROR] Gagal uploadOrUpdate berkas "${cleanName}" (Folder: ${parentFolderId}):`, errorDetails);
+    throw new Error(`Google Drive API: ${errorDetails}`);
   }
 }
 

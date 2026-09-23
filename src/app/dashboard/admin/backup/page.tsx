@@ -37,6 +37,7 @@ export default function AdminBackupPage() {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [lastBackupResult, setLastBackupResult] = useState<any>(null);
   
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupTime, setAutoBackupTime] = useState('00:00');
@@ -168,6 +169,9 @@ export default function AdminBackupPage() {
       const data = await res.json();
 
       if (data.success) {
+        if (data.summary) {
+          setLastBackupResult(data.summary);
+        }
         const syncedCount = data.summary ? (data.summary.totalSynced + data.summary.totalUpdated) : 0;
         const successText = syncedCount > 0 
           ? `${data.message} (${syncedCount} dokumen siap dibuka langsung di Drive).`
@@ -380,6 +384,98 @@ export default function AdminBackupPage() {
         >
           {message.type === 'success' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertTriangle className="w-5 h-5 shrink-0" />}
           <span>{message.text}</span>
+        </div>
+      )}
+
+      {/* LAST BACKUP SYNC BREAKDOWN CARD */}
+      {lastBackupResult && (
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 text-white space-y-4 animate-fade-in shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black">Rincian Hasil Sinkronisasi Dokumen Google Drive</h3>
+                <p className="text-xs text-slate-400">Status berkas di folder Google Drive dan data di database SI-ERIN</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setLastBackupResult(null)}
+              className="text-xs text-slate-400 hover:text-white px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
+            >
+              Tutup Rincian
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Surat Pengajuan Resmi</span>
+              <span className="text-lg font-black text-white mt-1 block">
+                {lastBackupResult.stats?.placementsWithSuratTugas || 0}
+                <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalPlacements || 0} DUDI</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Tersimpan di database</span>
+            </div>
+
+            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Surat Balasan Industri</span>
+              <span className="text-lg font-black text-white mt-1 block">
+                {lastBackupResult.stats?.placementsWithSuratBalasan || 0}
+                <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalPlacements || 0} DUDI</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Diunggah siswa/DUDI</span>
+            </div>
+
+            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">CV Siswa</span>
+              <span className="text-lg font-black text-white mt-1 block">
+                {lastBackupResult.stats?.studentsWithCv || 0}
+                <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalStudents || 0} Siswa</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Diunggah di profil</span>
+            </div>
+
+            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kartu BPJS TK</span>
+              <span className="text-lg font-black text-white mt-1 block">
+                {lastBackupResult.stats?.studentsWithBpjs || 0}
+                <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalStudents || 0} Siswa</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Diunggah di profil</span>
+            </div>
+          </div>
+
+          {(lastBackupResult.totalSynced + lastBackupResult.totalUpdated) === 0 && lastBackupResult.totalFailed === 0 && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs leading-relaxed space-y-1">
+              <p className="font-bold flex items-center space-x-1.5">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>Belum Ada Dokumen yang Masuk ke Folder Google Drive</span>
+              </p>
+              <p className="text-amber-200/90 text-[11px]">
+                Arsip Full Backup ZIP telah terunggah dengan aman. Folder tujuan telah siap di Google Drive. Namun dokumen individual (CV, BPJS, Surat Pengajuan, & Jawaban) belum terisi karena belum ada berkas yang diunggah di database SI-ERIN saat ini.
+              </p>
+              <p className="text-amber-200/90 text-[11px]">
+                👉 <strong>Langkah untuk mengisi dokumen:</strong> Siswa dapat mengunggah CV & BPJS di menu <em>Profil Siswa</em>, atau Tim Pokja/Tata Usaha dapat mengunggah berkas Surat Permohonan & Surat Balasan di menu <em>Persuratan</em>. Setelah diunggah, jalankan Backup kembali untuk menyinkronkannya langsung ke Google Drive.
+              </p>
+            </div>
+          )}
+
+          {lastBackupResult.totalFailed > 0 && (
+            <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs leading-relaxed space-y-2">
+              <p className="font-bold flex items-center space-x-1.5 text-red-400">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Terdapat {lastBackupResult.totalFailed} Berkas yang Gagal Diunggah ke Drive</span>
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-[11px] text-red-200/90 max-h-36 overflow-y-auto">
+                {lastBackupResult.details?.filter((d: any) => d.action === 'failed').map((f: any, idx: number) => (
+                  <li key={idx}>
+                    <strong>{f.fileName}</strong> ({f.type} - {f.path}): {f.error || 'Gagal mengunggah'}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
