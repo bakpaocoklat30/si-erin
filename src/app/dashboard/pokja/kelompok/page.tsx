@@ -772,7 +772,7 @@ export default function PokjaKelompokPrakerinPage() {
     </div>
 
     <div class="paragraph">
-      Berdasarkan dengan surat permohonan Prakerin dari ${form.schoolName} sesuai dengan nomor ajuan <strong>${form.letterNumber}</strong> tanggal <strong>${form.letterDate}</strong>. Maka dengan ini kami <strong>MENERIMA / MENOLAK *</strong> untuk melaksanakan kegiatan tersebut sesuai dengan syarat dan ketentuan yang berlaku di Perusahaan/Instansi <strong>${group.industryName}</strong> yang beralamat di ${group.fullAddress || group.industryAddress || '-'} selama <strong>${form.durationMonths}</strong> bulan dan terhitung mulai <strong>${form.startDate}</strong> sampai <strong>${form.endDate}</strong>.
+      Berdasarkan dengan surat permohonan Prakerin dari ${form.schoolName} sesuai dengan nomor ajuan <strong>${form.letterNumber}</strong> tanggal <strong>${form.letterDate}</strong>. Maka dengan ini kami <strong>MENERIMA / MENOLAK *</strong> untuk melaksanakan kegiatan tersebut sesuai dengan syarat dan ketentuan yang berlaku di Perusahaan/Instansi <strong>${group.industryName}</strong> selama <strong>${form.durationMonths}</strong> bulan dan terhitung mulai <strong>${form.startDate}</strong> sampai <strong>${form.endDate}</strong>.
     </div>
 
     <div style="margin-bottom: 6px;">
@@ -2117,7 +2117,7 @@ export default function PokjaKelompokPrakerinPage() {
 
                     {/* PARAGRAF UTAMA */}
                     <p className="text-justify leading-relaxed mb-4 text-black indent-0 text-[11.5pt]">
-                      Berdasarkan dengan surat permohonan Prakerin dari {confirmationForm.schoolName} sesuai dengan nomor ajuan <strong>{confirmationForm.letterNumber}</strong> tanggal <strong>{confirmationForm.letterDate}</strong>. Maka dengan ini kami <strong>MENERIMA / MENOLAK *</strong> untuk melaksanakan kegiatan tersebut sesuai dengan syarat dan ketentuan yang berlaku di Perusahaan/Instansi <strong>{confirmationGroup.industryName}</strong> yang beralamat di {confirmationGroup.fullAddress || confirmationGroup.industryAddress || '-'} selama <strong>{confirmationForm.durationMonths}</strong> bulan dan terhitung mulai <strong>{confirmationForm.startDate}</strong> sampai <strong>{confirmationForm.endDate}</strong>.
+                      Berdasarkan dengan surat permohonan Prakerin dari {confirmationForm.schoolName} sesuai dengan nomor ajuan <strong>{confirmationForm.letterNumber}</strong> tanggal <strong>{confirmationForm.letterDate}</strong>. Maka dengan ini kami <strong>MENERIMA / MENOLAK *</strong> untuk melaksanakan kegiatan tersebut sesuai dengan syarat dan ketentuan yang berlaku di Perusahaan/Instansi <strong>{confirmationGroup.industryName}</strong> selama <strong>{confirmationForm.durationMonths}</strong> bulan dan terhitung mulai <strong>{confirmationForm.startDate}</strong> sampai <strong>{confirmationForm.endDate}</strong>.
                     </p>
 
                     <p className="mb-2 text-black text-[11.5pt]">
