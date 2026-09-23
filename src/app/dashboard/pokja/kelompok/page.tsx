@@ -565,36 +565,26 @@ export default function PokjaKelompokPrakerinPage() {
       initialDate = formatDateIndonesia(new Date().toISOString());
     }
 
-    // 3. Durasi Bulan Pelaksanaan
-    let calcMonths = '……';
-    if (group.startDate && group.endDate) {
-      try {
-        const d1 = new Date(group.startDate);
-        const d2 = new Date(group.endDate);
-        const diffMonths = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24 * 30.4375));
-        if (diffMonths > 0) calcMonths = String(diffMonths);
-      } catch {}
-    }
+    // 3. Durasi Bulan Pelaksanaan & Tanggal Mulai/Selesai: Dibiarkan kosong (titik-titik) agar fleksibel diisi industri
+    const defaultMonths = '……';
+    const defaultStartDate = '………………………….';
+    const defaultEndDate = '……………………..';
 
-    // 4. Tanggal Mulai dan Selesai
-    const sDate = formatDateIndonesia(group.startDate);
-    const eDate = formatDateIndonesia(group.endDate);
-
-    // 5. Kota Penandatangan (Ambil Kabupaten dari industri atau fallback Kabupaten Tegal)
+    // 4. Kota Penandatangan (Ambil Kabupaten dari industri atau fallback Kabupaten Tegal)
     let citySign = group.regency || '';
     if (!citySign || citySign === '-') {
       citySign = 'Kabupaten Tegal';
     }
 
-    // 6. Keilmuan / Materi Default (sesuai jurusan Pokja TKJ)
+    // 5. Keilmuan / Materi Default (sesuai jurusan Pokja TKJ)
     const competenciesDefault = 'Jaringan Komputer / Fiber Optik / Cloud Computing / Administrasi Server / Programming / Lainnya';
 
     setConfirmationForm({
       letterNumber: lNumber,
       letterDate: initialDate,
-      durationMonths: calcMonths,
-      startDate: sDate !== '-' ? sDate : '………………………….',
-      endDate: eDate !== '-' ? eDate : '………………………….',
+      durationMonths: defaultMonths,
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
       competencies: competenciesDefault,
       city: citySign,
       schoolName: 'SMKN 1 Adiwerna',
@@ -786,7 +776,7 @@ export default function PokjaKelompokPrakerinPage() {
     </div>
 
     <div style="margin-bottom: 6px;">
-      Adapun peserta yang kami terima dalam kegiatan PKL di Instansi/Perusahan kami adalah:
+      Adapun peserta dalam kegiatan PKL di Instansi/Perusahan kami adalah:
     </div>
 
     <table class="students-table">
@@ -2131,7 +2121,7 @@ export default function PokjaKelompokPrakerinPage() {
                     </p>
 
                     <p className="mb-2 text-black text-[11.5pt]">
-                      Adapun peserta yang kami terima dalam kegiatan PKL di Instansi/Perusahan kami adalah:
+                      Adapun peserta dalam kegiatan PKL di Instansi/Perusahan kami adalah:
                     </p>
 
                     {/* TABEL SISWA */}
