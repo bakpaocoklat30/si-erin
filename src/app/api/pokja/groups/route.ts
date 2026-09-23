@@ -235,7 +235,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { placementIds, suratTugasUrl, letterNumber } = body;
+    const { placementIds, suratTugasUrl, letterNumber, letterDate } = body;
 
     if (!Array.isArray(placementIds) || placementIds.length === 0) {
       return NextResponse.json({ error: 'Pilih kelompok siswa yang akan dikirimkan suratnya' }, { status: 400 });
@@ -252,6 +252,11 @@ export async function PUT(request: Request) {
     const cleanLetterNumber = letterNumber.trim();
     const cleanSuratUrl = suratTugasUrl.trim();
 
+    // Gunakan letterDate jika ada dan valid, jika tidak gunakan waktu sekarang
+    const uploadTimestamp = (letterDate && !isNaN(new Date(letterDate).getTime()))
+      ? new Date(letterDate)
+      : new Date();
+
     const result = await db.$transaction(
       placementIds.map((id: string) =>
         db.internshipPlacement.update({
@@ -260,7 +265,7 @@ export async function PUT(request: Request) {
             letterNumber: cleanLetterNumber,       
             suratTugasUrl: cleanSuratUrl,          
             letterUploadedBy: userName,            
-            letterUploadedAt: new Date(),          
+            letterUploadedAt: uploadTimestamp,          
             status: 'SURAT_DITERBITKAN'
           }
         })

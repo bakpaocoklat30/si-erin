@@ -46,8 +46,14 @@ import {
   Trash2,
   ShieldAlert,
   MessageCircle,
-  UserCheck
+  UserCheck,
+  Printer,
+  FileSignature,
+  Sparkles,
+  Edit3,
+  Check
 } from 'lucide-react';
+import { detectDateFromPdfSource } from '@/lib/pdf-date-detector';
 
 interface TeacherItem {
   id: string;
@@ -134,6 +140,8 @@ export default function PokjaKelompokPrakerinPage() {
   // Target Kelompok untuk Upload Surat & Input Nomor Surat Pokja
   const [targetGroup, setTargetGroup] = useState<GroupItem | null>(null);
   const [inputLetterNumber, setInputLetterNumber] = useState<string>('');
+  const [inputLetterDate, setInputLetterDate] = useState<string>('');
+  const [dateDetectedNotice, setDateDetectedNotice] = useState<string>('');
   const [suratBase64, setSuratBase64] = useState<string>('');
   const [selectedFileName, setSelectedFileName] = useState<string>('');
 
@@ -145,6 +153,21 @@ export default function PokjaKelompokPrakerinPage() {
   const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
   const [activePreviewTitle, setActivePreviewTitle] = useState<string>('');
   const [detailModalGroup, setDetailModalGroup] = useState<GroupItem | null>(null);
+
+  // 🌟 State Generator Lembar Konfirmasi Pengajuan PKL (Balasan DUDI)
+  const [confirmationGroup, setConfirmationGroup] = useState<GroupItem | null>(null);
+  const [confirmationForm, setConfirmationForm] = useState({
+    letterNumber: '',
+    letterDate: '',
+    durationMonths: '……',
+    startDate: '',
+    endDate: '',
+    competencies: 'Jaringan Komputer / Fiber Optik / Cloud Computing / Administrasi Server / Programming / Lainnya',
+    city: 'Kabupaten Tegal',
+    schoolName: 'SMKN 1 Adiwerna',
+    isDateAutoDetected: false,
+    detectingDate: false
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -430,7 +453,7 @@ export default function PokjaKelompokPrakerinPage() {
     }
   };
 
-  // Picker Berkas Surat
+  // Picker Berkas Surat dengan Auto-Detection Tanggal Resmi dari PDF
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -442,13 +465,27 @@ export default function PokjaKelompokPrakerinPage() {
 
     setSelectedFileName(file.name);
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setSuratBase64(event.target?.result as string);
+    reader.onload = async (event) => {
+      const b64 = event.target?.result as string;
+      setSuratBase64(b64);
+
+      // Coba auto-detect tanggal jika berkas berupa PDF
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        try {
+          const detected = await detectDateFromPdfSource(b64);
+          if (detected.isDetected && detected.dateStr) {
+            setInputLetterDate(detected.dateStr);
+            setDateDetectedNotice(`✨ Tanggal surat terdeteksi otomatis dari PDF: ${detected.dateStr}`);
+          }
+        } catch (err) {
+          console.warn('Gagal membaca tanggal dari PDF:', err);
+        }
+      }
     };
     reader.readAsDataURL(file);
   };
 
-  // Submit Upload Surat & SIMPAN NOMOR SURAT (`letterNumber`) KE PRISMA DB
+  // Submit Upload Surat & SIMPAN NOMOR SURAT (`letterNumber`) & TANGGAL KE PRISMA DB
   const handleUploadSuratGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetGroup) return;
@@ -479,6 +516,7 @@ export default function PokjaKelompokPrakerinPage() {
           industryId: targetGroup.industryId,
           placementIds: placementIds,
           letterNumber: inputLetterNumber.trim(),
+          letterDate: inputLetterDate.trim(),
           suratTugasUrl: suratBase64 
         })
       });
@@ -489,13 +527,16 @@ export default function PokjaKelompokPrakerinPage() {
         setGroups(prev => prev.map(item => (item.groupId === targetGroup.groupId || item.groupKey === targetGroup.groupKey) ? { 
           ...item, 
           suratTugasUrl: suratBase64,
-          letterNumber: inputLetterNumber.trim()
+          letterNumber: inputLetterNumber.trim(),
+          letterUploadedAt: inputLetterDate ? new Date(inputLetterDate).toISOString() : new Date().toISOString()
         } : item));
 
         setSuccessMsg(json.message || `Surat No. ${inputLetterNumber} berhasil diperbarui & tersimpan di database!`);
         setTargetGroup(null);
         setSuratBase64('');
         setInputLetterNumber('');
+        setInputLetterDate('');
+        setDateDetectedNotice('');
         setSelectedFileName('');
         fetchGroupsData();
       } else {
@@ -506,6 +547,313 @@ export default function PokjaKelompokPrakerinPage() {
       setErrorMsg('Terjadi kesalahan koneksi saat menyimpan berkas ke database.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ----------------------------------------------------------------------
+  // 🌟 GENERATOR LEMBAR KONFIRMASI PENGAJUAN PKL (BALASAN DUDI)
+  // ----------------------------------------------------------------------
+  const handleOpenConfirmationModal = async (group: GroupItem) => {
+    setConfirmationGroup(group);
+
+    // 1. Nomor Surat Permohonan
+    const lNumber = group.letterNumber || '400.14.5.4 / 420 / 2026';
+
+    // 2. Default Tanggal Surat dari database atau hari ini
+    let initialDate = formatDateIndonesia(group.letterUploadedAt);
+    if (!initialDate || initialDate === '-') {
+      initialDate = formatDateIndonesia(new Date().toISOString());
+    }
+
+    // 3. Durasi Bulan Pelaksanaan
+    let calcMonths = '……';
+    if (group.startDate && group.endDate) {
+      try {
+        const d1 = new Date(group.startDate);
+        const d2 = new Date(group.endDate);
+        const diffMonths = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24 * 30.4375));
+        if (diffMonths > 0) calcMonths = String(diffMonths);
+      } catch {}
+    }
+
+    // 4. Tanggal Mulai dan Selesai
+    const sDate = formatDateIndonesia(group.startDate);
+    const eDate = formatDateIndonesia(group.endDate);
+
+    // 5. Kota Penandatangan (Ambil Kabupaten dari industri atau fallback Kabupaten Tegal)
+    let citySign = group.regency || '';
+    if (!citySign || citySign === '-') {
+      citySign = 'Kabupaten Tegal';
+    }
+
+    // 6. Keilmuan / Materi Default (sesuai jurusan Pokja TKJ)
+    const competenciesDefault = 'Jaringan Komputer / Fiber Optik / Cloud Computing / Administrasi Server / Programming / Lainnya';
+
+    setConfirmationForm({
+      letterNumber: lNumber,
+      letterDate: initialDate,
+      durationMonths: calcMonths,
+      startDate: sDate !== '-' ? sDate : '………………………….',
+      endDate: eDate !== '-' ? eDate : '………………………….',
+      competencies: competenciesDefault,
+      city: citySign,
+      schoolName: 'SMKN 1 Adiwerna',
+      isDateAutoDetected: false,
+      detectingDate: Boolean(group.suratTugasUrl)
+    });
+
+    // 7. 🌟 DETEKSI OTOMATIS TANGGAL DARI PDF SURAT PENGAJUAN (JIKA ADA TEXT LAYER)
+    if (group.suratTugasUrl) {
+      try {
+        const detected = await detectDateFromPdfSource(group.suratTugasUrl);
+        if (detected.isDetected && detected.dateStr) {
+          setConfirmationForm(prev => ({
+            ...prev,
+            letterDate: detected.dateStr!,
+            isDateAutoDetected: true,
+            detectingDate: false
+          }));
+          return;
+        }
+      } catch (err) {
+        console.warn('Gagal membaca tanggal dari PDF surat pengajuan:', err);
+      }
+    }
+
+    setConfirmationForm(prev => ({
+      ...prev,
+      detectingDate: false
+    }));
+  };
+
+  // Helper Pembuat Template HTML Standalone Kertas A4 yang Presisi
+  const getConfirmationLetterHtml = (group: GroupItem, form: typeof confirmationForm) => {
+    const studentList = group.students || group.placements || [];
+    const studentRows = studentList.map((item, idx) => {
+      const student = item.student || item;
+      const nis = student.nis || '-';
+      const name = (student.name || student.studentName || '-').toUpperCase();
+      return `
+        <tr>
+          <td style="border: 1px solid #000; padding: 6px 8px; text-align: center; font-size: 11pt;">${idx + 1}</td>
+          <td style="border: 1px solid #000; padding: 6px 8px; text-align: center; font-size: 11pt;">${nis}</td>
+          <td style="border: 1px solid #000; padding: 6px 8px; text-align: left; font-size: 11pt; font-weight: 500;">${name}</td>
+          <td style="border: 1px solid #000; padding: 6px 8px; text-align: center; font-size: 11pt; white-space: nowrap;">Diterima / Ditolak *</td>
+        </tr>
+      `;
+    }).join('');
+
+    const currentYear = new Date().getFullYear();
+
+    return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <title>Konfirmasi Pengajuan PKL - ${group.industryName}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 18mm 20mm 15mm 20mm;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 12pt;
+      line-height: 1.5;
+      color: #000000;
+      background-color: #ffffff;
+      margin: 0;
+      padding: 0;
+    }
+    .a4-page {
+      width: 100%;
+      max-width: 170mm;
+      margin: 0 auto;
+      padding: 0;
+    }
+    .title-block {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .title-block h1 {
+      font-size: 14pt;
+      font-weight: bold;
+      margin: 0;
+      letter-spacing: 0.5px;
+    }
+    .title-block h2 {
+      font-size: 12.5pt;
+      font-weight: bold;
+      margin: 4px 0 0 0;
+      letter-spacing: 0.2px;
+    }
+    .recipient-block {
+      margin-left: 55%;
+      margin-bottom: 22px;
+      line-height: 1.35;
+      font-size: 12pt;
+    }
+    .paragraph {
+      text-align: justify;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      text-justify: inter-word;
+    }
+    .students-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      margin-bottom: 16px;
+    }
+    .students-table th {
+      border: 1px solid #000;
+      padding: 6px 8px;
+      font-weight: bold;
+      text-align: center;
+      font-size: 11pt;
+      background-color: #fafafa;
+    }
+    .students-table td {
+      border: 1px solid #000;
+      padding: 6px 8px;
+    }
+    .competency-block {
+      text-align: justify;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .closing-block {
+      text-align: justify;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .signature-block {
+      margin-left: 55%;
+      text-align: left;
+      line-height: 1.4;
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+    .signature-space {
+      height: 70px;
+    }
+    .signature-line {
+      border-bottom: 1px solid #000;
+      width: 220px;
+      margin-bottom: 4px;
+    }
+    .footnote-block {
+      font-size: 9pt;
+      font-style: italic;
+      line-height: 1.4;
+      margin-top: 15px;
+      border-top: 1px dashed #ccc;
+      padding-top: 8px;
+      page-break-inside: avoid;
+    }
+    @media print {
+      body {
+        background: transparent;
+        padding: 0;
+      }
+      .a4-page {
+        max-width: 100%;
+      }
+      .footnote-block {
+        border-top: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="a4-page">
+    <div class="title-block">
+      <h1>KONFIRMASI</h1>
+      <h2>PENGAJUAN KEGIATAN PRAKTEK KERJA LAPANGAN(PKL)</h2>
+    </div>
+
+    <div class="recipient-block">
+      <div>Kepada Yth.</div>
+      <div style="font-weight: bold;">Kepala ${form.schoolName}</div>
+      <div>di _</div>
+      <div style="padding-left: 24px;">Tempat</div>
+    </div>
+
+    <div class="paragraph">
+      Berdasarkan dengan surat permohonan Prakerin dari ${form.schoolName} sesuai dengan nomor ajuan <strong>${form.letterNumber}</strong> tanggal <strong>${form.letterDate}</strong>. Maka dengan ini kami <strong>MENERIMA / MENOLAK *</strong> untuk melaksanakan kegiatan tersebut sesuai dengan syarat dan ketentuan yang berlaku di Perusahaan/Instansi <strong>${group.industryName}</strong> yang beralamat di ${group.fullAddress || group.industryAddress || '-'} selama <strong>${form.durationMonths}</strong> bulan dan terhitung mulai <strong>${form.startDate}</strong> sampai <strong>${form.endDate}</strong>.
+    </div>
+
+    <div style="margin-bottom: 6px;">
+      Adapun peserta yang kami terima dalam kegiatan PKL di Instansi/Perusahan kami adalah:
+    </div>
+
+    <table class="students-table">
+      <thead>
+        <tr>
+          <th style="width: 40px;">No</th>
+          <th style="width: 120px;">NIS</th>
+          <th>Nama</th>
+          <th style="width: 170px;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${studentRows}
+      </tbody>
+    </table>
+
+    <div class="competency-block">
+      Dengan bidang keilmuan / materi selama kegiatan Prakerin adalah di bidang <strong>${form.competencies}</strong><br/>
+      …………………………………………………………………… *
+    </div>
+
+    <div class="closing-block">
+      Demikian surat keteragan ini kami buat atas perhatian dan kerjasamanya kami ucapakan terimakasih.
+    </div>
+
+    <div class="signature-block">
+      <div>…………….., ……………….. ${currentYear}</div>
+      <div style="font-weight: bold; margin-top: 2px;">a.n ${group.industryName}</div>
+      <div class="signature-space"></div>
+      <div class="signature-line"></div>
+      <div>Jabatan:</div>
+    </div>
+
+    <div class="footnote-block">
+      <div>*) Coret yang tidak perlu</div>
+      <div>**) Jumlah siswa yang di terima menyesuaikan kebijakan Instansi/Perusahaan</div>
+    </div>
+  </div>
+</body>
+</html>`;
+  };
+
+  // Handler Print Langsung Lembar Konfirmasi A4
+  const handlePrintConfirmationLetter = () => {
+    if (!confirmationGroup) return;
+    const html = getConfirmationLetterHtml(confirmationGroup, confirmationForm);
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 350);
+    }
+  };
+
+  // Handler Buka di Tab Baru Standalone HTML
+  const handleOpenConfirmationInNewTab = () => {
+    if (!confirmationGroup) return;
+    const html = getConfirmationLetterHtml(confirmationGroup, confirmationForm);
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.open();
+      newWindow.document.write(html);
+      newWindow.document.close();
     }
   };
 
@@ -873,6 +1221,8 @@ export default function PokjaKelompokPrakerinPage() {
                       onClick={() => {
                         setTargetGroup(group);
                         setInputLetterNumber(group.letterNumber || '');
+                        setInputLetterDate(formatDateIndonesia(group.letterUploadedAt) !== '-' ? formatDateIndonesia(group.letterUploadedAt) : formatDateIndonesia(new Date().toISOString()));
+                        setDateDetectedNotice('');
                         setSuratBase64('');
                         setSelectedFileName('');
                       }}
@@ -881,6 +1231,19 @@ export default function PokjaKelompokPrakerinPage() {
                       <Upload className="w-4 h-4" />
                       <span>{hasSurat ? 'Ganti Surat & Nomor' : 'Upload Surat'}</span>
                     </button>
+
+                    {/* 🌟 TOMBOL GENERATOR LEMBAR KONFIRMASI (BALASAN DUDI) - HANYA SAAT hasSurat = true */}
+                    {hasSurat && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenConfirmationModal(group)}
+                        className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30 border-purple-500"
+                        title="Cetak Format Balasan / Lembar Konfirmasi DUDI"
+                      >
+                        <FileSignature className="w-4 h-4" />
+                        <span>Format Balasan DUDI</span>
+                      </button>
+                    )}
 
                     {/* 🌟 TOMBOL HAPUS KELOMPOK */}
                     <button
@@ -1372,6 +1735,36 @@ export default function PokjaKelompokPrakerinPage() {
                 />
               </div>
 
+              {/* FIELD INPUT TANGGAL SURAT RESMI */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="font-extrabold text-slate-800 dark:text-slate-300 uppercase flex items-center space-x-1.5">
+                    <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>Tanggal Surat Permohonan:</span>
+                  </label>
+                  {dateDetectedNotice && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center space-x-1 animate-pulse">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      <span>{dateDetectedNotice}</span>
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={inputLetterDate}
+                  onChange={(e) => setInputLetterDate(e.target.value)}
+                  placeholder="Contoh: 29 April 2026 atau tanggal hari ini"
+                  className={`w-full px-4 py-3 rounded-2xl text-xs font-bold border outline-none transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-slate-950 border-slate-700 text-slate-100 focus:border-indigo-500' 
+                      : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-indigo-600 shadow-sm'
+                  }`}
+                />
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                  Tanggal ini otomatis mendeteksi dari PDF surat atau gunakan tanggal terbit resmi untuk konfirmasi DUDI.
+                </p>
+              </div>
+
               <div className={`p-4 rounded-2xl border space-y-2 font-medium ${
                 theme === 'dark' ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'
               }`}>
@@ -1487,6 +1880,341 @@ export default function PokjaKelompokPrakerinPage() {
               >
                 Tutup Pratinjau
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL GENERATOR LEMBAR KONFIRMASI PENGAJUAN PKL (BALASAN DUDI) */}
+      {confirmationGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-6xl max-h-[96vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden transition-all ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            {/* HEADER MODAL */}
+            <div className="p-4 sm:p-6 border-b border-inherit flex flex-wrap justify-between items-center gap-4 bg-purple-500/10">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-600 text-white flex items-center space-x-1">
+                    <FileSignature className="w-3 h-3" />
+                    <span>Generator Surat Balasan DUDI</span>
+                  </span>
+                  {confirmationForm.isDateAutoDetected && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center space-x-1">
+                      <Sparkles className="w-3 h-3 text-emerald-500" />
+                      <span>Tanggal Terdeteksi Otomatis dari PDF</span>
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center space-x-2">
+                  <span>Lembar Konfirmasi: {confirmationGroup.industryName}</span>
+                </h3>
+              </div>
+
+              {/* ACTION BUTTONS HEADER */}
+              <div className="flex items-center space-x-2.5">
+                <button
+                  type="button"
+                  onClick={handleOpenConfirmationInNewTab}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    theme === 'dark' 
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' 
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                  }`}
+                  title="Buka format cetak di tab browser baru"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="hidden sm:inline">Buka di Tab Baru</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrintConfirmationLetter}
+                  className="px-4 py-2 rounded-xl text-xs font-black bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30 transition-all flex items-center space-x-1.5 cursor-pointer"
+                  title="Cetak Langsung Lembar A4 (Print / Save PDF)"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Cetak Lembar Konfirmasi</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setConfirmationGroup(null)}
+                  className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all cursor-pointer ml-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* BODY: SPLIT VIEW (SETTINGS SIDEBAR & A4 LIVE PREVIEW) */}
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+              {/* SIDEBAR PENGATURAN KUSTOMISASI SURAT */}
+              <div className={`w-full lg:w-[360px] border-b lg:border-b-0 lg:border-r border-inherit p-5 overflow-y-auto space-y-4 shrink-0 text-xs ${
+                theme === 'dark' ? 'bg-slate-900/60' : 'bg-slate-50'
+              }`}>
+                <div className="flex items-center justify-between pb-2 border-b border-inherit">
+                  <span className="font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
+                    <Edit3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <span>Pengaturan Dokumen</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500">Live Updated</span>
+                </div>
+
+                {/* NOMOR SURAT */}
+                <div className="space-y-1.5">
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300 flex items-center space-x-1">
+                    <Hash className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Nomor Surat Permohonan:</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={confirmationForm.letterNumber}
+                    onChange={(e) => setConfirmationForm({ ...confirmationForm, letterNumber: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border outline-none ${
+                      theme === 'dark' ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
+                  />
+                </div>
+
+                {/* TANGGAL SURAT DENGAN STATUS DETEKSI OTOMATIS */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="font-extrabold text-slate-700 dark:text-slate-300 flex items-center space-x-1">
+                      <Calendar className="w-3.5 h-3.5 text-purple-500" />
+                      <span>Tanggal Surat Permohonan:</span>
+                    </label>
+                    {confirmationForm.detectingDate ? (
+                      <span className="text-[10px] text-indigo-500 flex items-center space-x-1">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Mendeteksi PDF...</span>
+                      </span>
+                    ) : confirmationForm.isDateAutoDetected ? (
+                      <span className="text-[10px] text-emerald-600 font-bold flex items-center space-x-0.5">
+                        <Check className="w-3 h-3" />
+                        <span>Auto-Detect</span>
+                      </span>
+                    ) : null}
+                  </div>
+                  <input
+                    type="text"
+                    value={confirmationForm.letterDate}
+                    onChange={(e) => setConfirmationForm({ ...confirmationForm, letterDate: e.target.value, isDateAutoDetected: false })}
+                    placeholder="Contoh: 29 April 2026"
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none ${
+                      theme === 'dark' ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
+                  />
+                  <p className="text-[10px] text-slate-500 leading-tight">
+                    {confirmationForm.isDateAutoDetected
+                      ? '✨ Berhasil dideteksi langsung dari teks PDF surat permohonan.'
+                      : 'Tanggal yang tertera pada surat permohonan sekolah ke industri.'}
+                  </p>
+                </div>
+
+                {/* DURASI BULAN & JADWAL MULAI / SELESAI */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="space-y-1.5">
+                    <label className="font-extrabold text-slate-700 dark:text-slate-300">Durasi (Bulan):</label>
+                    <input
+                      type="text"
+                      value={confirmationForm.durationMonths}
+                      onChange={(e) => setConfirmationForm({ ...confirmationForm, durationMonths: e.target.value })}
+                      placeholder="Contoh: 6 atau ……"
+                      className={`w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none text-center ${
+                        theme === 'dark' ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-extrabold text-slate-700 dark:text-slate-300">Nama Sekolah:</label>
+                    <input
+                      type="text"
+                      value={confirmationForm.schoolName}
+                      onChange={(e) => setConfirmationForm({ ...confirmationForm, schoolName: e.target.value })}
+                      className={`w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none ${
+                        theme === 'dark' ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Tanggal Mulai PKL:</label>
+                  <input
+                    type="text"
+                    value={confirmationForm.startDate}
+                    onChange={(e) => setConfirmationForm({ ...confirmationForm, startDate: e.target.value })}
+                    placeholder="Contoh: 1 Juli 2026"
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none ${
+                      theme === 'dark' ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Tanggal Selesai PKL:</label>
+                  <input
+                    type="text"
+                    value={confirmationForm.endDate}
+                    onChange={(e) => setConfirmationForm({ ...confirmationForm, endDate: e.target.value })}
+                    placeholder="Contoh: 31 Desember 2026"
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none ${
+                      theme === 'dark' ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
+                  />
+                </div>
+
+                {/* BIDANG KEILMUAN / MATERI */}
+                <div className="space-y-1.5">
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Bidang Keilmuan / Materi:</label>
+                  <textarea
+                    rows={3}
+                    value={confirmationForm.competencies}
+                    onChange={(e) => setConfirmationForm({ ...confirmationForm, competencies: e.target.value })}
+                    className={`w-full p-2.5 rounded-xl text-xs font-semibold border outline-none ${
+                      theme === 'dark' ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
+                  />
+                </div>
+
+                {/* KOTA PENANDATANGAN */}
+                <div className="space-y-1.5">
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Kota Penandatangan DUDI:</label>
+                  <input
+                    type="text"
+                    value={confirmationForm.city}
+                    onChange={(e) => setConfirmationForm({ ...confirmationForm, city: e.target.value })}
+                    placeholder="Contoh: Kabupaten Tegal"
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none ${
+                      theme === 'dark' ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handlePrintConfirmationLetter}
+                    className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-lg shadow-purple-600/30 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Cetak Lembar Konfirmasi</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* LIVE PREVIEW SIMULASI KERTAS A4 */}
+              <div className="flex-1 bg-slate-300 dark:bg-slate-950 p-4 sm:p-8 overflow-y-auto flex justify-center">
+                <div className="bg-white text-slate-950 shadow-2xl p-8 sm:p-12 w-full max-w-[210mm] min-h-[297mm] font-serif text-[12pt] leading-relaxed border border-slate-400 select-text flex flex-col justify-between">
+                  <div>
+                    {/* JUDUL */}
+                    <div className="text-center mb-6">
+                      <h1 className="text-[14pt] font-black uppercase tracking-wider text-black m-0">KONFIRMASI</h1>
+                      <h2 className="text-[12.5pt] font-bold uppercase tracking-tight text-black mt-1 mb-0">PENGAJUAN KEGIATAN PRAKTEK KERJA LAPANGAN(PKL)</h2>
+                    </div>
+
+                    {/* TUJUAN SURAT (SEBELAH KANAN) */}
+                    <div className="flex justify-end mb-5">
+                      <div className="w-64 text-left leading-normal text-[11.5pt] text-black">
+                        <p className="m-0">Kepada Yth.</p>
+                        <p className="m-0 font-bold">Kepala {confirmationForm.schoolName}</p>
+                        <p className="m-0">di _</p>
+                        <p className="m-0 pl-6">Tempat</p>
+                      </div>
+                    </div>
+
+                    {/* PARAGRAF UTAMA */}
+                    <p className="text-justify leading-relaxed mb-4 text-black indent-0 text-[11.5pt]">
+                      Berdasarkan dengan surat permohonan Prakerin dari {confirmationForm.schoolName} sesuai dengan nomor ajuan <strong>{confirmationForm.letterNumber}</strong> tanggal <strong>{confirmationForm.letterDate}</strong>. Maka dengan ini kami <strong>MENERIMA / MENOLAK *</strong> untuk melaksanakan kegiatan tersebut sesuai dengan syarat dan ketentuan yang berlaku di Perusahaan/Instansi <strong>{confirmationGroup.industryName}</strong> yang beralamat di {confirmationGroup.fullAddress || confirmationGroup.industryAddress || '-'} selama <strong>{confirmationForm.durationMonths}</strong> bulan dan terhitung mulai <strong>{confirmationForm.startDate}</strong> sampai <strong>{confirmationForm.endDate}</strong>.
+                    </p>
+
+                    <p className="mb-2 text-black text-[11.5pt]">
+                      Adapun peserta yang kami terima dalam kegiatan PKL di Instansi/Perusahan kami adalah:
+                    </p>
+
+                    {/* TABEL SISWA */}
+                    <table className="w-full border-collapse mb-4 text-black text-[11pt]">
+                      <thead>
+                        <tr className="bg-slate-50">
+                          <th className="border border-black p-1.5 text-center font-bold w-10">No</th>
+                          <th className="border border-black p-1.5 text-center font-bold w-28">NIS</th>
+                          <th className="border border-black p-1.5 text-left font-bold">Nama</th>
+                          <th className="border border-black p-1.5 text-center font-bold w-40">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(confirmationGroup.students || confirmationGroup.placements || []).map((item, idx) => {
+                          const student = item.student || item;
+                          return (
+                            <tr key={idx}>
+                              <td className="border border-black p-1.5 text-center">{idx + 1}</td>
+                              <td className="border border-black p-1.5 text-center">{student.nis || '-'}</td>
+                              <td className="border border-black p-1.5 uppercase font-medium">{student.name || student.studentName || '-'}</td>
+                              <td className="border border-black p-1.5 text-center whitespace-nowrap">Diterima / Ditolak *</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {/* BIDANG KEILMUAN */}
+                    <div className="leading-relaxed mb-4 text-black text-justify text-[11.5pt]">
+                      Dengan bidang keilmuan / materi selama kegiatan Prakerin adalah di bidang <strong>{confirmationForm.competencies}</strong><br />
+                      …………………………………………………………………… *
+                    </div>
+
+                    {/* PARAGRAF PENUTUP */}
+                    <p className="leading-relaxed mb-6 text-black text-justify text-[11.5pt]">
+                      Demikian surat keteragan ini kami buat atas perhatian dan kerjasamanya kami ucapakan terimakasih.
+                    </p>
+
+                    {/* BLOK TANDA TANGAN (SEBELAH KANAN) */}
+                    <div className="flex justify-end mb-4">
+                      <div className="w-72 text-left leading-snug text-black text-[11.5pt]">
+                        <p className="m-0">…………….., ……………….. {new Date().getFullYear()}</p>
+                        <p className="m-0 font-bold mt-0.5">a.n {confirmationGroup.industryName}</p>
+                        <div className="h-20" />
+                        <div className="border-b border-black w-56 mb-1" />
+                        <p className="m-0">Jabatan:</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CATATAN KAKI */}
+                  <div className="text-[9.5pt] italic text-slate-800 border-t border-dashed border-slate-400 pt-2 leading-tight">
+                    <p className="m-0">*) Coret yang tidak perlu</p>
+                    <p className="m-0">**) Jumlah siswa yang di terima menyesuaikan kebijakan Instansi/Perusahaan</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* FOOTER MODAL */}
+            <div className="p-4 border-t border-inherit flex flex-wrap justify-between items-center gap-3 bg-slate-50 dark:bg-slate-900/60">
+              <span className="text-xs text-slate-500 font-medium">
+                💡 Format cetak siap A4 portrait standar resmi. Siswa/Pokja tinggal menyerahkan lembar ini ke DUDI.
+              </span>
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmationGroup(null)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    theme === 'dark' ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-800'
+                  }`}
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintConfirmationLetter}
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-lg shadow-purple-600/30 flex items-center space-x-1.5 transition-all cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Cetak Lembar Konfirmasi</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
