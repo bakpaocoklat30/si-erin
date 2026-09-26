@@ -187,10 +187,23 @@ export async function generateSuratTugasDocx(
     replacementP = `${headerP}${industriesXml}`;
   }
 
-  xml = xml.replace(
-    /<w:p\b[^>]*>(?:(?!<w:p\b)[\s\S])*?<w:t>Untuk<\/w:t>[\s\S]*?<\/w:p>\s*<w:p\b[\s\S]*?<\/w:p>\s*<w:p\b[\s\S]*?<\/w:p>\s*<w:p\b[\s\S]*?<\/w:p>/,
-    replacementP
-  );
+  
+  // 6. Klausul Penugasan ("Untuk : ...")
+  // Cari paragraf yang mengandung 'Untuk' dan paragraf yang mengandung 'Demikian'
+  const xmlUntukIdx = xml.indexOf('<w:t>Untuk</w:t>');
+  const xmlDemikianIdx = xml.indexOf('<w:t>Demikian</w:t>');
+  
+  if (xmlUntukIdx !== -1 && xmlDemikianIdx !== -1) {
+    const pStart = xml.lastIndexOf('<w:p ', xmlUntukIdx);
+    const pEnd = xml.lastIndexOf('<w:p ', xmlDemikianIdx);
+    
+    if (pStart !== -1 && pEnd !== -1 && pEnd > pStart) {
+      const before = xml.substring(0, pStart);
+      const after = xml.substring(pEnd);
+      xml = before + replacementP + after;
+    }
+  }
+
 
   // Jika kompak, hilangkan paragraf kosong sebelum "Demikian..."
   if (isCompact) {
