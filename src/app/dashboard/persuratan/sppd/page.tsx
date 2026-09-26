@@ -86,6 +86,19 @@ export default function PersuratanSppdPage() {
   const [savingNumberId, setSavingNumberId] = useState<string | null>(null);
 
   // Preview Modal State
+  
+  // Modal Beri Nomor Sekaligus State
+  const [bulkNumberModal, setBulkNumberModal] = useState<{
+    isOpen: boolean;
+    letterNumber: string;
+    sppdNumber: string;
+  }>({
+    isOpen: false,
+    letterNumber: '',
+    sppdNumber: '',
+  });
+  const [submittingBulkNumber, setSubmittingBulkNumber] = useState(false);
+
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
     type: 'SURAT_TUGAS' | 'SPPD';
@@ -375,6 +388,68 @@ export default function PersuratanSppdPage() {
   };
 
   // Safe Bulk Download with Number Check
+  
+  const handleApplyBulkNumbers = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedTaskIds.length === 0) return;
+    if (!bulkNumberModal.letterNumber.trim() && !bulkNumberModal.sppdNumber.trim()) {
+      alert('Masukkan setidaknya Nomor Surat Tugas atau Nomor SPPD.');
+      return;
+    }
+
+    setSubmittingBulkNumber(true);
+    try {
+      const res = await fetch('/api/persuratan/sppd/bulk-number', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: selectedTaskIds,
+          letterNumber: bulkNumberModal.letterNumber.trim() || undefined,
+          sppdNumber: bulkNumberModal.sppdNumber.trim() || undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        // Update local state
+        setTaskNumberMap((prev) => {
+          const next = { ...prev };
+          selectedTaskIds.forEach((id) => {
+            next[id] = {
+              letterNumber: bulkNumberModal.letterNumber.trim() || prev[id]?.letterNumber || '',
+              sppdNumber: bulkNumberModal.sppdNumber.trim() || prev[id]?.sppdNumber || '',
+              isModified: false,
+            };
+          });
+          return next;
+        });
+
+        setTasks((prev) =>
+          prev.map((t) => {
+            if (selectedTaskIds.includes(t.id)) {
+              return {
+                ...t,
+                ...(bulkNumberModal.letterNumber.trim() && { letterNumber: bulkNumberModal.letterNumber.trim() }),
+                ...(bulkNumberModal.sppdNumber.trim() && { sppdNumber: bulkNumberModal.sppdNumber.trim() }),
+              };
+            }
+            return t;
+          })
+        );
+
+        alert(json.message || 'Nomor naskah berhasil diterapkan ke seluruh penugasan terpilih!');
+        setBulkNumberModal({ isOpen: false, letterNumber: '', sppdNumber: '' });
+      } else {
+        alert(json.error || 'Gagal menerapkan nomor surat massal');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Terjadi kesalahan jaringan');
+    } finally {
+      setSubmittingBulkNumber(false);
+    }
+  };
+
   const handleBulkDownload = async (type: 'tugas' | 'sppd') => {
     if (selectedTaskIds.length === 0) {
       alert('Pilih setidaknya satu penugasan terlebih dahulu.');
@@ -582,6 +657,16 @@ export default function PersuratanSppdPage() {
           </div>
 
           <div className="flex items-center space-x-2 w-full sm:w-auto">
+            {/* Beri Nomor Surat Sekaligus */}
+            <button
+              onClick={() => setBulkNumberModal({ isOpen: true, letterNumber: '', sppdNumber: '' })}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+              title="Beri nomor Surat Tugas & SPPD yang sama ke seluruh penugasan terpilih"
+            >
+              <FileSignature className="w-3.5 h-3.5" />
+              <span>Beri Nomor Sekaligus ({selectedTaskIds.length})</span>
+            </button>
+
             {/* Unduh Kolektif Surat Tugas */}
             <button
               onClick={() => handleBulkDownload('tugas')}
@@ -1054,6 +1139,90 @@ export default function PersuratanSppdPage() {
           </div>
         </div>
       )}
+    
+      {/* 🌟 MODAL BERI NOMOR NASKAH SEKALIGUS */}
+      {bulkNumberModal.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+            <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                  <FileSignature className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">Beri Nomor Naskah Sekaligus</h2>
+                  <p className="text-xs text-slate-500">
+                    Menerapkan nomor yang sama pada <strong className="text-amber-500">{selectedTaskIds.length} penugasan</strong> terpilih.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setBulkNumberModal({ isOpen: false, letterNumber: '', sppdNumber: '' })}
+                className="text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleApplyBulkNumbers} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Nomor Surat Tugas Bersama
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: 800.1.11.1/1000/2026"
+                  value={bulkNumberModal.letterNumber}
+                  onChange={(e) => setBulkNumberModal({ ...bulkNumberModal, letterNumber: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm font-semibold bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Nomor ini akan otomatis mengisi naskah Surat Tugas seluruh penugasan yang Anda centang.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Nomor SPPD Bersama
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: 090/1000/2026"
+                  value={bulkNumberModal.sppdNumber}
+                  onChange={(e) => setBulkNumberModal({ ...bulkNumberModal, sppdNumber: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm font-semibold bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Nomor ini akan otomatis mengisi naskah lembar 1 dan lembar 2 SPPD seluruh penugasan yang dicentang.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBulkNumberModal({ isOpen: false, letterNumber: '', sppdNumber: '' })}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingBulkNumber}
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {submittingBulkNumber ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Terapkan ke {selectedTaskIds.length} Penugasan</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
