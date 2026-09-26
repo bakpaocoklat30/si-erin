@@ -56,6 +56,33 @@ import {
   AdditionalIndustryItem,
 } from '@/lib/monitoring-templates';
 
+
+function getAssignmentType(purpose: string = '') {
+  const p = (purpose || '').toLowerCase();
+  if (p.includes('penerjunan') || p.includes('pengantaran')) {
+    return {
+      type: 'PENERJUNAN',
+      label: 'Penerjunan',
+      icon: '🚚',
+      badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+    };
+  }
+  if (p.includes('penarikan') || p.includes('penjemputan')) {
+    return {
+      type: 'PENARIKAN',
+      label: 'Penarikan',
+      icon: '🎓',
+      badgeClass: 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+    };
+  }
+  return {
+    type: 'MONITORING',
+    label: 'Monitoring',
+    icon: '📋',
+    badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+  };
+}
+
 export default function PokjaMonitoringPage() {
   const { data: session } = useSession();
   const { theme } = useTheme();
@@ -71,6 +98,7 @@ export default function PokjaMonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [purposeFilter, setPurposeFilter] = useState<string>('ALL');
 
   // Modal State: Form Penjadwalan Monitoring
   const [showFormModal, setShowFormModal] = useState(false);
@@ -201,10 +229,12 @@ export default function PokjaMonitoringPage() {
         item.teacher.name.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
+      const pType = getAssignmentType(item.purpose).type;
+      const matchesPurpose = purposeFilter === 'ALL' || pType === purposeFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesPurpose;
     });
-  }, [assignments, searchQuery, statusFilter]);
+  }, [assignments, searchQuery, statusFilter, purposeFilter]);
 
   // Statistik Ringkas
   const stats = useMemo(() => {
@@ -724,6 +754,31 @@ export default function PokjaMonitoringPage() {
           />
         </div>
 
+        
+        {/* Filter Jenis Surat Tugas (Penerjunan, Monitoring, Penarikan) */}
+        <div className="flex items-center space-x-1.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+          {[
+            { id: 'ALL', label: 'Semua Jenis' },
+            { id: 'PENERJUNAN', label: '🚚 Penerjunan' },
+            { id: 'MONITORING', label: '📋 Monitoring' },
+            { id: 'PENARIKAN', label: '🎓 Penarikan' },
+          ].map((pf) => (
+            <button
+              key={pf.id}
+              onClick={() => setPurposeFilter(pf.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                purposeFilter === pf.id
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                  : theme === 'dark'
+                  ? 'bg-slate-800 text-slate-400 hover:text-white'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {pf.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center space-x-2 w-full md:w-auto overflow-x-auto">
           {['ALL', 'TERJADWAL', 'SELESAI', 'DIBATALKAN'].map((st) => (
             <button
@@ -775,6 +830,7 @@ export default function PokjaMonitoringPage() {
                 <th className="py-4 px-6">Industri Mitra (DUDI)</th>
                 <th className="py-4 px-6">Guru Petugas Monitoring</th>
                 <th className="py-4 px-5">Tanggal Kunjungan</th>
+                <th className="py-4 px-4 text-center">Jenis Tugas</th>
                 <th className="py-4 px-4 text-center">Status</th>
                 <th className="py-4 px-6 text-center">Dokumen & Cetak</th>
                 <th className="py-4 px-4 text-right">Aksi</th>
@@ -783,7 +839,7 @@ export default function PokjaMonitoringPage() {
             <tbody className="divide-y divide-slate-800/20">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
                       <p className="text-xs font-semibold">Memuat Jadwal Monitoring...</p>
@@ -792,7 +848,7 @@ export default function PokjaMonitoringPage() {
                 </tr>
               ) : filteredAssignments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <ClipboardCheck className="w-10 h-10 text-slate-500/50" />
                       <p className="font-semibold text-sm">Belum ada penugasan monitoring yang dijadwalkan.</p>
@@ -895,6 +951,21 @@ export default function PokjaMonitoringPage() {
                             </p>
                           </div>
                         </div>
+                      </td>
+
+                      {/* Jenis Tugas */}
+                      <td className="py-4 px-4 text-center">
+                        {(() => {
+                          const aType = getAssignmentType(assignment.purpose);
+                          return (
+                            <span
+                              className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${aType.badgeClass}`}
+                            >
+                              <span>{aType.icon}</span>
+                              <span>{aType.label}</span>
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Status */}

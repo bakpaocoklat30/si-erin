@@ -5,6 +5,33 @@ import { useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
 import { Truck, FileText, CheckCircle2, Search, Loader2, Download, Upload, Eye } from 'lucide-react';
 
+
+function getAssignmentType(purpose: string = '') {
+  const p = (purpose || '').toLowerCase();
+  if (p.includes('penerjunan') || p.includes('pengantaran')) {
+    return {
+      type: 'PENERJUNAN',
+      label: 'Penerjunan',
+      icon: '🚚',
+      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+    };
+  }
+  if (p.includes('penarikan') || p.includes('penjemputan')) {
+    return {
+      type: 'PENARIKAN',
+      label: 'Penarikan',
+      icon: '🎓',
+      badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30'
+    };
+  }
+  return {
+    type: 'MONITORING',
+    label: 'Monitoring',
+    icon: '📋',
+    badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+  };
+}
+
 export default function PersuratanSppdPage() {
   const { data: session } = useSession();
   const { theme } = useTheme();
@@ -12,6 +39,7 @@ export default function PersuratanSppdPage() {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [purposeFilter, setPurposeFilter] = useState('ALL');
 
   // Upload modal state
   const [uploadModal, setUploadModal] = useState<{ isOpen: boolean; task: any; type: 'TUGAS' | 'SPPD' | null }>({
@@ -81,10 +109,13 @@ export default function PersuratanSppdPage() {
     }
   };
 
-  const filteredTasks = tasks.filter(t => 
-    t.industry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.teacher.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTasks = tasks.filter(t => {
+    const matchesSearch = t.industry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          t.teacher.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const pType = getAssignmentType(t.purpose).type;
+    const matchesPurpose = purposeFilter === 'ALL' || pType === purposeFilter;
+    return matchesSearch && matchesPurpose;
+  });
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -98,6 +129,28 @@ export default function PersuratanSppdPage() {
             <p className="text-sm font-medium text-slate-500">Unduh dokumen Word untuk di-TTE, lalu unggah file PDF yang sudah tertanda-tangani.</p>
           </div>
         </div>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { id: 'ALL', label: 'Semua Jenis' },
+            { id: 'PENERJUNAN', label: '🚚 Penerjunan' },
+            { id: 'MONITORING', label: '📋 Monitoring' },
+            { id: 'PENARIKAN', label: '🎓 Penarikan' },
+          ].map((pf) => (
+            <button
+              key={pf.id}
+              onClick={() => setPurposeFilter(pf.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                purposeFilter === pf.id
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-white text-slate-700'
+              }`}
+            >
+              {pf.label}
+            </button>
+          ))}
+        </div>
+
         <div className="relative">
           <input
             type="text"
@@ -128,7 +181,18 @@ export default function PersuratanSppdPage() {
                 
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-bold text-lg text-slate-900 dark:text-white">{task.teacher.name}</h3>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="font-bold text-lg text-slate-900 dark:text-white">{task.teacher.name}</h3>
+                      {(() => {
+                        const aType = getAssignmentType(task.purpose);
+                        return (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${aType.badgeClass}`}>
+                            <span>{aType.icon}</span>
+                            <span>{aType.label}</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <p className="text-xs font-semibold text-slate-500 flex items-center gap-1 mt-1">
                       Tujuan: {task.industry.name}
                     </p>
