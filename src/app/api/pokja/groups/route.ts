@@ -117,8 +117,9 @@ export async function GET(request: Request) {
         return;
       }
 
-      const startDate = matchedPeriod?.startDate || placement.startDate || new Date().toISOString();
-      const endDate = matchedPeriod?.endDate || placement.endDate || new Date().toISOString();
+      // 🌟 PRIORITASKAN TANGGAL KUSTOM DARI PLACEMENT JIKA POKJA PERNAH MENGEDITNYA
+      const startDate = placement.startDate || matchedPeriod?.startDate || new Date().toISOString();
+      const endDate = placement.endDate || matchedPeriod?.endDate || new Date().toISOString();
 
       const industryId = industry?.id || 'INDUSTRY_UNKNOWN';
       const industryName = industry?.name || 'Tanpa Nama Industri';
@@ -241,41 +242,42 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Pilih kelompok siswa yang akan dikirimkan suratnya' }, { status: 400 });
     }
 
-    if (!letterNumber || !letterNumber.trim()) {
-      return NextResponse.json({ error: 'Nomor Surat Permohonan wajib diisi!' }, { status: 400 });
+    if ((!letterNumber || !letterNumber.trim()) && !suratTugasUrl) {
+      return NextResponse.json({ error: 'Harus mengisi Nomor Surat atau mengunggah File!' }, { status: 400 });
     }
 
-    if (!suratTugasUrl) {
-      return NextResponse.json({ error: 'File surat permohonan wajib diunggah' }, { status: 400 });
+    let updateData: any = {};
+    if (letterNumber && letterNumber.trim()) {
+      updateData.letterNumber = letterNumber.trim();
     }
 
-    const cleanLetterNumber = letterNumber.trim();
-    const cleanSuratUrl = suratTugasUrl.trim();
-
-    // Gunakan letterDate jika ada dan valid, jika tidak gunakan waktu sekarang
-    const uploadTimestamp = (letterDate && !isNaN(new Date(letterDate).getTime()))
-      ? new Date(letterDate)
-      : new Date();
+    if (suratTugasUrl) {
+      const cleanSuratUrl = suratTugasUrl.trim();
+      const uploadTimestamp = (letterDate && !isNaN(new Date(letterDate).getTime()))
+        ? new Date(letterDate)
+        : new Date();
+      updateData = {
+        ...updateData,
+        suratTugasUrl: cleanSuratUrl,
+        letterUploadedBy: userName,
+        letterUploadedAt: uploadTimestamp,
+        status: 'SURAT_DITERBITKAN'
+      };
+    }
 
     const result = await db.$transaction(
       placementIds.map((id: string) =>
         db.internshipPlacement.update({
           where: { id },
-          data: {
-            letterNumber: cleanLetterNumber,       
-            suratTugasUrl: cleanSuratUrl,          
-            letterUploadedBy: userName,            
-            letterUploadedAt: uploadTimestamp,          
-            status: 'SURAT_DITERBITKAN'
-          }
+          data: updateData
         })
       )
     );
 
     return NextResponse.json({
       success: true,
-      message: `BERHASIL DISIMPAN! Nomor Surat: ${cleanLetterNumber} tersimpan permanen.`,
-      letterNumber: cleanLetterNumber,
+      message: `BERHASIL DISIMPAN! Nomor Surat: ${letterNumber} tersimpan permanen.`,
+      letterNumber: letterNumber,
       count: result.length
     });
 
@@ -296,6 +298,7 @@ export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const userDepartment = (session?.user as any)?.department;
 
     if (!session || !ALLOWED_ROLES.includes(userRole)) {
       return NextResponse.json(
@@ -338,9 +341,17 @@ export async function DELETE(request: Request) {
 
     // Kasus C: Hapus seluruh penempatan berdasarkan industryId (dengan isolasi jurusan Pokja)
     if (industryId) {
-      const deleteWhere: any = { industryId: industryId };
+      let deleteWhere: any = { industryId: industryId };
       if ((userRole === 'POKJA' || userRole === 'TIM_POKJA') && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan') {
-        deleteWhere.student = { department: { equals: userDepartment, mode: 'insensitive' } };
+        const matchingPlacements = await db.internshipPlacement.findMany({
+          where: {
+            industryId,
+            student: { department: { contains: userDepartment, mode: 'insensitive' } }
+          },
+          select: { id: true }
+        });
+        const ids = matchingPlacements.map(p => p.id);
+        deleteWhere = { id: { in: ids } };
       }
 
       const deleted = await db.internshipPlacement.deleteMany({

@@ -50,6 +50,7 @@ export default function StudentApplyPage() {
 
   const [studentInfo, setStudentInfo] = useState<any>(null);
   const [activePlacement, setActivePlacement] = useState<any>(null);
+  const [activePeriod, setActivePeriod] = useState<any>(null);
   const [industries, setIndustries] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -62,6 +63,12 @@ export default function StudentApplyPage() {
   // Modal Preview State
   const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
   const [activePreviewTitle, setActivePreviewTitle] = useState<string>('');
+
+  // Balasan Upload Modal State (Level 3 - Periode Real)
+  const [showBalasanModal, setShowBalasanModal] = useState(false);
+  const [balasanFile, setBalasanFile] = useState<File | null>(null);
+  const [balasanStartDate, setBalasanStartDate] = useState('');
+  const [balasanEndDate, setBalasanEndDate] = useState('');
 
   const balasanInputRef = useRef<HTMLInputElement>(null);
 
@@ -76,13 +83,19 @@ export default function StudentApplyPage() {
       if (res.ok && json.success) {
         setStudentInfo(json.data.student);
         setActivePlacement(json.data.activePlacement);
+        setActivePeriod(json.data.activePeriod);
         setIndustries(json.data.industries || []);
         
-        const today = new Date();
-        const defaultStart = new Date(today.getFullYear(), today.getMonth() + 1, 1).toISOString().split('T')[0];
-        const defaultEnd = new Date(today.getFullYear(), today.getMonth() + 4, 0).toISOString().split('T')[0];
-        setStartDate(defaultStart);
-        setEndDate(defaultEnd);
+        if (json.data.activePeriod?.startDate && json.data.activePeriod?.endDate) {
+          setStartDate(json.data.activePeriod.startDate);
+          setEndDate(json.data.activePeriod.endDate);
+        } else {
+          const today = new Date();
+          const defaultStart = new Date(today.getFullYear(), today.getMonth() + 1, 1).toISOString().split('T')[0];
+          const defaultEnd = new Date(today.getFullYear(), today.getMonth() + 4, 0).toISOString().split('T')[0];
+          setStartDate(defaultStart);
+          setEndDate(defaultEnd);
+        }
       } else {
         setErrorMsg(json.error || 'Gagal memuat data pengajuan.');
       }
@@ -91,6 +104,17 @@ export default function StudentApplyPage() {
       setErrorMsg('Terjadi kesalahan koneksi saat memuat data katalog industri.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectIndustry = (ind: any) => {
+    setSelectedIndustry(ind);
+    if (ind.customDates?.startDate && ind.customDates?.endDate) {
+      setStartDate(ind.customDates.startDate);
+      setEndDate(ind.customDates.endDate);
+    } else if (activePeriod?.startDate && activePeriod?.endDate) {
+      setStartDate(activePeriod.startDate);
+      setEndDate(activePeriod.endDate);
     }
   };
 
@@ -152,7 +176,7 @@ export default function StudentApplyPage() {
   };
 
   // Upload Surat Balasan Industri (Tahap 6)
-  const handleBalasanUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBalasanUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -161,9 +185,20 @@ export default function StudentApplyPage() {
       return;
     }
 
+    setBalasanFile(file);
+    setBalasanStartDate(activePlacement?.startDate ? new Date(activePlacement.startDate).toISOString().split('T')[0] : startDate);
+    setBalasanEndDate(activePlacement?.endDate ? new Date(activePlacement.endDate).toISOString().split('T')[0] : endDate);
+    setShowBalasanModal(true);
+  };
+
+  const confirmBalasanSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!balasanFile) return;
+
     setUploadingBalasan(true);
     setErrorMsg('');
     setSuccessMsg('');
+    setShowBalasanModal(false);
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -173,7 +208,11 @@ export default function StudentApplyPage() {
         const res = await fetch('/api/students/apply', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ suratBalasanUrl: base64 })
+          body: JSON.stringify({ 
+            suratBalasanUrl: base64,
+            startDate: balasanStartDate,
+            endDate: balasanEndDate
+          })
         });
 
         const json = await res.json();
@@ -184,15 +223,17 @@ export default function StudentApplyPage() {
         } else {
           setErrorMsg(json.error || 'Gagal mengunggah surat balasan.');
         }
-      } catch (err: any) {
-        console.error('Error uploading reply letter:', err);
-        setErrorMsg('Terjadi kesalahan koneksi saat mengunggah surat balasan.');
+      } catch (err) {
+        console.error('Error patching placement:', err);
+        setErrorMsg('Terjadi kesalahan koneksi saat mengunggah.');
       } finally {
         setUploadingBalasan(false);
+        setBalasanFile(null);
       }
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(balasanFile);
   };
+
 
   if (status === 'loading' || loading) {
     return (
@@ -540,7 +581,7 @@ export default function StudentApplyPage() {
                   <div
                     key={ind.id}
                     onClick={() => {
-                      if (!isFull && isEligible) setSelectedIndustry(ind);
+                      if (!isFull && isEligible) handleSelectIndustry(ind);
                     }}
                     className={`p-6 rounded-3xl border shadow-lg space-y-4 transition-all relative overflow-hidden ${
                       isFull 
@@ -628,33 +669,43 @@ export default function StudentApplyPage() {
 
             <div className="space-y-4 text-xs">
               <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase flex items-center space-x-1">
-                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Rencana Tanggal Mulai PKL</span>
-                </label>
+                <div className="flex justify-between items-center">
+                  <label className="font-bold text-slate-400 uppercase flex items-center space-x-1">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Rencana Tanggal Mulai PKL</span>
+                  </label>
+                  <span className="text-[10px] font-extrabold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                    {selectedIndustry?.customDates ? '🔒 Khusus Disesuaikan Pokja' : '🔒 Terkunci Sesuai Periode Kelas'}
+                  </span>
+                </div>
                 <input
                   type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  readOnly
                   required
-                  className={`w-full px-4 py-3 rounded-2xl border outline-none font-semibold ${
-                    theme === 'dark' ? 'bg-slate-950 border-slate-800 focus:border-indigo-500' : 'bg-slate-50 border-slate-200 focus:border-indigo-500'
+                  className={`w-full px-4 py-3 rounded-2xl border outline-none font-semibold cursor-not-allowed opacity-90 ${
+                    theme === 'dark' ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-800'
                   }`}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase flex items-center space-x-1">
-                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Rencana Tanggal Selesai PKL</span>
-                </label>
+                <div className="flex justify-between items-center">
+                  <label className="font-bold text-slate-400 uppercase flex items-center space-x-1">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Rencana Tanggal Selesai PKL</span>
+                  </label>
+                  <span className="text-[10px] font-extrabold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                    {selectedIndustry?.customDates ? '🔒 Khusus Disesuaikan Pokja' : '🔒 Terkunci Sesuai Periode Kelas'}
+                  </span>
+                </div>
                 <input
                   type="date"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  readOnly
                   required
-                  className={`w-full px-4 py-3 rounded-2xl border outline-none font-semibold ${
-                    theme === 'dark' ? 'bg-slate-950 border-slate-800 focus:border-indigo-500' : 'bg-slate-50 border-slate-200 focus:border-indigo-500'
+                  className={`w-full px-4 py-3 rounded-2xl border outline-none font-semibold cursor-not-allowed opacity-90 ${
+                    theme === 'dark' ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-800'
                   }`}
                 />
               </div>
@@ -694,6 +745,104 @@ export default function StudentApplyPage() {
         </div>
 
       </div>
+
+      {/* MODAL UPLOAD SURAT BALASAN (LEVEL 3 PERIODE) */}
+      {showBalasanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden transition-all ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="p-6 border-b border-inherit flex justify-between items-center bg-emerald-500/10">
+              <h3 className="font-extrabold text-base text-emerald-800 dark:text-emerald-400 flex items-center space-x-2">
+                <MailCheck className="w-5 h-5" />
+                <span>Konfirmasi Balasan DUDI</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBalasanModal(false);
+                  setBalasanFile(null);
+                }}
+                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                  theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={confirmBalasanSubmit} className="p-6 space-y-5 text-xs">
+              <div className="space-y-1">
+                <h4 className="text-sm font-extrabold text-slate-900 dark:text-emerald-200">
+                  Masukkan Tanggal yang Disetujui
+                </h4>
+                <p className="text-slate-700 dark:text-slate-400 text-xs font-medium leading-relaxed">
+                  Bila industri menyetujui tanggal yang berbeda dari pengajuan awal, sesuaikan tanggal di bawah ini. Tanggal ini akan otomatis diterapkan ke seluruh teman kelompok di industri yang sama.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-extrabold text-slate-800 dark:text-slate-300 uppercase flex items-center space-x-1.5">
+                  <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Tanggal Mulai Disetujui: *</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={balasanStartDate}
+                  onChange={(e) => setBalasanStartDate(e.target.value)}
+                  className={`w-full px-4 py-3 rounded-2xl text-xs font-bold border outline-none transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-slate-950 border-slate-700 text-slate-100 focus:border-emerald-500' 
+                      : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-emerald-600 shadow-sm'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-extrabold text-slate-800 dark:text-slate-300 uppercase flex items-center space-x-1.5">
+                  <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Tanggal Selesai Disetujui: *</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={balasanEndDate}
+                  onChange={(e) => setBalasanEndDate(e.target.value)}
+                  className={`w-full px-4 py-3 rounded-2xl text-xs font-bold border outline-none transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-slate-950 border-slate-700 text-slate-100 focus:border-emerald-500' 
+                      : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-emerald-600 shadow-sm'
+                  }`}
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBalasanModal(false);
+                    setBalasanFile(null);
+                  }}
+                  className={`px-4 py-2.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    theme === 'dark' ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-800'
+                  }`}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploadingBalasan || !balasanStartDate || !balasanEndDate}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-lg shadow-emerald-600/30 flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {uploadingBalasan ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  <span>Unggah & Simpan Tanggal</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL LIVE PREVIEW DOKUMEN (SURAT TUGAS & SURAT BALASAN) */}
       {activePreviewUrl && (

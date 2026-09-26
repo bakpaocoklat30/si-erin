@@ -11,10 +11,13 @@
 // ----------------------------------------------------------------------
 
 'use client';
+import { PDFDocument } from 'pdf-lib';
+
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
+
 
 import {
   Users,
@@ -41,7 +44,7 @@ import {
   CalendarDays,
   Filter,
   CheckCheck
-} from 'lucide-react';
+, UploadCloud, Download} from 'lucide-react';
 
 interface StudentItem {
   id?: string;
@@ -141,6 +144,34 @@ export default function PermohonanSuratKelompokPage() {
 
   // Target Kelompok untuk Modal Upload Surat & Input Nomor Surat
   const [targetGroup, setTargetGroup] = useState<GroupItem | null>(null);
+
+  // BULK HOOKS
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const toggleGroupSelection = (groupId: string) => {
+    setSelectedGroupIds(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
+  };
+  const toggleAllGroups = (currentGroupIds: string[]) => {
+    if (selectedGroupIds.length === currentGroupIds.length) {
+      setSelectedGroupIds([]);
+    } else {
+      setSelectedGroupIds(currentGroupIds);
+    }
+  };
+
+  const [useTteMode, setUseTteMode] = useState<boolean>(true);
+  const [docxPreviewGroup, setDocxPreviewGroup] = useState<GroupItem | null>(null);
+  const [docxPreviewUseTte, setDocxPreviewUseTte] = useState<boolean>(true);
+  const [inputLetterDate, setInputLetterDate] = useState<string>('');
+  const [dateDetectedNotice, setDateDetectedNotice] = useState<string>('');
+  
+  // BULK UPLOAD HOOKS
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState<boolean>(false);
+  const [bulkPdfBytes, setBulkPdfBytes] = useState<Uint8Array | null>(null);
+  const [pdfPageCount, setPdfPageCount] = useState<number>(0);
+  const [pageMapping, setPageMapping] = useState<Record<string, number>>({});
+  const [showPdfPreview, setShowPdfPreview] = useState<boolean>(true);
+  const [bulkPdfPreviewUrl, setBulkPdfPreviewUrl] = useState<string>('');
+
   const [inputLetterNumber, setInputLetterNumber] = useState<string>('');
   const [suratBase64, setSuratBase64] = useState<string>('');
   const [selectedFileName, setSelectedFileName] = useState<string>('');
@@ -288,6 +319,254 @@ export default function PermohonanSuratKelompokPage() {
   };
 
   // Submit Upload Surat & SIMPAN `letterNumber` KE PRISMA DATABASE
+  
+
+  const generateSuratPermohonanHtml = (placements: any[], industryName: string, letterNumber: string, date: any, useTte: boolean, user: string): string => {
+    return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Surat Permohonan PKL - ${industryName}</title>
+</head>
+<body style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; padding: 20px;">
+  <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+    <strong>KOP SURAT SMK NEGERI 1 ADIWERNA</strong>
+  </div>
+  <p style="text-align: right;">Adiwerna, ${new Date().toLocaleDateString('id-ID')}</p>
+  <p>Nomor: ${letterNumber || (useTte ? '${nomor_naskah}' : '400.14.5.4 / 1068 / 2026')}</p>
+  <p>Perihal: <strong>Permohonan Tempat Praktik Kerja Lapangan (PKL)</strong></p>
+  <br>
+  <p>Yth. Pimpinan <strong>${industryName}</strong></p>
+  <p>Di Tempat</p>
+  <br>
+  <p style="text-align: justify;">Dengan hormat, dalam rangka pelaksanaan Praktik Kerja Lapangan (PKL) siswa SMK Negeri 1 Adiwerna...</p>
+  <br>
+  <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+    <thead>
+      <tr>
+        <th style="border: 1px solid #000; padding: 8px;">No</th>
+        <th style="border: 1px solid #000; padding: 8px;">Nama Siswa</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${placements.map((p, idx) => {
+        const student = p.student || p;
+        return '<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">' + (idx + 1) + '</td><td style="border: 1px solid #000; padding: 8px;">' + (student.name || '-') + '</td></tr>';
+      }).join('')}
+    </tbody>
+  </table>
+  <br>
+  <div style="float: right; text-align: center; width: 250px;">
+    ${useTte ? `
+      <div style="margin-top: 0;">\${jabatan_pengirim}</div>
+      <div style="height: 60px; line-height: 60px;">\${ttd_pengirim}</div>
+      <div style="font-weight: bold; margin-top: 2px;">\${nama_pengirim}</div>
+    ` : `
+      <div>Kepala SMK Negeri 1 Adiwerna</div>
+      <div style="height: 65px;"></div>
+      <div style="font-weight: bold; margin-top: 2px;">Joko Pramono, S.Pd., M.Ds.</div>
+    `}
+  </div>
+</body>
+</html>`;
+  };
+
+  const handleOpenDocxPreview = async (group: GroupItem) => {
+    if (!group.letterNumber) {
+      const num = window.prompt("Nomor Surat masih kosong! Masukkan Nomor Surat terlebih dahulu:");
+      if (!num) return;
+      await fetch('/api/pokja/groups', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placementIds: group.placements?.map((p: any) => p.id || p.placementId) || group.students?.map((p: any) => p.id || p.placementId) || [], letterNumber: num, suratTugasUrl: '' })
+      });
+      group.letterNumber = num;
+      setVerifiedGroups(prev => prev.map(g => g.groupId === group.groupId ? { ...g, letterNumber: num } : g));
+    }
+    setDocxPreviewGroup(group);
+    setDocxPreviewUseTte(useTteMode);
+  };
+
+  const handleDownloadSingleDocx = async (group: GroupItem) => {
+    if (!group.letterNumber) {
+      const num = window.prompt("Nomor Surat masih kosong! Masukkan Nomor Surat terlebih dahulu:");
+      if (!num) return;
+      await fetch('/api/pokja/groups', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placementIds: group.placements?.map((p: any) => p.id || p.placementId) || group.students?.map((p: any) => p.id || p.placementId) || [], letterNumber: num, suratTugasUrl: '' })
+      });
+      group.letterNumber = num;
+      setVerifiedGroups(prev => prev.map(g => g.groupId === group.groupId ? { ...g, letterNumber: num } : g));
+    }
+    const groupId = group.groupId;
+    window.location.href = `/api/pokja/groups/download-docx?groupId=${groupId}&useTte=${useTteMode}`;
+  };
+
+  const handleBulkSetNomorSurat = async () => {
+    const num = window.prompt(`Masukkan satu Nomor Surat untuk ${selectedGroupIds.length} kelompok:`);
+    if (!num) return;
+    setSubmitting(true);
+    try {
+      const selectedGroups = verifiedGroups.filter(g => selectedGroupIds.includes(g.groupId || ''));
+      let allPlacementIds: string[] = [];
+      selectedGroups.forEach(g => {
+        const rawList = g.placements || g.students || [];
+        rawList.forEach((p: any) => { if (p.id || p.placementId) allPlacementIds.push(p.id || p.placementId) });
+      });
+      await fetch('/api/pokja/groups', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placementIds: allPlacementIds, letterNumber: num, suratTugasUrl: '' })
+      });
+      setVerifiedGroups(prev => prev.map(g => selectedGroupIds.includes(g.groupId || '') ? { ...g, letterNumber: num } : g));
+      setSuccessMsg("Berhasil mengatur nomor surat massal!");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleBulkDownloadMerged = async () => {
+    const url = `/api/pokja/groups/download-docx?format=merged&useTte=${useTteMode}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupIds: selectedGroupIds })
+    });
+    if (!res.ok) {
+      alert("Gagal mengunduh dokumen gabungan");
+      return;
+    }
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `Permohonan_Gabungan_${selectedGroupIds.length}_Kelompok.docx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const handleBulkFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFileName(file.name);
+    const objectUrl = URL.createObjectURL(file);
+    setBulkPdfPreviewUrl(objectUrl);
+    
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      setBulkPdfBytes(bytes);
+      
+      if (file.type === 'application/pdf') {
+        const pdfDoc = await PDFDocument.load(bytes);
+        const count = pdfDoc.getPageCount();
+        setPdfPageCount(count);
+
+        const newMapping: Record<string, number> = {};
+        const selectedGroups = verifiedGroups.filter(g => selectedGroupIds.includes(g.groupId || ''));
+        selectedGroups.forEach((g, index) => {
+           newMapping[g.groupId || ''] = Math.min(index + 1, count);
+        });
+        setPageMapping(newMapping);
+      } else {
+        setPdfPageCount(1);
+        const newMapping: Record<string, number> = {};
+        verifiedGroups.filter(g => selectedGroupIds.includes(g.groupId || '')).forEach(g => {
+           newMapping[g.groupId || ''] = 1;
+        });
+        setPageMapping(newMapping);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Gagal membaca dokumen PDF.');
+    }
+  };
+
+  const handleBulkUploadSurat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkPdfBytes) {
+      setErrorMsg('Silakan pilih berkas Surat Permohonan (PDF)!');
+      return;
+    }
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const selectedGroups = verifiedGroups.filter(g => selectedGroupIds.includes(g.groupId || ''));
+      
+      let sourcePdf: PDFDocument | null = null;
+      if (pdfPageCount > 1) {
+         sourcePdf = await PDFDocument.load(bulkPdfBytes);
+      }
+
+      let successCount = 0;
+
+      for (const group of selectedGroups) {
+        const mappedPage = pageMapping[group.groupId || ''] || 1;
+        
+        let finalBase64 = '';
+        if (sourcePdf && pdfPageCount > 1) {
+           const newPdf = await PDFDocument.create();
+           const [copiedPage] = await newPdf.copyPages(sourcePdf, [mappedPage - 1]);
+           newPdf.addPage(copiedPage);
+           const newBytes = await newPdf.save();
+           finalBase64 = 'data:application/pdf;base64,' + Buffer.from(newBytes).toString('base64');
+        } else {
+           const mime = selectedFileName.toLowerCase().endsWith('pdf') ? 'application/pdf' : 'image/jpeg';
+           finalBase64 = 'data:' + mime + ';base64,' + Buffer.from(bulkPdfBytes).toString('base64');
+        }
+
+        const rawList = group.placements || group.students || [];
+        const placementIds = rawList.map((p: any) => p.id || p.placementId).filter(Boolean);
+
+        const res = await fetch('/api/pokja/groups', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            placementIds: placementIds,
+            letterNumber: inputLetterNumber.trim() || group.letterNumber || '',
+            letterDate: inputLetterDate,
+            suratTugasUrl: finalBase64 
+          })
+        });
+
+        if (res.ok) {
+           successCount++;
+           setVerifiedGroups(prev => prev.map(g => 
+              g.groupId === group.groupId 
+                ? { ...g, suratTugasUrl: finalBase64, letterNumber: inputLetterNumber.trim() || g.letterNumber, status: 'SURAT_DITERBITKAN' } 
+                : g
+            ));
+        }
+      }
+
+      if (successCount > 0) {
+        setSuccessMsg('Berhasil memetakan dan mengunggah untuk ' + successCount + ' kelompok!');
+        setTimeout(() => {
+          setShowBulkUploadModal(false);
+          setSelectedGroupIds([]);
+          setBulkPdfBytes(null);
+          setSelectedFileName('');
+          setInputLetterNumber('');
+          if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
+          setBulkPdfPreviewUrl('');
+          setPageMapping({});
+        }, 2000);
+      } else {
+        setErrorMsg('Terjadi kesalahan, tidak ada kelompok yang berhasil disimpan.');
+      }
+    } catch (e) {
+      console.error(e);
+      setErrorMsg('Gagal memproses file.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleUploadSuratGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetGroup) return;
@@ -950,6 +1229,264 @@ export default function PermohonanSuratKelompokPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      
+      {/* 🌟 FLOATING BULK ACTION BAR 🌟 */}
+      {selectedGroupIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-slate-900 border-2 border-indigo-500 shadow-2xl shadow-indigo-600/30 rounded-full px-6 py-3 flex items-center space-x-6 animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className="flex items-center space-x-2">
+            <div className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 font-black text-sm px-3 py-1 rounded-full">
+              {selectedGroupIds.length} Terpilih
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-3 border-l border-slate-200 dark:border-slate-800 pl-6">
+            <button
+              onClick={handleBulkSetNomorSurat}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-orange-600/20 cursor-pointer"
+            >
+              <Hash className="w-4 h-4" />
+              <span>Input Nomor Surat Massal</span>
+            </button>
+            <button
+              onClick={handleBulkDownloadMerged}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-blue-600/20 cursor-pointer"
+            >
+              <Layers className="w-4 h-4" />
+              <span>Unduh Gabung (DOCX)</span>
+            </button>
+            <button
+              onClick={() => {
+                setBulkPdfBytes(null);
+                if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
+                setBulkPdfPreviewUrl('');
+                setPdfPageCount(0);
+                setPageMapping({});
+                setShowBulkUploadModal(true);
+              }}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/20 cursor-pointer"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span>Upload Surat Massal</span>
+            </button>
+            <button
+              onClick={() => setSelectedGroupIds([])}
+              className="p-2 text-slate-400 hover:text-rose-500 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 MODAL BULK UPLOAD SURAT 🌟 */}
+      {showBulkUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`bg-white dark:bg-slate-900 w-full rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 transition-all ${bulkPdfPreviewUrl && showPdfPreview ? 'max-w-6xl' : 'max-w-lg'}`}>
+            <div className="flex items-center justify-between p-6 border-b border-inherit bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex items-center space-x-4">
+                <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center space-x-2">
+                  <Layers className="w-5 h-5 text-indigo-500" />
+                  <span>Upload Surat Massal ({selectedGroupIds.length} Kelompok)</span>
+                </h3>
+                {bulkPdfPreviewUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPdfPreview(!showPdfPreview)}
+                    className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{showPdfPreview ? 'Tutup Preview PDF' : 'Buka Preview PDF'}</span>
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBulkUploadModal(false);
+                  if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
+                  setBulkPdfPreviewUrl('');
+                }}
+                className="p-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className={`grid gap-6 p-6 ${bulkPdfPreviewUrl && showPdfPreview ? 'grid-cols-1 lg:grid-cols-12' : 'grid-cols-1'}`}>
+              <form onSubmit={handleBulkUploadSurat} className={`space-y-5 text-xs ${bulkPdfPreviewUrl && showPdfPreview ? 'lg:col-span-7' : 'col-span-1'}`}>
+                <div className="space-y-1">
+                  <p className="text-slate-600 dark:text-slate-400 text-xs font-medium leading-relaxed">
+                    Unggah berkas surat yang sudah di TTE untuk <strong>{selectedGroupIds.length}</strong> kelompok sekaligus.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="font-extrabold text-slate-300 uppercase flex items-center space-x-1.5">
+                    <Hash className="w-4 h-4 text-indigo-400" />
+                    <span>Nomor Surat (Opsional jika sudah diisi):</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={inputLetterNumber}
+                    onChange={(e) => setInputLetterNumber(e.target.value)}
+                    placeholder="Contoh: 400.14.5.4/123/2026"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:font-normal placeholder:text-slate-400"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="font-extrabold text-slate-300 uppercase flex items-center space-x-1.5">
+                    <FileText className="w-4 h-4 text-indigo-400" />
+                    <span>File Surat Permohonan (PDF): *</span>
+                  </label>
+                  
+                  <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-center">
+                    <input
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png"
+                      onChange={handleBulkFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    {selectedFileName ? (
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full flex justify-center items-center">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <p className="font-bold text-indigo-600 dark:text-indigo-400 truncate w-full max-w-[200px]">{selectedFileName}</p>
+                        <p className="text-[10px] text-slate-500">Klik untuk mengganti</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex justify-center items-center transition-transform">
+                          <UploadCloud className="w-5 h-5" />
+                        </div>
+                        <p className="font-bold text-slate-600 dark:text-slate-300">Pilih Berkas / Tarik Kesini</p>
+                        <p className="text-[10px] text-slate-500">Format: PDF (Disarankan), JPG, PNG</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {bulkPdfBytes && pdfPageCount > 1 && (
+                  <div className="space-y-3 bg-indigo-50 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                    <h4 className="font-extrabold text-indigo-800 dark:text-indigo-300">Pemetaan Halaman PDF ke Kelompok</h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">PDF Anda memiliki {pdfPageCount} halaman. Tentukan halaman mana untuk kelompok yang mana:</p>
+                    <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                      {verifiedGroups.filter(g => selectedGroupIds.includes(g.groupId || '')).map(g => (
+                        <div key={g.groupId} className="flex justify-between items-center bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800">
+                          <span className="font-bold text-slate-700 dark:text-slate-300 truncate pr-4 max-w-[250px]">{g.industryName}</span>
+                          <div className="flex items-center space-x-2 shrink-0">
+                             <span className="text-slate-400">Hal.</span>
+                             <input type="number" min={1} max={pdfPageCount} 
+                               value={pageMapping[g.groupId || ''] || 1} 
+                               onChange={(e) => setPageMapping(prev => ({ ...prev, [g.groupId || '']: parseInt(e.target.value) || 1 }))}
+                               className="w-16 px-2 py-1 border rounded-md text-center font-bold bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                             />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {errorMsg && (
+                  <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-xl font-bold flex items-start space-x-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+                {successMsg && (
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl font-bold flex items-start space-x-2">
+                    <CheckCheck className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{successMsg}</span>
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-inherit flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBulkUploadModal(false);
+                      if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
+                      setBulkPdfPreviewUrl('');
+                    }}
+                    className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-[2] py-3 rounded-xl font-black bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex justify-center items-center space-x-2 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {submitting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /><span>Memproses...</span></>
+                    ) : (
+                      <><SendHorizontal className="w-4 h-4" /><span>Simpan ke {selectedGroupIds.length} Kelompok</span></>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Right Panel: Live PDF Viewer */}
+              {bulkPdfPreviewUrl && showPdfPreview && (
+                <div className="lg:col-span-5 h-[550px] bg-slate-100 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col shadow-inner">
+                  <div className="px-3.5 py-2.5 bg-slate-200/70 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-indigo-500" />
+                      <span>Pratinjau PDF Asli</span>
+                    </div>
+                  </div>
+                  <object
+                    data={`${bulkPdfPreviewUrl}#toolbar=1&navpanes=1&view=FitH`}
+                    type="application/pdf"
+                    className="w-full flex-1 border-0"
+                  >
+                    <iframe
+                      src={bulkPdfPreviewUrl}
+                      title="PDF Preview"
+                      className="w-full h-full border-0"
+                    />
+                  </object>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DOCX HTML PREVIEW MODAL */}
+      {docxPreviewGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-4xl max-h-[90vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <div className="p-5 border-b border-inherit flex justify-between items-center">
+              <h3 className="font-bold text-sm text-indigo-600 dark:text-indigo-400 flex items-center space-x-2">
+                <FileText className="w-4 h-4" />
+                <span>Preview DOCX - {docxPreviewGroup.industryName}</span>
+              </h3>
+              <button onClick={() => setDocxPreviewGroup(null)} className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-slate-950 flex justify-center">
+              <div 
+                className="bg-white text-black shadow-xl w-[21cm] min-h-[29.7cm] p-[2cm] docx-preview-content"
+                style={{ fontSize: '12pt', fontFamily: '"Times New Roman", Times, serif', lineHeight: '1.5' }}
+                dangerouslySetInnerHTML={{
+                  __html: generateSuratPermohonanHtml(docxPreviewGroup.placements || docxPreviewGroup.students || [], docxPreviewGroup.industryName || '', docxPreviewGroup.letterNumber || '', new Date(), docxPreviewUseTte, (session?.user as any)?.name || 'Admin')
+                }}
+              />
+            </div>
+            <div className="p-4 border-t border-inherit flex justify-end">
+              <button onClick={() => handleDownloadSingleDocx(docxPreviewGroup)} className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Unduh DOCX
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -818,14 +818,6 @@ export function buildLaporanXml(
     })),
   ];
 
-  let industryText = '';
-  if (allIndustries.length === 1) {
-    const ind = allIndustries[0];
-    industryText = `${ind.name}${ind.address ? ' di ' + ind.address : ''}`;
-  } else {
-    industryText = allIndustries.map((ind) => `${ind.name}${ind.address ? ' di ' + ind.address : ''}`).join(', ');
-  }
-
   let cleanPurpose = (assignment.purpose || 'Monitoring Murid Praktek Kerja Lapangan').trim();
   cleanPurpose = cleanPurpose.replace(/^melaksanakan\s+kegiatan\s+/i, '');
 
@@ -841,6 +833,20 @@ export function buildLaporanXml(
     dayDatePhrase = `pada hari ${startDay} - ${endDay} tanggal ${formatIndonesianDateRange(startDate, returnDate)}`;
   } else {
     dayDatePhrase = `pada hari ${startDay}  tanggal  ${formatIndonesianDate(assignment.monitoringDate)}`;
+  }
+
+  let laporanSingkatXml = '';
+  if (allIndustries.length === 1) {
+    const ind = allIndustries[0];
+    const indStr = `${ind.name}${ind.address ? ' di ' + ind.address : ''}`;
+    laporanSingkatXml = `<w:p><w:pPr><w:jc w:val="both"/><w:spacing w:line="280" w:lineRule="auto" w:before="0" w:after="160"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Telah melaksanakan kegiatan ${escapeXml(cleanPurpose)} ${escapeXml(dayDatePhrase)} di ${escapeXml(indStr)}</w:t></w:r></w:p>`;
+  } else {
+    const pStart = `<w:p><w:pPr><w:jc w:val="both"/><w:spacing w:line="280" w:lineRule="auto" w:before="0" w:after="160"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Telah melaksanakan kegiatan ${escapeXml(cleanPurpose)} ${escapeXml(dayDatePhrase)} di :</w:t></w:r></w:p>`;
+    const listItems = allIndustries.map((ind, idx) => {
+      const indStr = `${ind.name}${ind.address ? ' di ' + ind.address : ''}`;
+      return `<w:p><w:pPr><w:spacing w:line="280" w:lineRule="auto" w:before="0" w:after="160"/><w:ind w:left="400" w:hanging="283"/><w:jc w:val="both"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t xml:space="preserve">${idx + 1}. </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(indStr)}</w:t></w:r></w:p>`;
+    }).join('');
+    laporanSingkatXml = pStart + listItems;
   }
 
   const signatureDate = formatIndonesianDate(assignment.returnDate || assignment.monitoringDate);
@@ -1010,20 +1016,7 @@ export function buildLaporanXml(
           <w:t>Laporan Singkat :</w:t>
         </w:r>
       </w:p>
-      <w:p>
-        <w:pPr>
-          <w:jc w:val="both"/>
-          <w:spacing w:line="280" w:lineRule="auto" w:before="0" w:after="160"/>
-        </w:pPr>
-        <w:r>
-          <w:rPr>
-            <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
-            <w:sz w:val="22"/>
-            <w:szCs w:val="22"/>
-          </w:rPr>
-          <w:t>Telah melaksanakan kegiatan ${escapeXml(cleanPurpose)} ${escapeXml(dayDatePhrase)} di ${escapeXml(industryText)}</w:t>
-        </w:r>
-      </w:p>
+      ${laporanSingkatXml}
 
       <!-- Catatan (Label + 3 Garis Bergaris Ruled Lines) -->
       <w:p>
@@ -1061,6 +1054,27 @@ export function buildLaporanXml(
         <w:tblGrid>
           <w:gridCol w:w="9900"/>
         </w:tblGrid>
+        <w:tr>
+          <w:trPr><w:trHeight w:val="380" w:hRule="atLeast"/></w:trPr>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="9900" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+          </w:tc>
+        </w:tr>
+        <w:tr>
+          <w:trPr><w:trHeight w:val="380" w:hRule="atLeast"/></w:trPr>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="9900" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+          </w:tc>
+        </w:tr>
+        <w:tr>
+          <w:trPr><w:trHeight w:val="380" w:hRule="atLeast"/></w:trPr>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="9900" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+          </w:tc>
+        </w:tr>
         <w:tr>
           <w:trPr><w:trHeight w:val="380" w:hRule="atLeast"/></w:trPr>
           <w:tc>
@@ -1172,6 +1186,429 @@ export async function generateMergedLaporanDocx(
 
   for (const item of assignments) {
     const xml = buildLaporanXml(baseXml, item, options);
+    bodyContents.push(extractBodyContent(xml));
+  }
+
+  const sectPr = `<w:sectPr><w:pgSz w:w="11906" w:h="16838" w:code="9"/><w:pgMar w:top="500" w:right="1000" w:bottom="700" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
+  const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
+  const mergedXml =
+    baseXml.substring(0, bodyStartIdx) +
+    bodyContents.join(pageBreak) +
+    sectPr +
+    '</w:body></w:document>';
+
+  zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
+  return zip.toBuffer();
+}
+
+// ----------------------------------------------------------------------
+// 📜 GENERATE SURAT PERMOHONAN PRAKTEK KERJA LAPANGAN (PKL) (.docx)
+// Format resmi SMKN 1 Adiwerna & Cabdin Wilayah XII Jawa Tengah
+// Mendukung TTE QR Code resmi, daftar siswa kelompok, dan durasi bulan otomatis
+// ----------------------------------------------------------------------
+
+export interface GroupPermohonanStudent {
+  id?: string;
+  name?: string;
+  studentName?: string;
+  nis?: string;
+  className?: string;
+  department?: string;
+  phone?: string;
+  parentPhone?: string;
+}
+
+export interface GroupPermohonanData {
+  groupId?: string;
+  groupKey?: string;
+  industryId?: string;
+  industryName: string;
+  industryAddress?: string;
+  fullAddress?: string;
+  jalan?: string;
+  rt?: string;
+  rw?: string;
+  dusun?: string;
+  desaKelurahan?: string;
+  subDistrict?: string;
+  regency?: string;
+  postalCode?: string;
+  startDate?: string;
+  endDate?: string;
+  letterNumber?: string;
+  letterUploadedAt?: string;
+  departmentName?: string;
+  students?: GroupPermohonanStudent[];
+  placements?: any[];
+}
+
+export function calculateDurationMonths(startDateStr?: string, endDateStr?: string): { months: number; text: string } {
+  if (!startDateStr || !endDateStr) return { months: 4, text: 'Empat' };
+  try {
+    const s = new Date(startDateStr);
+    const e = new Date(endDateStr);
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return { months: 4, text: 'Empat' };
+    
+    let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+    if (e.getDate() >= 25 || e.getDate() - s.getDate() >= 20) {
+      months += 1;
+    }
+    if (months <= 0) months = 1;
+    
+    const words = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas', 'Dua Belas'];
+    const text = words[months] || String(months);
+    return { months, text };
+  } catch {
+    return { months: 4, text: 'Empat' };
+  }
+}
+
+export function formatIndustryAddress(group: GroupPermohonanData): string {
+  const parts = [];
+  if (group.desaKelurahan && group.desaKelurahan !== '-') parts.push(`Kel. ${group.desaKelurahan}`);
+  if (group.subDistrict && group.subDistrict !== '-') parts.push(`Kec. ${group.subDistrict}`);
+  if (group.regency && group.regency !== '-') parts.push(group.regency.toUpperCase());
+  if (group.postalCode && group.postalCode !== '-') parts.push(`Kode Pos ${group.postalCode}`);
+  if (parts.length > 0) return parts.join(', ');
+  return group.fullAddress || group.industryAddress || '-';
+}
+
+export function buildSuratPermohonanXml(
+  baseXml: string,
+  group: GroupPermohonanData,
+  options?: GeneratorOptions
+): string {
+  const useTte = options?.useTteTags !== false;
+  
+  // 1. Nomor Surat
+  let letterNo = group.letterNumber && group.letterNumber.trim() !== '' ? group.letterNumber.trim() : '';
+  if (!useTte) {
+    if (!letterNo || letterNo === '${nomor_naskah}') {
+      letterNo = '400.14.5.4 / 1068 / 2026';
+    }
+  } else {
+    if (!letterNo) {
+      letterNo = '${nomor_naskah}';
+    }
+  }
+
+  // 2. Tanggal Surat
+  let letterDate = group.letterUploadedAt ? formatIndonesianDate(group.letterUploadedAt) : '';
+  if (!letterDate || letterDate === '-') {
+    letterDate = formatIndonesianDate(new Date().toISOString());
+  }
+  const dateStr = useTte ? '${tanggal_naskah}' : letterDate;
+
+  // 3. Kop Surat drawing
+  const drawingMatch = baseXml.match(/<w:r\b[^>]*>[\s\S]*?<w:drawing>[\s\S]*?<\/w:drawing>[\s\S]*?<\/w:r>/);
+  const kopDrawing = drawingMatch ? drawingMatch[0] : '';
+  const kopParagraph = `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="80"/></w:pPr>${kopDrawing}</w:p>`;
+
+  // 4. Tujuan & Alamat Industri
+  const indName = group.industryName || 'Pimpinan DUDI Mitra';
+  const indAddress = formatIndustryAddress(group);
+
+  // 5. Rentang Tanggal & Durasi
+  const startStr = group.startDate ? formatIndonesianDate(group.startDate) : '1 Desember 2026';
+  const endStr = group.endDate ? formatIndonesianDate(group.endDate) : '31 Maret 2027';
+  const dateRangeStr = `${startStr} – ${endStr}`;
+  const duration = calculateDurationMonths(group.startDate, group.endDate);
+
+  // 6. Daftar Siswa
+  const rawStudents = group.students || (group.placements || []).map((p: any) => p.student || p) || [];
+  const students = rawStudents.map((s: any) => ({
+    name: (s.name || s.studentName || '-').toUpperCase(),
+    nis: s.nis || '-',
+    className: s.className || '-',
+    phone: s.phone || s.parentPhone || '-'
+  }));
+
+  // 7. Info Kepala Sekolah
+  const headmasterName = options?.schoolSetting?.headmaster || 'Joko Pramono, S.Pd., M.Ds.';
+  const headmasterNip = options?.schoolSetting?.headmasterNip || '196903171998021004';
+  const headmasterRank = 'Pembina Utama Muda. IV/c';
+
+  // 8. TTE Signature Block
+  const tteSignatureBlock = useTte
+    ? `
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>\${jabatan_pengirim}</w:t></w:r></w:p>
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>\${ttd_pengirim}</w:t></w:r></w:p>
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>\${nama_pengirim}</w:t></w:r></w:p>
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Pembina Utama Muda. IV/c</w:t></w:r></w:p>
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>NIP \${nip_pengirim}</w:t></w:r></w:p>
+    `
+    : `
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Kepala SMK Negeri 1 Adiwerna</w:t></w:r></w:p>
+          <w:p><w:pPr><w:spacing w:before="800" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:p>
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(headmasterName)}</w:t></w:r></w:p>
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(headmasterRank)}</w:t></w:r></w:p>
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>NIP ${escapeXml(headmasterNip)}</w:t></w:r></w:p>
+    `;
+
+
+  // Siswa rows XML
+  const studentRowsXml = students.map((std, idx) => `
+    <w:tr>
+      <w:trPr><w:trHeight w:val="320" w:hRule="atLeast"/></w:trPr>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="600" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${idx + 1}.</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="3700" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="left"/><w:ind w:left="80"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(std.name)}</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="1600" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(std.nis)}</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="1800" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(std.className)}</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="2200" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(std.phone)}</w:t></w:r></w:p>
+      </w:tc>
+    </w:tr>
+  `).join('');
+
+  const bodyXml = `
+    ${kopParagraph}
+
+    <!-- TABEL NOMOR & TANGGAL SURAT (2 KOLOM, TANPA BORDER) -->
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="9900" w:type="dxa"/>
+        <w:jc w:val="center"/>
+        <w:tblBorders>
+          <w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/>
+        </w:tblBorders>
+        <w:tblCellMar>
+          <w:top w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="6000"/>
+        <w:gridCol w:w="3900"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="6000" w:type="dxa"/></w:tcPr>
+          <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">Nomor : </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(letterNo)}</w:t></w:r></w:p>
+          <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">Hal.    : </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:i/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Permohonan Praktek Kerja Lapangan (PKL)</w:t></w:r></w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="3900" w:type="dxa"/></w:tcPr>
+          <w:p><w:pPr><w:jc w:val="right"/><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Adiwerna, ${escapeXml(dateStr)}</w:t></w:r></w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+
+    <!-- KEPADA / TUJUAN INDUSTRI -->
+    <w:p><w:pPr><w:spacing w:before="240" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Kepada</w:t></w:r></w:p>
+    <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Yth.Pimpinan ${escapeXml(indName)}</w:t></w:r></w:p>
+    <w:p><w:pPr><w:spacing w:before="0" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(indAddress)}</w:t></w:r></w:p>
+
+    <!-- DENGAN HORMAT & PARAGRAF PEMBUKA -->
+    <w:p><w:pPr><w:spacing w:before="120" w:after="40" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Dengan hormat,</w:t></w:r></w:p>
+    <w:p><w:pPr><w:jc w:val="both"/><w:spacing w:before="0" w:after="80" w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Sebagai upaya peningkatan mutu lulusan Sekolah Menengah Kejuruan (SMK) yang relevan dengan kebutuhan industri, serta merujuk pada Kurikulum Merdeka yang mewajibkan siswa terjun langsung ke dunia kerja melalui Praktik Kerja Lapangan (PKL), maka dengan ini kami bermaksud mengajukan permohonan untuk menempatkan siswa/siswi kami guna melaksanakan PKL di perusahaan yang Bapak/Ibu pimpin.</w:t></w:r></w:p>
+    <w:p><w:pPr><w:jc w:val="both"/><w:spacing w:before="0" w:after="80" w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Sehubungan dengan hal tersebut, kami memohon kesediaan Bapak/Ibu untuk menerima siswa kami melaksanakan PKL yang dijadwalkan akan dimulai pada tanggal </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:i/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(dateRangeStr)}</w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">, atau Selama </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${duration.months} ( ${duration.text} )</w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t> bulan.</w:t></w:r></w:p>
+    <w:p><w:pPr><w:spacing w:before="0" w:after="80" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Adapun daftar siswa kami sebagai berikut :</w:t></w:r></w:p>
+
+    <!-- TABEL DAFTAR SISWA (BORDER SINGLE HITAM LENGKAP) -->
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="9900" w:type="dxa"/>
+        <w:jc w:val="center"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+          <w:left w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+          <w:bottom w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+          <w:right w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+          <w:insideH w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+          <w:insideV w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+        </w:tblBorders>
+        <w:tblCellMar>
+          <w:top w:w="80" w:type="dxa"/>
+          <w:bottom w:w="80" w:type="dxa"/>
+          <w:left w:w="120" w:type="dxa"/>
+          <w:right w:w="120" w:type="dxa"/>
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="600"/>
+        <w:gridCol w:w="3700"/>
+        <w:gridCol w:w="1600"/>
+        <w:gridCol w:w="1800"/>
+        <w:gridCol w:w="2200"/>
+      </w:tblGrid>
+      
+      <!-- HEADER TABEL -->
+      <w:tr>
+        <w:trPr><w:tblHeader/><w:trHeight w:val="380" w:hRule="atLeast"/></w:trPr>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="600" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>No.</w:t></w:r></w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="3700" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Nama Siswa</w:t></w:r></w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="1600" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>NIS</w:t></w:r></w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="1800" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Kelas</w:t></w:r></w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="2200" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>No Hp</w:t></w:r></w:p>
+        </w:tc>
+      </w:tr>
+
+      <!-- BARIS SISWA -->
+      ${studentRowsXml}
+    </w:tbl>
+
+    <!-- PENUTUP -->
+    <w:p><w:pPr><w:spacing w:before="120" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Demikian permohonan kami, atas perhatian dan kerjasamanya kami sampaikan terimakasih.</w:t></w:r></w:p>
+
+    <!-- TANDA TANGAN (KOLOM KANAN) -->
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="9900" w:type="dxa"/>
+        <w:jc w:val="center"/>
+        <w:tblBorders>
+          <w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/>
+        </w:tblBorders>
+        <w:tblCellMar>
+          <w:top w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="5000"/>
+        <w:gridCol w:w="4900"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="5000" w:type="dxa"/></w:tcPr>
+          <w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="4900" w:type="dxa"/></w:tcPr>
+          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="60" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Kepala SMK Negeri 1 Adiwerna</w:t></w:r></w:p>
+          ${tteSignatureBlock}
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+  `;
+
+  const sectPr = `<w:sectPr><w:pgSz w:w="11906" w:h="16838" w:code="9"/><w:pgMar w:top="500" w:right="1000" w:bottom="700" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
+  const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
+
+  return (
+    baseXml.substring(0, bodyStartIdx) +
+    bodyXml +
+    sectPr +
+    '</w:body></w:document>'
+  );
+}
+
+export async function generateSuratPermohonanDocx(
+  group: GroupPermohonanData,
+  options?: GeneratorOptions
+): Promise<Buffer> {
+  const templatePath = path.join(process.cwd(), 'template', 'Surat Tugas Monitoring PKL.docx');
+  const sppdPath = path.join(process.cwd(), 'template', 'SPPD TTE.docx');
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`File template tidak ditemukan di: ${templatePath}`);
+  }
+  const zip = new AdmZip(templatePath);
+
+  // If TTE enabled, inject TTE QR Code image & relationship
+  if (options?.useTteTags !== false && fs.existsSync(sppdPath)) {
+    try {
+      const sppdZip = new AdmZip(sppdPath);
+      const imgEntry = sppdZip.getEntry('word/media/image3.png');
+      if (imgEntry) {
+        zip.addFile('word/media/image_tte.png', imgEntry.getData());
+        let rels = zip.readAsText('word/_rels/document.xml.rels');
+        if (!rels.includes('rId99')) {
+          rels = rels.replace(
+            '</Relationships>',
+            '<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image_tte.png"/></Relationships>'
+          );
+          zip.updateFile('word/_rels/document.xml.rels', Buffer.from(rels, 'utf8'));
+        }
+      }
+    } catch (e) {
+      console.warn('Warning: Failed to inject TTE QR code image into docx:', e);
+    }
+  }
+
+  const baseXml = zip.readAsText('word/document.xml');
+  const xml = buildSuratPermohonanXml(baseXml, group, options);
+  zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
+  return zip.toBuffer();
+}
+
+export async function generateBulkSuratPermohonanZip(
+  groups: GroupPermohonanData[],
+  options?: GeneratorOptions
+): Promise<Buffer> {
+  const zip = new AdmZip();
+  for (let i = 0; i < groups.length; i++) {
+    const group = groups[i];
+    const docxBuffer = await generateSuratPermohonanDocx(group, options);
+    const safeIndustry = (group.industryName || 'Industri').replace(/[^a-zA-Z0-9_\-]/g, '_').substring(0, 35);
+    const filename = `Surat_Permohonan_${safeIndustry}_${i + 1}.docx`;
+    zip.addFile(filename, docxBuffer);
+  }
+  return zip.toBuffer();
+}
+
+export async function generateMergedSuratPermohonanDocx(
+  groups: GroupPermohonanData[],
+  options?: GeneratorOptions
+): Promise<Buffer> {
+  if (!groups || groups.length === 0) {
+    throw new Error('Tidak ada kelompok yang dipilih.');
+  }
+  if (groups.length === 1) {
+    return generateSuratPermohonanDocx(groups[0], options);
+  }
+
+  const templatePath = path.join(process.cwd(), 'template', 'Surat Tugas Monitoring PKL.docx');
+  const sppdPath = path.join(process.cwd(), 'template', 'SPPD TTE.docx');
+  const zip = new AdmZip(templatePath);
+
+  if (options?.useTteTags !== false && fs.existsSync(sppdPath)) {
+    try {
+      const sppdZip = new AdmZip(sppdPath);
+      const imgEntry = sppdZip.getEntry('word/media/image3.png');
+      if (imgEntry) {
+        zip.addFile('word/media/image_tte.png', imgEntry.getData());
+        let rels = zip.readAsText('word/_rels/document.xml.rels');
+        if (!rels.includes('rId99')) {
+          rels = rels.replace(
+            '</Relationships>',
+            '<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image_tte.png"/></Relationships>'
+          );
+          zip.updateFile('word/_rels/document.xml.rels', Buffer.from(rels, 'utf8'));
+        }
+      }
+    } catch {}
+  }
+
+  const baseXml = zip.readAsText('word/document.xml');
+  const pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  const bodyContents: string[] = [];
+
+  for (const item of groups) {
+    const xml = buildSuratPermohonanXml(baseXml, item, options);
     bodyContents.push(extractBodyContent(xml));
   }
 

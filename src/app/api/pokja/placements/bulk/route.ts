@@ -161,8 +161,8 @@ export async function GET(request: Request) {
           })),
           periodId: periodId,
           periodName: periodName,
-          startDate: matchedPeriod?.startDate || placement.startDate,
-          endDate: matchedPeriod?.endDate || placement.endDate,
+          startDate: placement.startDate || matchedPeriod?.startDate,
+          endDate: placement.endDate || matchedPeriod?.endDate,
           placements: []
         };
       }

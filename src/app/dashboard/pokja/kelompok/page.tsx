@@ -51,7 +51,11 @@ import {
   FileSignature,
   Sparkles,
   Edit3,
-  Check
+  Check,
+  Layers,
+  Archive,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { detectDateFromPdfSource } from '@/lib/pdf-date-detector';
 
@@ -150,6 +154,11 @@ export default function PokjaKelompokPrakerinPage() {
   const [deleteTargetGroup, setDeleteTargetGroup] = useState<GroupItem | null>(null);
   const [deleteTargetStudent, setDeleteTargetStudent] = useState<StudentItem | null>(null);
 
+  // Target Kelompok untuk Edit Periode Prakerin
+  const [editPeriodGroup, setEditPeriodGroup] = useState<GroupItem | null>(null);
+  const [editStartDate, setEditStartDate] = useState<string>('');
+  const [editEndDate, setEditEndDate] = useState<string>('');
+
   // Modal State untuk Pratinjau Dokumen & Detail Kelompok
   const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
   const [activePreviewTitle, setActivePreviewTitle] = useState<string>('');
@@ -169,6 +178,11 @@ export default function PokjaKelompokPrakerinPage() {
     isDateAutoDetected: false,
     detectingDate: false
   });
+
+  // 🌟 State Persuratan Permohonan PKL (DOCX Generator & Preview)
+  const [useTteMode, setUseTteMode] = useState<boolean>(true);
+  const [docxPreviewGroup, setDocxPreviewGroup] = useState<GroupItem | null>(null);
+  const [docxPreviewUseTte, setDocxPreviewUseTte] = useState<boolean>(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -454,6 +468,246 @@ export default function PokjaKelompokPrakerinPage() {
     }
   };
 
+  // ----------------------------------------------------------------------
+  // 🌟 HELPER & HANDLER PERSURATAN PERMOHONAN PKL (DOCX, PREVIEW & TTE)
+  // Client-safe implementations (No Node.js 'fs' or 'adm-zip' imports)
+  // ----------------------------------------------------------------------
+  const calculateDurationMonths = (startDateStr?: string, endDateStr?: string): { months: number; text: string } => {
+    if (!startDateStr || !endDateStr) return { months: 4, text: 'Empat' };
+    try {
+      const s = new Date(startDateStr);
+      const e = new Date(endDateStr);
+      if (isNaN(s.getTime()) || isNaN(e.getTime())) return { months: 4, text: 'Empat' };
+      
+      let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+      if (e.getDate() >= 25 || e.getDate() - s.getDate() >= 20) {
+        months += 1;
+      }
+      if (months <= 0) months = 1;
+      
+      const words = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas', 'Dua Belas'];
+      const text = words[months] || String(months);
+      return { months, text };
+    } catch {
+      return { months: 4, text: 'Empat' };
+    }
+  };
+
+  const formatIndustryAddress = (group: GroupItem): string => {
+    const parts = [];
+    if (group.desaKelurahan && group.desaKelurahan !== '-') parts.push(`Kel. ${group.desaKelurahan}`);
+    if (group.subDistrict && group.subDistrict !== '-') parts.push(`Kec. ${group.subDistrict}`);
+    if (group.regency && group.regency !== '-') parts.push(group.regency.toUpperCase());
+    if (group.postalCode && group.postalCode !== '-') parts.push(`Kode Pos ${group.postalCode}`);
+    if (parts.length > 0) return parts.join(', ');
+    return group.fullAddress || group.industryAddress || '-';
+  };
+
+  // Unduh Single Surat Permohonan PKL (DOCX)
+  const handleDownloadSingleDocx = (group: GroupItem, overrideTte?: boolean) => {
+    const key = group.groupKey || group.groupId || '';
+    if (!key) {
+      setErrorMsg('Kunci kelompok tidak valid.');
+      return;
+    }
+    const tte = overrideTte !== undefined ? overrideTte : useTteMode;
+    const url = `/api/pokja/groups/download-docx?groupId=${encodeURIComponent(key)}&tte=${tte}`;
+    window.open(url, '_blank');
+  };
+
+  // Buka Modal Pratinjau Surat Permohonan DOCX
+  const handleOpenDocxPreview = (group: GroupItem) => {
+    setDocxPreviewGroup(group);
+    setDocxPreviewUseTte(useTteMode);
+  };
+
+  // Generator HTML Surat Permohonan PKL untuk Preview Modal & Cetak A4
+  const generateSuratPermohonanHtml = (group: GroupItem, useTte: boolean): string => {
+    const letterNo = group.letterNumber && group.letterNumber.trim() !== ''
+      ? group.letterNumber.trim()
+      : (useTte ? '\${nomor_naskah}' : '400.14.5.4 / 1068 / 2026');
+    
+    const letterDate = group.letterUploadedAt 
+      ? formatDateIndonesia(group.letterUploadedAt) 
+      : formatDateIndonesia(new Date().toISOString());
+    const dateStr = useTte ? '\${tanggal_naskah}' : letterDate;
+
+    const indName = group.industryName || 'Pimpinan DUDI Mitra';
+    const indAddress = formatIndustryAddress(group);
+
+    const startStr = group.startDate ? formatDateIndonesia(group.startDate) : '1 Desember 2026';
+    const endStr = group.endDate ? formatDateIndonesia(group.endDate) : '31 Maret 2027';
+    const dateRangeStr = `${startStr} – ${endStr}`;
+    const duration = calculateDurationMonths(group.startDate, group.endDate);
+
+    const rawStudents = group.students || group.placements || [];
+    const students = rawStudents.map((item: any) => {
+      const s = item.student || item;
+      return {
+        name: (s.name || s.studentName || '-').toUpperCase(),
+        nis: s.nis || '-',
+        className: s.className || '-',
+        phone: s.phone || s.parentPhone || '-'
+      };
+    });
+
+    const studentRows = students.map((std, idx) => `
+      <tr>
+        <td style="border: 1px solid #000; padding: 4px 6px; text-align: center;">${idx + 1}.</td>
+        <td style="border: 1px solid #000; padding: 4px 8px; text-align: left;">${std.name}</td>
+        <td style="border: 1px solid #000; padding: 4px 6px; text-align: center;">${std.nis}</td>
+        <td style="border: 1px solid #000; padding: 4px 6px; text-align: center;">${std.className}</td>
+        <td style="border: 1px solid #000; padding: 4px 6px; text-align: center;">${std.phone}</td>
+      </tr>
+    `).join('');
+
+    const tteSignatureHtml = useTte ? `
+      <div style="margin-top: 0;">\${jabatan_pengirim}</div>
+      <div style="height: 60px; line-height: 60px;">\${ttd_pengirim}</div>
+      <div style="font-weight: bold; margin-top: 2px;">\${nama_pengirim}</div>
+      <div>Pembina Utama Muda. IV/c</div>
+      <div>NIP \${nip_pengirim}</div>
+    ` : `
+      <div>Kepala SMK Negeri 1 Adiwerna</div>
+      <div style="height: 65px;"></div>
+      <div style="font-weight: bold; margin-top: 2px;">Joko Pramono, S.Pd., M.Ds.</div>
+      <div>Pembina Utama Muda. IV/c</div>
+      <div>NIP 196903171998021004</div>
+    `;
+
+    return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Surat Permohonan PKL - ${indName}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm 15mm 10mm 15mm;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 12pt;
+      line-height: 1.35;
+      color: #000;
+      background: #fff;
+      margin: 0 auto;
+      padding: 10mm 15mm;
+      max-width: 210mm;
+    }
+    .text-center { text-align: center; }
+    .text-justify { text-align: justify; text-justify: inter-word; }
+    .font-bold { font-weight: bold; }
+    table { border-collapse: collapse; width: 100%; }
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 0;
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- KOP SURAT RESMI -->
+  <div style="text-align: center; margin-bottom: 8px;">
+    <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
+  </div>
+
+  <!-- NOMOR & TANGGAL SURAT -->
+  <table style="width: 100%; margin-bottom: 12px; border: none; font-size: 12pt;">
+    <tr>
+      <td style="width: 60%; vertical-align: top; border: none; padding: 0;">
+        <div>Nomor : ${letterNo}</div>
+        <div>Hal.    : <strong><em>Permohonan Praktek Kerja Lapangan (PKL)</em></strong></div>
+      </td>
+      <td style="width: 40%; vertical-align: top; text-align: right; border: none; padding: 0;">
+        Adiwerna, ${dateStr}
+      </td>
+    </tr>
+  </table>
+
+  <!-- KEPADA INDUSTRI -->
+  <div style="margin-bottom: 12px; font-size: 12pt; line-height: 1.3;">
+    <div style="font-weight: bold;">Kepada</div>
+    <div style="font-weight: bold;">Yth.Pimpinan ${indName}</div>
+    <div>${indAddress}</div>
+  </div>
+
+  <!-- ISI SURAT -->
+  <div style="margin-bottom: 6px; font-size: 12pt;">Dengan hormat,</div>
+  <p class="text-justify" style="margin: 0 0 8px 0; font-size: 12pt; text-indent: 0; line-height: 1.38;">
+    Sebagai upaya peningkatan mutu lulusan Sekolah Menengah Kejuruan (SMK) yang relevan dengan kebutuhan industri, serta merujuk pada Kurikulum Merdeka yang mewajibkan siswa terjun langsung ke dunia kerja melalui Praktik Kerja Lapangan (PKL), maka dengan ini kami bermaksud mengajukan permohonan untuk menempatkan siswa/siswi kami guna melaksanakan PKL di perusahaan yang Bapak/Ibu pimpin.
+  </p>
+  <p class="text-justify" style="margin: 0 0 8px 0; font-size: 12pt; text-indent: 0; line-height: 1.38;">
+    Sehubungan dengan hal tersebut, kami memohon kesediaan Bapak/Ibu untuk menerima siswa kami melaksanakan PKL yang dijadwalkan akan dimulai pada tanggal <strong><em>${dateRangeStr}</em></strong>, atau Selama <strong>${duration.months} ( ${duration.text} )</strong> bulan.
+  </p>
+  <div style="margin-bottom: 8px; font-size: 12pt;">
+    Adapun daftar siswa kami sebagai berikut :
+  </div>
+
+  <!-- TABEL SISWA -->
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 12pt;">
+    <thead>
+      <tr style="background-color: #f8fafc;">
+        <th style="border: 1px solid #000; padding: 5px 6px; width: 6%; text-align: center; font-weight: bold;">No.</th>
+        <th style="border: 1px solid #000; padding: 5px 8px; width: 38%; text-align: center; font-weight: bold;">Nama Siswa</th>
+        <th style="border: 1px solid #000; padding: 5px 6px; width: 16%; text-align: center; font-weight: bold;">NIS</th>
+        <th style="border: 1px solid #000; padding: 5px 6px; width: 18%; text-align: center; font-weight: bold;">Kelas</th>
+        <th style="border: 1px solid #000; padding: 5px 6px; width: 22%; text-align: center; font-weight: bold;">No Hp</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${studentRows}
+    </tbody>
+  </table>
+
+  <!-- PENUTUP -->
+  <p style="margin: 0 0 14px 0; font-size: 12pt; line-height: 1.35;">
+    Demikian permohonan kami, atas perhatian dan kerjasamanya kami sampaikan terimakasih.
+  </p>
+
+  <!-- TANDA TANGAN -->
+  <table style="width: 100%; border: none; margin-top: 10px; font-size: 12pt;">
+    <tr>
+      <td style="width: 52%; border: none;"></td>
+      <td style="width: 48%; border: none; vertical-align: top; text-align: left;">
+        ${tteSignatureHtml}
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+  };
+
+  // Cetak Dokumen Surat Permohonan PKL
+  const handlePrintDocxPreview = (group: GroupItem, useTte: boolean) => {
+    const html = generateSuratPermohonanHtml(group, useTte);
+    const printWin = window.open('', '_blank');
+    if (printWin) {
+      printWin.document.open();
+      printWin.document.write(html);
+      printWin.document.close();
+      printWin.focus();
+      setTimeout(() => {
+        printWin.print();
+      }, 400);
+    }
+  };
+
+  // Buka Surat Permohonan di Tab Baru
+  const handleOpenDocxPreviewInNewTab = (group: GroupItem, useTte: boolean) => {
+    const html = generateSuratPermohonanHtml(group, useTte);
+    const newWin = window.open('', '_blank');
+    if (newWin) {
+      newWin.document.open();
+      newWin.document.write(html);
+      newWin.document.close();
+    }
+  };
+
   // Picker Berkas Surat dengan Auto-Detection Tanggal Resmi dari PDF
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -546,6 +800,45 @@ export default function PokjaKelompokPrakerinPage() {
     } catch (err) {
       console.error('Error uploading group letter:', err);
       setErrorMsg('Terjadi kesalahan koneksi saat menyimpan berkas ke database.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSavePeriod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPeriodGroup) return;
+
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    try {
+      const rawList = editPeriodGroup.placements || editPeriodGroup.students || [];
+      const placementIds = rawList.map((p: any) => p.placementId || p.id).filter(Boolean);
+
+      const res = await fetch('/api/pokja/groups/period', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placementIds,
+          startDate: editStartDate,
+          endDate: editEndDate,
+        })
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        setSuccessMsg('Periode Prakerin berhasil diperbarui!');
+        setEditPeriodGroup(null);
+        fetchGroupsData();
+      } else {
+        setErrorMsg(json.error || 'Gagal memperbarui periode prakerin.');
+      }
+    } catch (err) {
+      console.error('Error updating period:', err);
+      setErrorMsg('Terjadi kesalahan saat memperbarui periode.');
     } finally {
       setSubmitting(false);
     }
@@ -975,12 +1268,28 @@ export default function PokjaKelompokPrakerinPage() {
         </div>
 
         {/* GROUP ACTION BUTTONS */}
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {/* 🌟 TOGGLE MODE TTE RESMI */}
+          <button
+            type="button"
+            onClick={() => setUseTteMode(!useTteMode)}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center space-x-2 border shadow-md cursor-pointer ${
+              useTteMode
+                ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500/40 shadow-indigo-600/20'
+                : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+            }`}
+            title="Aktifkan / Nonaktifkan QR Code TTE Resmi BSSN pada Surat Permohonan PKL"
+          >
+            <ShieldCheck className={`w-4 h-4 ${useTteMode ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+            <span>TTE: {useTteMode ? 'AKTIF (QR)' : 'CETAK LANGSUNG'}</span>
+          </button>
+
+
           {/* 🌟 TOMBOL EKSPOR CSV */}
           <button
             type="button"
             onClick={handleExportCSV}
-            className="px-5 py-3 rounded-2xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white transition-all flex items-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer border border-emerald-500/30"
+            className="px-4 py-2.5 rounded-2xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white transition-all flex items-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer border border-emerald-500/30"
             title="Ekspor Data Kelompok ke Format CSV Excel"
           >
             <Download className="w-4 h-4" />
@@ -990,14 +1299,14 @@ export default function PokjaKelompokPrakerinPage() {
           <button
             type="button"
             onClick={() => fetchGroupsData()}
-            className={`px-5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer border shadow-md ${
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer border shadow-md ${
               theme === 'dark'
                 ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                 : 'bg-slate-900 hover:bg-slate-800 text-white border-slate-900'
             }`}
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Refresh Data</span>
+            <span>Refresh</span>
           </button>
         </div>
       </div>
@@ -1106,13 +1415,14 @@ export default function PokjaKelompokPrakerinPage() {
       <div className="space-y-6">
         {filteredGroups.length > 0 ? (
           filteredGroups.map((group) => {
+            const groupKey = group.groupKey || group.groupId || group.industryId || '';
             const hasSurat = Boolean(group.suratTugasUrl || group.letterNumber);
             const studentList = group.students || group.placements || [];
             const groupDeptName = group.departmentName || pokjaDepartment;
 
             return (
               <div
-                key={group.groupId || group.groupKey || group.industryId}
+                key={groupKey}
                 className={`p-6 sm:p-8 rounded-3xl border shadow-xl space-y-6 transition-all ${
                   theme === 'dark'
                     ? 'bg-slate-900 border-slate-800 hover:border-slate-700'
@@ -1121,12 +1431,13 @@ export default function PokjaKelompokPrakerinPage() {
               >
                 {/* HEADER KELOMPOK INDUSTRI */}
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-inherit pb-5">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                      <h3 className="text-xl font-black text-slate-900 dark:text-white">
-                        {group.industryName}
-                      </h3>
+                  <div className="flex items-start gap-3.5">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                          {group.industryName}
+                        </h3>
 
                       {/* BADGE JURUSAN */}
                       <span className="px-3 py-1 rounded-xl text-xs font-black bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30 flex items-center space-x-1.5">
@@ -1146,6 +1457,30 @@ export default function PokjaKelompokPrakerinPage() {
                       {group.industryAddress || 'Alamat Industri Terdaftar di Sistem Pokja'}
                     </p>
 
+                    {/* 🌟 PENAMPILAN PERIODE PRAKERIN KELOMPOK (TERSAMPAN SAAT INI) */}
+                    <div className="flex flex-wrap items-center gap-2.5 p-3 rounded-2xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-xs">
+                      <div className="flex items-center space-x-1.5 font-bold text-indigo-950 dark:text-indigo-200">
+                        <CalendarDays className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                        <span>Periode Prakerin Kelompok (Tersimpan):</span>
+                      </div>
+                      {group.startDate && group.endDate ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-extrabold text-slate-900 dark:text-white bg-white dark:bg-slate-900 px-3 py-1 rounded-xl border border-indigo-100 dark:border-indigo-900 shadow-xs">
+                            {formatDateIndonesia(group.startDate)} s/d {formatDateIndonesia(group.endDate)}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30">
+                            ✓ Tersimpan Saat Ini
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <span className="font-semibold text-amber-700 dark:text-amber-400 italic">
+                            Belum diatur khusus (Gunakan tombol "Edit Periode" di samping)
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
                     {/* PENAMPILAN NOMOR SURAT RESMI (letterNumber) YANG DI-INPUT TATA USAHA / POKJA */}
                     {group.letterNumber ? (
                       <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold">
@@ -1159,8 +1494,9 @@ export default function PokjaKelompokPrakerinPage() {
                       </div>
                     )}
                   </div>
+                </div>
 
-                  {/* STATUS & TOMBOL AKSI UTAMA POKJA */}
+                {/* STATUS & TOMBOL AKSI UTAMA POKJA */}
                   <div className="flex flex-wrap items-center gap-3 shrink-0">
                     <span className={`px-3.5 py-1.5 rounded-2xl text-xs font-extrabold border flex items-center space-x-1.5 ${
                       hasSurat
@@ -1205,6 +1541,46 @@ export default function PokjaKelompokPrakerinPage() {
                     >
                       <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
                       <span>Export</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPeriodGroup(group);
+                        setEditStartDate(group.startDate ? new Date(group.startDate).toISOString().split('T')[0] : '');
+                        setEditEndDate(group.endDate ? new Date(group.endDate).toISOString().split('T')[0] : '');
+                      }}
+                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                        theme === 'dark'
+                          ? 'bg-orange-900/30 hover:bg-orange-800/40 text-orange-400 border-orange-800'
+                          : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200'
+                      }`}
+                      title="Edit Periode Prakerin"
+                    >
+                      <Edit3 className="w-4 h-4 text-orange-600 dark:text-orange-500" />
+                      <span>Edit Periode</span>
+                    </button>
+
+                    {/* 🌟 TOMBOL PRATINJAU SURAT PERMOHONAN (DOCX) */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocxPreview(group)}
+                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 border-indigo-500"
+                      title="Lihat Pratinjau Surat Permohonan PKL (Format Resmi A4 DOCX & TTE)"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>Preview Surat (DOCX)</span>
+                    </button>
+
+                    {/* 🌟 TOMBOL GENERATE SURAT PERMOHONAN (DOCX) */}
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadSingleDocx(group)}
+                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 border-blue-500"
+                      title={`Generate & Unduh Surat Permohonan PKL Format Resmi (DOCX & ${useTteMode ? 'TTE' : 'Cetak'})`}
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Surat Permohonan (DOCX)</span>
                     </button>
 
                     <button
@@ -1829,6 +2205,106 @@ export default function PokjaKelompokPrakerinPage() {
         </div>
       )}
 
+      {/* MODAL EDIT PERIODE PRAKERIN */}
+      {editPeriodGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden transition-all ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="p-6 border-b border-inherit flex justify-between items-center bg-orange-500/10">
+              <h3 className="font-extrabold text-base text-orange-800 dark:text-orange-400 flex items-center space-x-2">
+                <Edit3 className="w-5 h-5" />
+                <span>Edit Periode Prakerin</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditPeriodGroup(null);
+                  setEditStartDate('');
+                  setEditEndDate('');
+                }}
+                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                  theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePeriod} className="p-6 space-y-5 text-xs">
+              <div className="space-y-1">
+                <h4 className="text-sm font-extrabold text-slate-900 dark:text-orange-200">
+                  Ubah Tanggal Pelaksanaan
+                </h4>
+                <p className="text-slate-700 dark:text-slate-400 text-xs font-medium leading-relaxed">
+                  Periode baru akan diterapkan pada kelompok tujuan <strong>{editPeriodGroup.industryName}</strong>.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-extrabold text-slate-800 dark:text-slate-300 uppercase flex items-center space-x-1.5">
+                  <Calendar className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                  <span>Tanggal Mulai: *</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  className={`w-full px-4 py-3 rounded-2xl text-xs font-bold border outline-none transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-slate-950 border-slate-700 text-slate-100 focus:border-orange-500' 
+                      : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-orange-600 shadow-sm'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-extrabold text-slate-800 dark:text-slate-300 uppercase flex items-center space-x-1.5">
+                  <Calendar className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                  <span>Tanggal Selesai: *</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={editEndDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                  className={`w-full px-4 py-3 rounded-2xl text-xs font-bold border outline-none transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-slate-950 border-slate-700 text-slate-100 focus:border-orange-500' 
+                      : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-orange-600 shadow-sm'
+                  }`}
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditPeriodGroup(null);
+                    setEditStartDate('');
+                    setEditEndDate('');
+                  }}
+                  className={`px-4 py-2.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    theme === 'dark' ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-800'
+                  }`}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || !editStartDate || !editEndDate}
+                  className="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold transition-all shadow-lg shadow-orange-600/30 flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizontal className="w-4 h-4" />}
+                  <span>Simpan Perubahan</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL PRATINJAU DOKUMEN */}
       {activePreviewUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
@@ -2216,6 +2692,141 @@ export default function PokjaKelompokPrakerinPage() {
                 >
                   <Printer className="w-4 h-4" />
                   <span>Cetak Lembar Konfirmasi</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 MODAL PRATINJAU SURAT PERMOHONAN (DOCX) */}
+      {docxPreviewGroup && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setDocxPreviewGroup(null)}
+        >
+          <div
+            className={`w-full max-w-5xl h-[95vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden ${
+              theme === 'dark' ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-inherit flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
+                  <FileText className="w-5 h-5 text-indigo-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                    <span>Pratinjau Surat Permohonan PKL (DOCX)</span>
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Industri: <strong className="text-slate-900 dark:text-white">{docxPreviewGroup.industryName}</strong> • Jurusan:{' '}
+                    <strong className="text-slate-900 dark:text-white">{docxPreviewGroup.departmentName || pokjaDepartment}</strong>
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons: Toggle TTE, Print, Unduh DOCX, Buka di Tab Baru, Tutup */}
+              <div className="flex items-center space-x-2">
+                {/* Switcher TTE Tag vs Normal */}
+                <button
+                  type="button"
+                  onClick={() => setDocxPreviewUseTte(!docxPreviewUseTte)}
+                  className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                    docxPreviewUseTte
+                      ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30 shadow-inner'
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}
+                  title="Tag TTE Jateng mempertahankan format QR Code TTE dan ${nomor_naskah}"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{docxPreviewUseTte ? 'Mode TTE: AKTIF' : 'Mode Langsung'}</span>
+                </button>
+
+                {/* Print Button */}
+                <button
+                  type="button"
+                  onClick={() => handlePrintDocxPreview(docxPreviewGroup, docxPreviewUseTte)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Cetak A4</span>
+                </button>
+
+                {/* Download Real DOCX Button */}
+                <button
+                  type="button"
+                  onClick={() => handleDownloadSingleDocx(docxPreviewGroup, docxPreviewUseTte)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                  title="Unduh berkas resmi Microsoft Word (.docx)"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Unduh DOCX</span>
+                </button>
+
+                {/* Open in New Tab */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenDocxPreviewInNewTab(docxPreviewGroup, docxPreviewUseTte)}
+                  className="p-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-white transition-all cursor-pointer"
+                  title="Buka di Tab Baru"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+
+                {/* Prominent Header Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setDocxPreviewGroup(null)}
+                  className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-600 dark:text-rose-300 hover:text-white text-xs font-bold border border-rose-500/30 transition-all cursor-pointer shadow-sm ml-1"
+                  title="Tutup Pratinjau (Esc)"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Tutup</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: Sandboxed HTML Iframe Preview */}
+            <div className="flex-1 bg-slate-200/90 dark:bg-slate-950 p-4 overflow-hidden flex justify-center">
+              <iframe
+                title="Document Preview"
+                srcDoc={generateSuratPermohonanHtml(docxPreviewGroup, docxPreviewUseTte)}
+                className="w-full max-w-4xl h-full rounded-2xl bg-white shadow-2xl border border-slate-300 dark:border-slate-800"
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 border-t border-inherit flex items-center justify-between bg-slate-50 dark:bg-slate-950/40">
+              <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
+                <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Format Dokumen Resmi SMK Negeri 1 Adiwerna • Presisi Standar 1 Halaman A4</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => handlePrintDocxPreview(docxPreviewGroup, docxPreviewUseTte)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak A4</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadSingleDocx(docxPreviewGroup, docxPreviewUseTte)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Unduh DOCX</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDocxPreviewGroup(null)}
+                  className="px-4 py-1.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 cursor-pointer"
+                >
+                  Tutup
                 </button>
               </div>
             </div>

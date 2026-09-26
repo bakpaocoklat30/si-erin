@@ -989,14 +989,6 @@ export function generateLaporanHasilKegiatanHtml(
     })),
   ];
 
-  let industryText = '';
-  if (allIndustries.length === 1) {
-    const ind = allIndustries[0];
-    industryText = `${ind.name}${ind.address ? ' di ' + ind.address : ''}`;
-  } else {
-    industryText = allIndustries.map((ind) => `${ind.name}${ind.address ? ' di ' + ind.address : ''}`).join(', ');
-  }
-
   let cleanPurpose = (assignment.purpose || 'Monitoring Murid Praktek Kerja Lapangan').trim();
   cleanPurpose = cleanPurpose.replace(/^melaksanakan\s+kegiatan\s+/i, '');
 
@@ -1012,6 +1004,20 @@ export function generateLaporanHasilKegiatanHtml(
     dayDatePhrase = `pada hari ${startDay} - ${endDay} tanggal ${formatIndonesianDateRange(startDate, returnDate)}`;
   } else {
     dayDatePhrase = `pada hari ${startDay} tanggal ${formatIndonesianDate(assignment.monitoringDate)}`;
+  }
+
+  let laporanSingkatHtml = '';
+  if (allIndustries.length === 1) {
+    const ind = allIndustries[0];
+    laporanSingkatHtml = `Telah melaksanakan kegiatan ${cleanPurpose} ${dayDatePhrase} di ${ind.name}${ind.address ? ' di ' + ind.address : ''}`;
+  } else {
+    const listHtml = allIndustries.map((ind, idx) => `<tr><td style="width: 24px; vertical-align: top; padding: 0;">${idx + 1}.</td><td style="vertical-align: top; padding: 0;">${ind.name}${ind.address ? ' di ' + ind.address : ''}</td></tr>`).join('');
+    laporanSingkatHtml = `Telah melaksanakan kegiatan ${cleanPurpose} ${dayDatePhrase} di :
+      <div style="padding-left: 8px; margin-top: 4px;">
+        <table style="border: none; width: 100%; font-size: 11pt; line-height: 1.5; font-family: 'Times New Roman', Times, serif;">
+          ${listHtml}
+        </table>
+      </div>`;
   }
 
   const signatureDate = formatIndonesianDate(assignment.returnDate || assignment.monitoringDate);
@@ -1121,13 +1127,16 @@ export function generateLaporanHasilKegiatanHtml(
   <div style="margin-bottom: 10px;">
     <div style="font-weight: normal; margin-bottom: 4px;">Laporan Singkat :</div>
     <div style="text-align: justify; line-height: 1.5;">
-      Telah melaksanakan kegiatan ${cleanPurpose} ${dayDatePhrase} di ${industryText}
+      ${laporanSingkatHtml}
     </div>
   </div>
 
   <!-- CATATAN DENGAN GARIS-GARIS BERGARIS (RULED LINES) -->
   <div style="margin-top: 14px; margin-bottom: 24px;">
     <div style="margin-bottom: 2px;">Catatan:</div>
+    <div style="border-bottom: 1px solid #000; height: 26px;"></div>
+    <div style="border-bottom: 1px solid #000; height: 26px;"></div>
+    <div style="border-bottom: 1px solid #000; height: 26px;"></div>
     <div style="border-bottom: 1px solid #000; height: 26px;"></div>
     <div style="border-bottom: 1px solid #000; height: 26px;"></div>
     <div style="border-bottom: 1px solid #000; height: 26px;"></div>

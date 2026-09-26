@@ -163,13 +163,33 @@ export async function GET() {
       }
     }
 
-    // 4. EKSPLORASI PERIODE PKL AKTIF & PARSING KOLOM JSON `activeIndustries`
-    let activePeriod = null;
+    // 4. EKSPLORASI PERIODE PKL BERDASARKAN KELAS SISWA (Mapping Kelas ke Periode Ganjil/Genap)
+    let activePeriod: any = null;
     let periodIndustryConfigMap: Record<string, { quota: number; isUnlimited: boolean }> = {};
     let allowedIndustryIdsFromPeriod: string[] = [];
 
     try {
-      if (periodClient && typeof periodClient.findFirst === 'function') {
+      if (student.className) {
+        const studentClassRoom = await db.classRoom.findFirst({
+          where: { name: { equals: student.className, mode: 'insensitive' } },
+          include: { period: true }
+        });
+        if (studentClassRoom?.period) {
+          activePeriod = studentClassRoom.period;
+        }
+      }
+
+      if (!activePeriod && student.department) {
+        activePeriod = await db.internshipPeriod.findFirst({
+          where: { 
+            department: { contains: student.department, mode: 'insensitive' },
+            isActive: true 
+          },
+          orderBy: { startDate: 'desc' }
+        });
+      }
+
+      if (!activePeriod && periodClient && typeof periodClient.findFirst === 'function') {
         activePeriod = await periodClient.findFirst({
           where: { isActive: true },
           orderBy: { createdAt: 'desc' }
@@ -254,6 +274,32 @@ export async function GET() {
       });
     }
 
+    // 6b. Ambil tanggal khusus yang disepakati Pokja per industri untuk jurusan siswa
+    const deptPlacements = await db.internshipPlacement.findMany({
+      where: {
+        student: { department: { contains: student.department || '', mode: 'insensitive' } },
+        startDate: { not: null },
+        endDate: { not: null },
+        status: { notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL'] }
+      },
+      select: {
+        industryId: true,
+        startDate: true,
+        endDate: true
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const customDatesMap: Record<string, { startDate: string; endDate: string }> = {};
+    deptPlacements.forEach((p) => {
+      if (p.industryId && p.startDate && p.endDate && !customDatesMap[p.industryId]) {
+        customDatesMap[p.industryId] = {
+          startDate: new Date(p.startDate).toISOString().split('T')[0],
+          endDate: new Date(p.endDate).toISOString().split('T')[0]
+        };
+      }
+    });
+
     // 6. HITUNG SISA KUOTA TERHUBUNG DENGAN KONFIGURASI PERIODE POKJA & DATABASE
     const industries = await Promise.all(
       industriesRaw.map(async (ind: any) => {
@@ -301,6 +347,7 @@ export async function GET() {
           totalQuota: isUnlimited ? 'Bebas' : totalQuota,
           remainingQuota: isUnlimited ? 999 : remainingQuota,
           isUnlimited: isUnlimited,
+          customDates: customDatesMap[ind.id] || null,
 
           // LOGO DAN KOORDINAT MAPS
           logoUrl: ind.logoUrl || null,
@@ -327,8 +374,8 @@ export async function GET() {
         activePeriod: activePeriod ? {
           id: activePeriod.id,
           name: activePeriod.name || 'Periode PKL Aktif',
-          startDate: activePeriod.startDate || null,
-          endDate: activePeriod.endDate || null
+          startDate: activePeriod.startDate ? new Date(activePeriod.startDate).toISOString().split('T')[0] : null,
+          endDate: activePeriod.endDate ? new Date(activePeriod.endDate).toISOString().split('T')[0] : null
         } : null,
         activePlacement: activePlacement,
         lastRejectedPlacement: lastRejectedPlacement,
@@ -420,11 +467,41 @@ export async function POST(request: Request) {
     let placement;
     const existingPlacement = (student as any).placement;
 
+    // Prioritaskan tanggal khusus yang disepakati Pokja untuk industri ini jika ada
+    let finalStartDate = startDate ? new Date(startDate) : new Date();
+    let finalEndDate = endDate ? new Date(endDate) : new Date();
+
+    const existingGroupPlacement = await db.internshipPlacement.findFirst({
+      where: {
+        industryId: industryId,
+        student: { department: { contains: student.department || '', mode: 'insensitive' } },
+        startDate: { not: null },
+        endDate: { not: null },
+        status: { notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL'] }
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    if (existingGroupPlacement?.startDate && existingGroupPlacement?.endDate) {
+      finalStartDate = new Date(existingGroupPlacement.startDate);
+      finalEndDate = new Date(existingGroupPlacement.endDate);
+    } else {
+      // Fallback ke periode yang ditautkan ke kelas siswa
+      const classRoom = await db.classRoom.findFirst({
+        where: { name: { equals: student.className, mode: 'insensitive' } },
+        include: { period: true }
+      });
+      if (classRoom?.period?.startDate && classRoom?.period?.endDate) {
+        finalStartDate = new Date(classRoom.period.startDate);
+        finalEndDate = new Date(classRoom.period.endDate);
+      }
+    }
+
     const payloadData = {
       industryId: industryId,
       status: 'PENGAJUAN_DIKIRIM',
-      startDate: startDate ? new Date(startDate) : new Date(),
-      endDate: endDate ? new Date(endDate) : new Date(),
+      startDate: finalStartDate,
+      endDate: finalEndDate,
       notes: notes || '',
       appliedAt: new Date()
     };
@@ -533,25 +610,35 @@ export async function PATCH(request: Request) {
 
       if (item.placementId) {
         if (placementClient && typeof placementClient.update === 'function') {
+          const updateData: any = {
+            suratBalasanUrl: suratBalasanUrl,
+            status: targetStatus,
+            updatedAt: new Date()
+          };
+          if (isAccepted && body.startDate && body.endDate) {
+            updateData.startDate = new Date(body.startDate);
+            updateData.endDate = new Date(body.endDate);
+          }
           await placementClient.update({
             where: { id: item.placementId },
-            data: {
-              suratBalasanUrl: suratBalasanUrl,
-              status: targetStatus,
-              updatedAt: new Date()
-            }
+            data: updateData
           });
         }
       } else if (item.studentId) {
+        const updateData: any = {
+          suratBalasanUrl: suratBalasanUrl,
+          status: targetStatus,
+          updatedAt: new Date()
+        };
+        if (isAccepted && body.startDate && body.endDate) {
+          updateData.startDate = new Date(body.startDate);
+          updateData.endDate = new Date(body.endDate);
+        }
         await db.student.update({
           where: { id: item.studentId },
           data: {
             placement: {
-              update: {
-                suratBalasanUrl: suratBalasanUrl,
-                status: targetStatus,
-                updatedAt: new Date()
-              }
+              update: updateData
             }
           }
         });
@@ -559,6 +646,43 @@ export async function PATCH(request: Request) {
 
       if (item.placementId === existingPlacement.id || item.studentId === student.id) {
         currentStudentOutcomeStatus = targetStatus;
+      }
+    }
+
+    // 🌟 Jika industri menerima dengan penyesuaian tanggal baru, sinkronkan ke seluruh teman satu kelompok di industri & jurusan ini
+    if (body.startDate && body.endDate && existingPlacement.industryId && currentStudentOutcomeStatus === 'DISETUJUI_INDUSTRI') {
+      try {
+        const newStartDate = new Date(body.startDate);
+        const newEndDate = new Date(body.endDate);
+
+        const groupPlacements = await db.internshipPlacement.findMany({
+          where: {
+            industryId: existingPlacement.industryId,
+            student: {
+              department: { contains: student.department || '', mode: 'insensitive' }
+            },
+            status: {
+              notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
+            }
+          },
+          select: { id: true }
+        });
+
+        const groupPlacementIds = groupPlacements.map((p) => p.id);
+        if (groupPlacementIds.length > 0) {
+          await db.internshipPlacement.updateMany({
+            where: { id: { in: groupPlacementIds } },
+            data: {
+              startDate: newStartDate,
+              endDate: newEndDate,
+              suratBalasanUrl: suratBalasanUrl,
+              status: 'DISETUJUI_INDUSTRI',
+              updatedAt: new Date()
+            }
+          });
+        }
+      } catch (syncErr) {
+        console.warn('Gagal mensinkronkan tanggal balasan ke rekan kelompok:', syncErr);
       }
     }
 
