@@ -887,7 +887,7 @@ export default function PokjaMonitoringPage() {
             <tbody className="divide-y divide-slate-800/20">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                  <td colSpan={10} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
                       <p className="text-xs font-semibold">Memuat Jadwal Monitoring...</p>
@@ -896,7 +896,7 @@ export default function PokjaMonitoringPage() {
                 </tr>
               ) : filteredAssignments.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                  <td colSpan={10} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <ClipboardCheck className="w-10 h-10 text-slate-500/50" />
                       <p className="font-semibold text-sm">Belum ada penugasan monitoring yang dijadwalkan.</p>
@@ -923,6 +923,23 @@ export default function PokjaMonitoringPage() {
                         theme === 'dark' ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'
                       }`}
                     >
+                      {/* Checkbox per Item */}
+                      <td className="py-4 px-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedAssignments.includes(assignment.id as string)}
+                          onChange={(e) => {
+                            const aId = assignment.id as string;
+                            if (e.target.checked) {
+                              setSelectedAssignments((prev) => [...prev, aId]);
+                            } else {
+                              setSelectedAssignments((prev) => prev.filter((id) => id !== aId));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </td>
+
                       {/* No */}
                       <td className="py-4 px-4 text-center font-semibold text-xs text-slate-400">
                         {index + 1}
