@@ -963,6 +963,30 @@ export default function PokjaMonitoringPage() {
                       {/* Aksi Edit & Hapus */}
                       <td className="py-4 px-4 text-right">
                         <div className="flex items-center justify-end space-x-1.5">
+                          
+                          {assignment.status !== 'MENUNGGU_TTE' && assignment.status !== 'SELESAI_TTE' && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm('Anda yakin ingin mengirim penugasan ini ke Tata Usaha untuk di-TTE?')) return;
+                                try {
+                                  const res = await fetch('/api/pokja/monitoring/request-tte', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ids: [assignment.id] })
+                                  });
+                                  if (res.ok) {
+                                    alert('Berhasil mengirim permintaan TTE!');
+                                    fetchData();
+                                  }
+                                } catch(e) {}
+                              }}
+                              className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-600 text-blue-500 hover:text-white transition-all cursor-pointer"
+                              title="Minta TTE"
+                            >
+                              <FileSignature className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
                           <button
                             onClick={() => handleOpenEditModal(assignment)}
                             className="p-2 rounded-xl bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-all cursor-pointer"
