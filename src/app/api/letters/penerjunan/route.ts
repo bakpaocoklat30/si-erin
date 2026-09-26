@@ -12,7 +12,7 @@ import {
   BorderStyle,
   VerticalAlign
 } from 'docx';
-import db from '@/lib/db';
+import { db } from '@/lib/db';
 
 export async function GET(request: Request) {
   try {
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Tidak ada kelompok siswa yang diterima di industri ini.' }, { status: 404 });
     }
 
-    const students = placements.map(p => p.student);
+    const students = placements.map((p: any) => p.student);
     const startDate = placements[0].startDate ? new Date(placements[0].startDate) : new Date();
     const endDate = placements[0].endDate ? new Date(placements[0].endDate) : new Date();
     
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
           // Garis bawah Kop
           new Paragraph({
             border: {
-              bottom: { color: "auto", space: 1, value: BorderStyle.THICK, size: 24 }
+              bottom: { color: "auto", space: 1, style: BorderStyle.THICK, size: 24 }
             },
             spacing: { after: 300 }
           }),
@@ -201,7 +201,7 @@ export async function GET(request: Request) {
                   new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "NO. HP/WA", font: "Times New Roman", size: 24, bold: true })] })], verticalAlign: VerticalAlign.CENTER }),
                 ],
               }),
-              ...students.map((student, idx) => new TableRow({
+              ...students.map((student: any, idx: number) => new TableRow({
                 children: [
                   new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${idx + 1}`, font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
                   new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: student.nis || "-", font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
@@ -259,7 +259,7 @@ export async function GET(request: Request) {
 
     const buffer = await Packer.toBuffer(doc);
 
-    return new NextResponse(buffer, {
+    return new NextResponse(buffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
