@@ -85,6 +85,9 @@ export default function PersuratanSppdPage() {
   const [taskNumberMap, setTaskNumberMap] = useState<Record<string, { letterNumber: string; sppdNumber: string; isModified: boolean }>>({});
   const [savingNumberId, setSavingNumberId] = useState<string | null>(null);
 
+  // Collective Bulk TTE Mode (Default true: ON)
+  const [bulkUseTte, setBulkUseTte] = useState(true);
+
   // Preview Modal State
   
   // Modal Beri Nomor Sekaligus State
@@ -487,7 +490,12 @@ export default function PersuratanSppdPage() {
       }
     }
 
-    const url = `/api/persuratan/sppd/download-bulk?type=${type}&ids=${selectedTaskIds.join(',')}&tte=true`;
+    // Determine TTE status for bulk download:
+    // If bulkUseTte is false, or if all selected tasks have TTE turned off for this type
+    const anySelectedTteOn = selectedTaskIds.some((id) => isTteActive(id, type));
+    const finalTte = bulkUseTte && anySelectedTteOn;
+
+    const url = `/api/persuratan/sppd/download-bulk?type=${type}&ids=${selectedTaskIds.join(',')}&tte=${finalTte}`;
     window.location.href = url;
   };
 
@@ -656,7 +664,36 @@ export default function PersuratanSppdPage() {
             <span>{selectedTaskIds.length} penugasan dipilih untuk unduh kolektif</span>
           </div>
 
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {/* Toggle TTE Kolektif */}
+            <button
+              type="button"
+              onClick={() => {
+                const nextVal = !bulkUseTte;
+                setBulkUseTte(nextVal);
+                // Sinkronkan juga status TTE ke seluruh kartu penugasan terpilih
+                setTaskTteMap((prev) => {
+                  const next = { ...prev };
+                  selectedTaskIds.forEach((id) => {
+                    next[id] = {
+                      tugas: nextVal,
+                      sppd: nextVal,
+                    };
+                  });
+                  return next;
+                });
+              }}
+              className={`flex-1 sm:flex-initial px-3.5 py-2 text-xs font-black rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                bulkUseTte
+                  ? 'bg-indigo-800/90 hover:bg-indigo-900 text-indigo-100 border border-indigo-400/40'
+                  : 'bg-amber-400 hover:bg-amber-300 text-slate-950 border border-amber-500'
+              }`}
+              title="Klik untuk beralih mode TTE Massal (ON: TTE Pemprov ${...} / OFF: Cetak Langsung TTD Asli Kepala Sekolah)"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>TTE Kolektif: {bulkUseTte ? 'ON' : 'OFF'}</span>
+            </button>
+
             {/* Beri Nomor Surat Sekaligus */}
             <button
               onClick={() => setBulkNumberModal({ isOpen: true, letterNumber: '', sppdNumber: '' })}

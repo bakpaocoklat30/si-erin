@@ -63,12 +63,16 @@ export function buildSuratTugasXml(
   let xml = baseXml;
 
   const useTte = options?.useTteTags !== false;
-  const letterNo =
-    assignment.letterNumber && assignment.letterNumber.trim() !== ''
-      ? assignment.letterNumber
-      : useTte
-      ? '${nomor_naskah}'
-      : '800.1.11.1 /1000/2026';
+  let letterNo = assignment.letterNumber && assignment.letterNumber.trim() !== '' ? assignment.letterNumber.trim() : '';
+  if (!useTte) {
+    if (!letterNo || letterNo === '${nomor_naskah}') {
+      letterNo = '800.1.11.1 /1000/2026';
+    }
+  } else {
+    if (!letterNo) {
+      letterNo = '${nomor_naskah}';
+    }
+  }
 
   // 1. Rentang Hari & Tanggal Dinamis (contoh: pada hari Selasa - Rabu tanggal 1 – 2 September 2026)
   const dayAndDateStr = formatIndonesianDayAndDateRange(assignment.monitoringDate, assignment.returnDate);
@@ -105,14 +109,14 @@ export function buildSuratTugasXml(
     })),
   ];
 
-  // 4. Pengaturan Kertas F4 (Folio 215mm x 330mm = 12189 x 18709 dxa) & Margin
+  // 4. Pengaturan Kertas A4 (210mm x 297mm = 11906 x 16838 dxa) & Margin
   xml = xml.replace(
-    /<w:pgSz\b[^>]*\/>/,
-    '<w:pgSz w:w="12189" w:h="18709" w:code="0"/>'
+    /<w:pgSz\b[^>]*\/>/g,
+    '<w:pgSz w:w="11906" w:h="16838" w:code="9"/>'
   );
   xml = xml.replace(
-    /<w:pgMar\b[^>]*\/>/,
-    '<w:pgMar w:top="567" w:right="1134" w:bottom="720" w:left="1134" w:header="720" w:footer="720" w:gutter="0"/>'
+    /<w:pgMar\b[^>]*\/>/g,
+    '<w:pgMar w:top="500" w:right="950" w:bottom="500" w:left="950" w:header="500" w:footer="500" w:gutter="0"/>'
   );
 
   const isCompact = allIndustries.length >= 4 || allTeachers.length >= 2;
@@ -342,12 +346,16 @@ export function buildSppdXml(
   let xml = baseXml;
 
   const useTte = options?.useTteTags !== false;
-  const sppdNo =
-    assignment.sppdNumber && assignment.sppdNumber.trim() !== ''
-      ? assignment.sppdNumber
-      : useTte
-      ? '${nomor_naskah}'
-      : '090/SPPD/2026';
+  let sppdNo = assignment.sppdNumber && assignment.sppdNumber.trim() !== '' ? assignment.sppdNumber.trim() : '';
+  if (!useTte) {
+    if (!sppdNo || sppdNo === '${nomor_naskah}') {
+      sppdNo = '090/SPPD/2026';
+    }
+  } else {
+    if (!sppdNo) {
+      sppdNo = '${nomor_naskah}';
+    }
+  }
 
   const formattedDate = formatIndonesianDate(assignment.monitoringDate);
   const formattedReturnDate = formatIndonesianDate(assignment.returnDate || assignment.monitoringDate);
@@ -396,14 +404,14 @@ export function buildSppdXml(
   // LEMBAR 1: TABEL UTAMA SPPD
   // ==========================================================================
 
-  // 0. Pengaturan Kertas F4 (Folio 215mm x 330mm = 12189 x 18709 dxa) & Margin
+  // 0. Pengaturan Kertas A4 (210mm x 297mm = 11906 x 16838 dxa) & Margin
   xml = xml.replace(
     /<w:pgSz\b[^>]*\/>/g,
-    '<w:pgSz w:w="12189" w:h="18709" w:code="0"/>'
+    '<w:pgSz w:w="11906" w:h="16838" w:code="9"/>'
   );
   xml = xml.replace(
     /<w:pgMar\b[^>]*\/>/g,
-    '<w:pgMar w:top="567" w:right="1134" w:bottom="567" w:left="1134" w:header="720" w:footer="720" w:gutter="0"/>'
+    '<w:pgMar w:top="400" w:right="800" w:bottom="400" w:left="800" w:header="400" w:footer="400" w:gutter="0"/>'
   );
 
   const isMany = true; // Selalu gunakan pengaturan tinggi dan spasi kompak agar 4 slot tujuan muat presisi di kertas F4
@@ -638,7 +646,7 @@ export function buildSppdXml(
           }
 
           // Jumlah slot baris antara (minimal 4 slot agar menampung 4 tujuan perjalanan sekaligus, dan jika 1 tujuan tersisa 3 slot kosong di bawahnya)
-          const effectiveCount = Math.max(4, allIndustries.length);
+          const effectiveCount = Math.max(3, allIndustries.length);
 
           // Baris Antara Kunjungan Industri (II, III, IV, ...)
           let intermediateRowsXml = '';
@@ -706,6 +714,7 @@ export function buildSppdXml(
     xml = xml.replace(/\${ttd_pengirim}/g, '');
     xml = xml.replace(/\${nama_pengirim}/g, escapeXml(headmasterName));
     xml = xml.replace(/\${nip_pengirim}/g, escapeXml(headmasterNip));
+    xml = xml.replace(/\${nomor_naskah}/g, escapeXml(sppdNo || '090/SPPD/2026'));
   }
 
   return xml;

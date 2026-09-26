@@ -393,8 +393,8 @@ export function generateSuratTugasHtml(
   <title>Surat Perintah Tugas Monitoring - ${allIndustries[0].name}</title>
   <style>
     @page {
-      size: 215mm 330mm portrait; /* Kertas F4 / Folio Resmi */
-      margin: ${isCompact ? '10mm 15mm 8mm 15mm' : '12mm 18mm 10mm 18mm'};
+      size: A4 portrait;
+      margin: ${isCompact ? '8mm 14mm 8mm 14mm' : '10mm 15mm 10mm 15mm'};
     }
     * {
       box-sizing: border-box;
@@ -684,8 +684,8 @@ export function generateSppdHtml(
     return res;
   };
 
-  // Jumlah baris antara kunjungan (minimal 4 slot agar menampung 4 tujuan perjalanan sekaligus, dan jika 1 tujuan tersisa 3 slot kosong di bawahnya)
-  const intermediateCount = Math.max(4, allIndustries.length);
+  // Jumlah baris antara kunjungan (minimal 3 slot agar pas di halaman 2 kertas A4)
+  const intermediateCount = Math.max(3, allIndustries.length);
   const intermediateRows = [];
   for (let idx = 0; idx < intermediateCount; idx++) {
     const roman = toRoman(idx + 2);
@@ -703,8 +703,8 @@ export function generateSppdHtml(
   <title>SPPD TTE - ${assignment.industry.name}</title>
   <style>
     @page {
-      size: 215mm 330mm portrait; /* Kertas F4 / Folio Resmi */
-      margin: ${isMany ? '8mm 12mm 6mm 12mm' : '10mm 15mm 8mm 15mm'};
+      size: A4 portrait;
+      margin: ${isMany ? '6mm 10mm 5mm 10mm' : '8mm 12mm 6mm 12mm'};
     }
     body {
       font-family: 'Times New Roman', Times, serif;
