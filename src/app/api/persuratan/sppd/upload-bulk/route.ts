@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    const mode = (formData.get('mode') as 'AUTO' | 'TUGAS' | 'SPPD') || 'AUTO';
+    const mode = (formData.get('mode') as 'AUTO' | 'TUGAS' | 'SPPD' | 'LAPORAN') || 'AUTO';
     const action = (formData.get('action') as 'analyze' | 'commit') || 'commit';
 
     if (!file) {
@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
     // Cek apakah ada custom mappings dari pilihan user di UI
     const mappingsRaw = formData.get('mappings') as string | null;
     let customMappings: Array<{
-      docType: 'TUGAS' | 'SPPD';
+      docType: 'TUGAS' | 'SPPD' | 'LAPORAN';
       pageNumbers: number[];
       assignmentId: string;
     }> | null = null;
@@ -219,8 +219,10 @@ export async function POST(req: NextRequest) {
           const updateData: any = {};
           if (item.docType === 'TUGAS') {
             updateData.suratTugasUrl = fileUrl;
-          } else {
+          } else if (item.docType === 'SPPD') {
             updateData.sppdUrl = fileUrl;
+          } else if (item.docType === 'LAPORAN') {
+            updateData.laporanUrl = fileUrl;
           }
 
           const curTask = await db.monitoringAssignment.findUnique({
@@ -276,8 +278,10 @@ export async function POST(req: NextRequest) {
           const updateData: any = {};
           if (item.segment.docType === 'TUGAS') {
             updateData.suratTugasUrl = fileUrl;
-          } else {
+          } else if (item.segment.docType === 'SPPD') {
             updateData.sppdUrl = fileUrl;
+          } else if (item.segment.docType === 'LAPORAN') {
+            updateData.laporanUrl = fileUrl;
           }
 
           const curTask = await db.monitoringAssignment.findUnique({

@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
-import { generateSuratTugasDocx, generateSppdDocx } from '@/lib/docx-generator';
+import { generateSuratTugasDocx, generateSppdDocx, generateLaporanDocx } from '@/lib/docx-generator';
 
 // ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✨ Fitur Baru: API Download Dokumen DOCX Resmi (Surat Tugas & SPPD)
+// ✨ Fitur Baru: API Download Dokumen DOCX Resmi (Surat Tugas, SPPD, & Laporan Kegiatan)
 // 🔧 Fitur:
 //    - Mengembalikan file binary .docx asli hasil olahan template resmi SMKN 1 Adiwerna.
-//    - Parameter `type`: 'tugas' | 'sppd'.
+//    - Parameter `type`: 'tugas' | 'sppd' | 'laporan'.
 //    - Parameter `tte`: 'true' | 'false' (apakah mempertahankan tag ${...} untuk TTE Jateng).
 // ----------------------------------------------------------------------
 
@@ -29,7 +29,8 @@ export async function GET(
 
     const { id } = params;
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get('type') === 'sppd' ? 'sppd' : 'tugas';
+    const typeParam = (searchParams.get('type') || '').toLowerCase();
+    const type = typeParam === 'sppd' ? 'sppd' : typeParam === 'laporan' ? 'laporan' : 'tugas';
     const useTte = searchParams.get('tte') !== 'false';
 
     const assignment = await prisma.monitoringAssignment.findUnique({
@@ -70,6 +71,9 @@ export async function GET(
     if (type === 'sppd') {
       docxBuffer = await generateSppdDocx(assignment as any, options);
       filename = `SPPD_Monitoring_${sanitizeFilename(assignment.teacher.name)}_${sanitizeFilename(assignment.industry.name)}.docx`;
+    } else if (type === 'laporan') {
+      docxBuffer = await generateLaporanDocx(assignment as any, options);
+      filename = `Laporan_Hasil_Kegiatan_${sanitizeFilename(assignment.teacher.name)}_${sanitizeFilename(assignment.industry.name)}.docx`;
     } else {
       docxBuffer = await generateSuratTugasDocx(assignment as any, options);
       filename = `Surat_Tugas_Monitoring_${sanitizeFilename(assignment.teacher.name)}_${sanitizeFilename(assignment.industry.name)}.docx`;

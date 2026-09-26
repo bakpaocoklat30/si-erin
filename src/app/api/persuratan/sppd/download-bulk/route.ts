@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import {
   generateMergedSuratTugasDocx,
   generateMergedSppdDocx,
+  generateMergedLaporanDocx,
 } from '@/lib/docx-generator';
 
 export async function GET(req: NextRequest) {
@@ -15,7 +16,8 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get('type') === 'sppd' ? 'sppd' : 'tugas';
+    const typeParam = (searchParams.get('type') || '').toLowerCase();
+    const type = typeParam === 'sppd' ? 'sppd' : typeParam === 'laporan' ? 'laporan' : 'tugas';
     const idsParam = searchParams.get('ids');
 
     if (!idsParam) {
@@ -71,6 +73,9 @@ export async function GET(req: NextRequest) {
     if (type === 'sppd') {
       docxBuffer = await generateMergedSppdDocx(assignments as any, options);
       filename = `SPPD_Kolektif_${assignments.length}_Penugasan.docx`;
+    } else if (type === 'laporan') {
+      docxBuffer = await generateMergedLaporanDocx(assignments as any, options);
+      filename = `Laporan_Hasil_Kegiatan_Kolektif_${assignments.length}_Penugasan.docx`;
     } else {
       docxBuffer = await generateMergedSuratTugasDocx(assignments as any, options);
       filename = `Surat_Tugas_Kolektif_${assignments.length}_Penugasan.docx`;

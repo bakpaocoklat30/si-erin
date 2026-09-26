@@ -172,10 +172,10 @@ export default function PokjaMonitoringPage() {
   const [targetIndustries, setTargetIndustries] = useState<AdditionalIndustryItem[]>([]);
   const [selectedAddIndustryId, setSelectedAddIndustryId] = useState('');
 
-  // Modal State: Print Preview (Surat Tugas / SPPD / Laporan Kegiatan)
+  // Modal State: Print Preview (Surat Tugas / SPPD / Laporan)
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
-    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN_KEGIATAN';
+    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN';
     assignment: MonitoringAssignmentData | null;
     useTteTags: boolean;
   }>({
@@ -620,11 +620,7 @@ export default function PokjaMonitoringPage() {
   };
 
   // Handler: Cetak Langsung / Buka Jendela Print Browser
-  const handlePrintDocument = (
-    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN_KEGIATAN',
-    assignment: MonitoringAssignmentData,
-    useTte: boolean
-  ) => {
+  const handlePrintDocument = (type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN', assignment: MonitoringAssignmentData, useTte: boolean) => {
     const html =
       type === 'SURAT_TUGAS'
         ? generateSuratTugasHtml(assignment, { schoolSetting, useTteTags: useTte })
@@ -645,11 +641,7 @@ export default function PokjaMonitoringPage() {
   };
 
   // Handler: Buka di Tab Baru
-  const handleOpenInNewTab = (
-    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN_KEGIATAN',
-    assignment: MonitoringAssignmentData,
-    useTte: boolean
-  ) => {
+  const handleOpenInNewTab = (type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN', assignment: MonitoringAssignmentData, useTte: boolean) => {
     const html =
       type === 'SURAT_TUGAS'
         ? generateSuratTugasHtml(assignment, { schoolSetting, useTteTags: useTte })
@@ -668,11 +660,13 @@ export default function PokjaMonitoringPage() {
   // Current Generated HTML for Preview Modal
   const previewHtml = useMemo(() => {
     if (!previewModal.assignment) return '';
-    return previewModal.type === 'SURAT_TUGAS'
-      ? generateSuratTugasHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags })
-      : previewModal.type === 'SPPD'
-      ? generateSppdHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags })
-      : generateLaporanHasilKegiatanHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
+    if (previewModal.type === 'SURAT_TUGAS') {
+      return generateSuratTugasHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
+    }
+    if (previewModal.type === 'SPPD') {
+      return generateSppdHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
+    }
+    return generateLaporanHasilKegiatanHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
   }, [previewModal, schoolSetting]);
 
   return (
@@ -1157,6 +1151,67 @@ export default function PokjaMonitoringPage() {
                             <Download className="w-3.5 h-3.5" />
                           </a>
 
+                          {/* 🌟 Tombol Pratinjau & Unduh Laporan Hasil Kegiatan (2 Macam: Tanpa TTE bila nomor surat tugas terisi, atau dengan TTE dari Tata Usaha) */}
+                          {(() => {
+                            const hasLetterNumber = Boolean(
+                              assignment.letterNumber &&
+                              assignment.letterNumber.trim() !== '' &&
+                              assignment.letterNumber.trim() !== '${nomor_naskah}'
+                            );
+                            const canAccessLaporan =
+                              hasLetterNumber ||
+                              Boolean(assignment.suratTugasUrl) ||
+                              Boolean(assignment.sppdUrl) ||
+                              Boolean(assignment.laporanUrl) ||
+                              assignment.status === 'SELESAI_TTE' ||
+                              assignment.status === 'TERBIT_TTE';
+
+                            if (canAccessLaporan) {
+                              return (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPreviewModal({
+                                        isOpen: true,
+                                        type: 'LAPORAN',
+                                        assignment,
+                                        useTteTags: false, // Default: Tanpa TTE (Lengkap nama Kepala Sekolah, nomor, dan tanggal)
+                                      })
+                                    }
+                                    className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-xs font-bold border border-amber-500/30 transition-all cursor-pointer shadow-sm"
+                                    title="Pratinjau & Cetak Lembar Laporan Hasil Kegiatan (Nama Kepala Sekolah & Nomor Surat Lengkap)"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    <span>Lap. Kegiatan</span>
+                                  </button>
+
+                                  {/* Tombol Unduh DOCX Laporan (Tanpa TTE: Lengkap Nama Kepala Sekolah) */}
+                                  <a
+                                    href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=laporan&tte=false`}
+                                    download
+                                    className="p-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-600 text-amber-500 hover:text-white border border-amber-500/20 transition-all cursor-pointer"
+                                    title="Unduh Berkas Word Laporan Hasil Kegiatan (Lengkap Nama Kepsek & Nomor)"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </a>
+                                </>
+                              );
+                            }
+
+                            return (
+                              <button
+                                type="button"
+                                disabled
+                                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 text-xs font-semibold border border-slate-200 dark:border-slate-800 cursor-not-allowed opacity-60"
+                                title="Menunggu nomor Surat Tugas diisi oleh Tata Usaha"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Lap. Kegiatan</span>
+                              </button>
+                            );
+                          })()}
+
                           {/* 🌟 Tautan PDF TTE Surat Tugas Terbit */}
                           {assignment.suratTugasUrl && (
                             <a
@@ -1185,27 +1240,18 @@ export default function PokjaMonitoringPage() {
                             </a>
                           )}
 
-                          {/* 🌟 Tombol Lembar Laporan Hasil Kegiatan (Muncul setelah dokumen TTE terbit) */}
-                          {(assignment.suratTugasUrl ||
-                            assignment.sppdUrl ||
-                            assignment.status === 'SELESAI_TTE' ||
-                            assignment.status === 'TERBIT_TTE') && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPreviewModal({
-                                  isOpen: true,
-                                  type: 'LAPORAN_KEGIATAN',
-                                  assignment,
-                                  useTteTags: true,
-                                })
-                              }
-                              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-600 text-amber-400 hover:text-white text-xs font-bold border border-amber-500/30 transition-all cursor-pointer shadow-sm"
-                              title="Pratinjau & Cetak Lembar Laporan Hasil Kegiatan (Lembar ke-3)"
+                          {/* 🌟 Tautan PDF TTE Laporan Terbit */}
+                          {assignment.laporanUrl && (
+                            <a
+                              href={assignment.laporanUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-xs font-bold border border-amber-500/30 transition-all cursor-pointer shadow-sm"
+                              title="Buka / Unduh Berkas PDF Laporan Kegiatan TTE Resmi yang Terbit"
                             >
-                              <ClipboardCheck className="w-3.5 h-3.5" />
-                              <span>Lap. Kegiatan</span>
-                            </button>
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              <span>PDF Lap TTE</span>
+                            </a>
                           )}
                         </div>
                       </td>
@@ -1841,7 +1887,7 @@ export default function PokjaMonitoringPage() {
                       ? 'Surat Perintah Tugas Monitoring'
                       : previewModal.type === 'SPPD'
                       ? 'Surat Perintah Perjalanan Dinas (SPPD)'
-                      : 'Laporan Hasil Kegiatan (Lembar ke-3)'}
+                      : 'Laporan Hasil Kegiatan Monitoring'}
                   </h3>
                   <p className="text-xs text-slate-400">
                     Tujuan: <strong className="text-white">{previewModal.assignment.industry.name}</strong> • Petugas:{' '}
@@ -1885,19 +1931,21 @@ export default function PokjaMonitoringPage() {
                 </button>
 
                 {/* Download Real DOCX Button */}
-                {previewModal.type !== 'LAPORAN_KEGIATAN' && (
-                  <a
-                    href={`/api/pokja/monitoring/${previewModal.assignment.id}/download-docx?type=${
-                      previewModal.type === 'SURAT_TUGAS' ? 'tugas' : 'sppd'
-                    }&tte=${previewModal.useTteTags}`}
-                    download
-                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
-                    title="Unduh berkas resmi Microsoft Word (.docx)"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Unduh DOCX</span>
-                  </a>
-                )}
+                <a
+                  href={`/api/pokja/monitoring/${previewModal.assignment.id}/download-docx?type=${
+                    previewModal.type === 'SURAT_TUGAS'
+                      ? 'tugas'
+                      : previewModal.type === 'SPPD'
+                      ? 'sppd'
+                      : 'laporan'
+                  }&tte=${previewModal.useTteTags}`}
+                  download
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                  title="Unduh berkas resmi Microsoft Word (.docx)"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Unduh DOCX</span>
+                </a>
 
                 {/* Open in New Tab */}
                 <button
@@ -1952,7 +2000,11 @@ export default function PokjaMonitoringPage() {
                 </button>
                 <a
                   href={`/api/pokja/monitoring/${previewModal.assignment.id}/download-docx?type=${
-                    previewModal.type === 'SURAT_TUGAS' ? 'tugas' : 'sppd'
+                    previewModal.type === 'SURAT_TUGAS'
+                      ? 'tugas'
+                      : previewModal.type === 'SPPD'
+                      ? 'sppd'
+                      : 'laporan'
                   }&tte=${previewModal.useTteTags}`}
                   download
                   className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white text-xs font-semibold border border-blue-500/30 transition-all cursor-pointer"

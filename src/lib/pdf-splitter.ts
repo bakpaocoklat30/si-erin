@@ -104,7 +104,7 @@ export async function parsePdfPages(buffer: Buffer): Promise<Array<{ pageNum: nu
 }
 
 export interface DocumentSegment {
-  docType: 'TUGAS' | 'SPPD';
+  docType: 'TUGAS' | 'SPPD' | 'LAPORAN';
   pageIndices: number[]; // 0-indexed
   pageNumbers: number[]; // 1-indexed (untuk tampilan UI)
   combinedText: string;
@@ -160,11 +160,11 @@ export function cleanIndustryName(name?: string | null): string {
 
 
 /**
- * Deteksi segmentasi dokumen (Surat Tugas vs SPPD) berdasarkan isi halaman
+ * Deteksi segmentasi dokumen (Surat Tugas vs SPPD vs Laporan Kegiatan) berdasarkan isi halaman
  */
 export function detectDocumentSegments(
   pages: Array<{ pageNum: number; text: string }>,
-  mode: 'AUTO' | 'TUGAS' | 'SPPD' = 'AUTO'
+  mode: 'AUTO' | 'TUGAS' | 'SPPD' | 'LAPORAN' = 'AUTO'
 ): DocumentSegment[] {
   const segments: DocumentSegment[] = [];
   const total = pages.length;
@@ -205,12 +205,43 @@ export function detectDocumentSegments(
     return segments;
   }
 
+  if (mode === 'LAPORAN') {
+    // Mode Paksa Laporan Hasil Kegiatan: Setiap 1 halaman = 1 dokumen Laporan
+    for (let i = 0; i < total; i++) {
+      segments.push({
+        docType: 'LAPORAN',
+        pageIndices: [i],
+        pageNumbers: [i + 1],
+        combinedText: pages[i].text,
+      });
+    }
+    return segments;
+  }
+
   // MODE AUTO: Deteksi cerdas berdasarkan kata kunci di tiap halaman
   let i = 0;
   while (i < total) {
     const pCurrent = pages[i];
     const curLower = pCurrent.text.toLowerCase();
 
+    // 1. Deteksi Laporan Hasil Kegiatan (Lembar ke-3)
+    const isLaporan =
+      curLower.includes('laporan hasil kegiatan') ||
+      curLower.includes('laporan singkat') ||
+      (curLower.includes('penyusun') && (curLower.includes('lembar ke : 3') || curLower.includes('lembar ke: 3') || curLower.includes('lembar ke')));
+
+    if (isLaporan) {
+      segments.push({
+        docType: 'LAPORAN',
+        pageIndices: [i],
+        pageNumbers: [i + 1],
+        combinedText: pCurrent.text,
+      });
+      i += 1;
+      continue;
+    }
+
+    // 2. Deteksi SPPD (Lembar 1 & 2)
     const isSppdPage1 =
       curLower.includes('perjalanan dinas') ||
       curLower.includes('sppd') ||
@@ -231,7 +262,7 @@ export function detectDocumentSegments(
           nextLower.includes('tempat kedudukan') ||
           nextLower.includes('tiba di') ||
           nextLower.includes('telah diperiksa') ||
-          (!nextLower.includes('surat perintah tugas') && !nextLower.includes('tingkat menurut perjalanan'));
+          (!nextLower.includes('surat perintah tugas') && !nextLower.includes('tingkat menurut perjalanan') && !nextLower.includes('laporan hasil kegiatan'));
 
         if (isNextSppdLembar2) {
           segments.push({
@@ -388,6 +419,8 @@ export function matchSegmentToAssignment(
     if (segment.docType === 'TUGAS' && !assign.suratTugasUrl) {
       score += 10;
     } else if (segment.docType === 'SPPD' && !assign.sppdUrl) {
+      score += 10;
+    } else if (segment.docType === 'LAPORAN' && !assign.laporanUrl) {
       score += 10;
     }
 

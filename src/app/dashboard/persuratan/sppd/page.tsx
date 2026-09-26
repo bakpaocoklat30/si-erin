@@ -27,12 +27,11 @@ import {
   UploadCloud,
   Plus,
   Trash2,
-  ClipboardCheck,
+  ClipboardList,
 } from 'lucide-react';
 import {
   generateSuratTugasHtml,
   generateSppdHtml,
-  generateLaporanHasilKegiatanHtml,
   formatIndonesianDateRange,
   calculateDurationDays,
 } from '@/lib/monitoring-templates';
@@ -82,8 +81,8 @@ export default function PersuratanSppdPage() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
   // TTE Mode Toggle per Task & per Document Type (Default: ON / true)
-  // { [taskId]: { tugas: boolean, sppd: boolean } }
-  const [taskTteMap, setTaskTteMap] = useState<Record<string, { tugas: boolean; sppd: boolean }>>({});
+  // { [taskId]: { tugas: boolean, sppd: boolean, laporan: boolean } }
+  const [taskTteMap, setTaskTteMap] = useState<Record<string, { tugas: boolean; sppd: boolean; laporan: boolean }>>({});
 
   // Letter Numbers Local State (for editing and saving)
   // { [taskId]: { letterNumber: string, sppdNumber: string, isModified: boolean } }
@@ -109,7 +108,7 @@ export default function PersuratanSppdPage() {
 
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
-    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN_KEGIATAN';
+    type: 'SURAT_TUGAS' | 'SPPD';
     task: any | null;
     useTteTags: boolean;
   }>({
@@ -120,7 +119,7 @@ export default function PersuratanSppdPage() {
   });
 
   // Upload Modal State
-  const [uploadModal, setUploadModal] = useState<{ isOpen: boolean; task: any; type: 'TUGAS' | 'SPPD' | null }>({
+  const [uploadModal, setUploadModal] = useState<{ isOpen: boolean; task: any; type: 'TUGAS' | 'SPPD' | 'LAPORAN' | null }>({
     isOpen: false,
     task: null,
     type: null
@@ -133,7 +132,7 @@ export default function PersuratanSppdPage() {
   const [bulkUploadModal, setBulkUploadModal] = useState<{
     isOpen: boolean;
     file: File | null;
-    mode: 'AUTO' | 'TUGAS' | 'SPPD';
+    mode: 'AUTO' | 'TUGAS' | 'SPPD' | 'LAPORAN';
     analyzing: boolean;
     committing: boolean;
     analysisResult: any | null;
@@ -142,7 +141,7 @@ export default function PersuratanSppdPage() {
     showPdfPreview: boolean;
     mappings: Array<{
       id: string;
-      docType: 'TUGAS' | 'SPPD';
+      docType: 'TUGAS' | 'SPPD' | 'LAPORAN';
       pageNumbersStr: string;
       assignmentId: string;
       snippet?: string;
@@ -209,13 +208,13 @@ export default function PersuratanSppdPage() {
   }, []);
 
   // TTE Toggle Helper
-  const isTteActive = (taskId: string, type: 'tugas' | 'sppd'): boolean => {
+  const isTteActive = (taskId: string, type: 'tugas' | 'sppd' | 'laporan'): boolean => {
     return taskTteMap[taskId]?.[type] ?? true; // Default ON
   };
 
-  const handleToggleTte = (taskId: string, type: 'tugas' | 'sppd') => {
+  const handleToggleTte = (taskId: string, type: 'tugas' | 'sppd' | 'laporan') => {
     setTaskTteMap((prev) => {
-      const current = prev[taskId] ?? { tugas: true, sppd: true };
+      const current = prev[taskId] ?? { tugas: true, sppd: true, laporan: true };
       return {
         ...prev,
         [taskId]: {
@@ -325,7 +324,7 @@ export default function PersuratanSppdPage() {
   };
 
   // Safe Download Handler with Number Check
-  const handleDownloadClick = async (task: any, type: 'tugas' | 'sppd') => {
+  const handleDownloadClick = async (task: any, type: 'tugas' | 'sppd' | 'laporan') => {
     let currentNumber =
       type === 'tugas'
         ? (taskNumberMap[task.id]?.letterNumber !== undefined
@@ -340,8 +339,14 @@ export default function PersuratanSppdPage() {
       currentNumber.trim() === '' ||
       currentNumber.trim() === '${nomor_naskah}'
     ) {
+      const promptTitle =
+        type === 'tugas'
+          ? 'Surat Tugas'
+          : type === 'sppd'
+          ? 'SPPD'
+          : 'Laporan Kegiatan (Nomor SPPD)';
       const inputVal = prompt(
-        `⚠️ Nomor ${type === 'tugas' ? 'Surat Tugas' : 'SPPD'} belum diisi!\n\n` +
+        `⚠️ Nomor ${promptTitle} belum diisi!\n\n` +
           `Silakan masukkan nomor naskah resmi untuk ${task.teacher.name} ke ${task.industry.name}:`,
         type === 'tugas' ? '800.1.11.1/' : '090/'
       );
@@ -351,7 +356,7 @@ export default function PersuratanSppdPage() {
         return;
       }
 
-      await handleSaveSingleNumber(task.id, type, inputVal.trim());
+      await handleSaveSingleNumber(task.id, type === 'tugas' ? 'tugas' : 'sppd', inputVal.trim());
       currentNumber = inputVal.trim();
     } else if (taskNumberMap[task.id]?.isModified) {
       await handleSaveNumbers(task.id);
@@ -362,7 +367,7 @@ export default function PersuratanSppdPage() {
   };
 
   // Safe Preview Handler with Number Check
-  const handleOpenPreview = async (task: any, type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN_KEGIATAN') => {
+  const handleOpenPreview = async (task: any, type: 'SURAT_TUGAS' | 'SPPD') => {
     if (taskNumberMap[task.id]?.isModified) {
       await handleSaveNumbers(task.id);
     }
@@ -505,7 +510,7 @@ export default function PersuratanSppdPage() {
     }
   };
 
-  const handleBulkDownload = async (type: 'tugas' | 'sppd') => {
+  const handleBulkDownload = async (type: 'tugas' | 'sppd' | 'laporan') => {
     if (selectedTaskIds.length === 0) {
       alert('Pilih setidaknya satu penugasan terlebih dahulu.');
       return;
@@ -528,7 +533,7 @@ export default function PersuratanSppdPage() {
     if (missing.length > 0) {
       alert(
         `⚠️ PERHATIAN: Terdapat ${missing.length} penugasan yang nomor ${
-          type === 'tugas' ? 'Surat Tugas' : 'SPPD'
+          type === 'tugas' ? 'Surat Tugas' : type === 'sppd' ? 'SPPD' : 'Laporan Kegiatan (SPPD)'
         }-nya masih kosong!\n\n` +
           'Mohon lengkapi seluruh nomor naskah pada kartu penugasan terpilih terlebih dahulu sebelum mengunduh berkas kolektif.'
       );
@@ -559,12 +564,7 @@ export default function PersuratanSppdPage() {
           schoolSetting,
           useTteTags: previewModal.useTteTags,
         })
-      : previewModal.type === 'SPPD'
-      ? generateSppdHtml(previewModal.task, {
-          schoolSetting,
-          useTteTags: previewModal.useTteTags,
-        })
-      : generateLaporanHasilKegiatanHtml(previewModal.task, {
+      : generateSppdHtml(previewModal.task, {
           schoolSetting,
           useTteTags: previewModal.useTteTags,
         });
@@ -980,6 +980,7 @@ export default function PersuratanSppdPage() {
                     next[id] = {
                       tugas: nextVal,
                       sppd: nextVal,
+                      laporan: nextVal,
                     };
                   });
                   return next;
@@ -1024,6 +1025,16 @@ export default function PersuratanSppdPage() {
             >
               <Download className="w-3.5 h-3.5" />
               <span>Unduh Kolektif SPPD ({selectedTaskIds.length})</span>
+            </button>
+
+            {/* Unduh Kolektif Lap. Kegiatan */}
+            <button
+              onClick={() => handleBulkDownload('laporan')}
+              className="flex-1 sm:flex-initial px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-black rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+              title="Unduh 1 file DOCX gabungan yang berisi seluruh Laporan Hasil Kegiatan terpilih"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Unduh Kolektif Lap. Kegiatan ({selectedTaskIds.length})</span>
             </button>
 
             {/* Unggah Hasil TTE Khusus yang Dicentang */}
@@ -1082,6 +1093,7 @@ export default function PersuratanSppdPage() {
 
               const isTugasTteOn = isTteActive(task.id, 'tugas');
               const isSppdTteOn = isTteActive(task.id, 'sppd');
+              const isLaporanTteOn = isTteActive(task.id, 'laporan');
 
               const hasUnsavedNumbers = taskNumberMap[task.id]?.isModified;
 
@@ -1211,10 +1223,10 @@ export default function PersuratanSppdPage() {
                     )}
                   </div>
 
-                  {/* Actions Grid: Surat Tugas & SPPD */}
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  {/* Actions Grid: Surat Tugas, SPPD, & Laporan Kegiatan */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
                     {/* Kolom 1: Surat Tugas */}
-                    <div className="space-y-1.5 border-r border-slate-200 dark:border-slate-800 pr-2">
+                    <div className="space-y-1.5 md:border-r border-slate-200 dark:border-slate-800 md:pr-2">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
                           Surat Tugas
@@ -1278,7 +1290,7 @@ export default function PersuratanSppdPage() {
                     </div>
 
                     {/* Kolom 2: SPPD */}
-                    <div className="space-y-1.5 pl-2">
+                    <div className="space-y-1.5 border-t md:border-t-0 md:border-r border-slate-200 dark:border-slate-800 pt-2 md:pt-0 md:px-2">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
                           SPPD
@@ -1340,23 +1352,60 @@ export default function PersuratanSppdPage() {
                         </button>
                       )}
                     </div>
-                  </div>
 
-                  {/* 🌟 Lembar Laporan Hasil Kegiatan (Lembar ke-3) */}
-                  <div className="pt-2.5 mt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                      <ClipboardCheck className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Lap. Hasil Kegiatan (Lembar 3)</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenPreview(task, 'LAPORAN_KEGIATAN')}
-                      className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-600 text-amber-600 hover:text-white dark:text-amber-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-amber-500/20 shadow-xs"
-                      title="Pratinjau & Cetak Lembar Laporan Hasil Kegiatan (Lembar ke-3)"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Pratinjau Lap. Kegiatan</span>
-                    </button>
+                    {/* Kolom 3: Lap. Kegiatan */}
+                    <div className="space-y-1.5 border-t md:border-t-0 border-slate-200 dark:border-slate-800 pt-2 md:pt-0 md:pl-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[10px] uppercase font-black text-amber-500 dark:text-amber-400 tracking-wider">
+                          Lap. Kegiatan
+                        </p>
+
+                        {/* TOGGLE TTE LAPORAN (DEFAULT ON) */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTte(task.id, 'laporan')}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                            isLaporanTteOn
+                              ? 'bg-amber-600/20 text-amber-500 dark:text-amber-400 border-amber-500/40 shadow-sm'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                          }`}
+                          title="Klik untuk beralih antara Mode TTE Tag ${...} atau Mode TTD Langsung Guru Petugas"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>TTE: {isLaporanTteOn ? 'ON' : 'OFF'}</span>
+                        </button>
+                      </div>
+
+                      {/* Tombol Unduh DOCX Laporan */}
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadClick(task, 'laporan')}
+                        className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5 transition-all cursor-pointer"
+                        title="Unduh Berkas Word Laporan Hasil Kegiatan (.docx)"
+                      >
+                        <Download className="w-3.5 h-3.5" /> Unduh DOCX
+                      </button>
+
+                      {/* Upload / Lihat PDF TTE */}
+                      {task.laporanUrl ? (
+                        <a
+                          href={task.laporanUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full py-1.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5"
+                        >
+                          <FileSignature className="w-3.5 h-3.5" /> PDF TTE Terbit
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setUploadModal({ isOpen: true, task, type: 'LAPORAN' })}
+                          className="w-full py-1.5 border border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Upload className="w-3.5 h-3.5" /> Unggah PDF TTE
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -1381,21 +1430,11 @@ export default function PersuratanSppdPage() {
             <div className="px-6 py-4 border-b border-slate-800/30 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
               <div className="flex items-center space-x-3">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
-                  {previewModal.type === 'SURAT_TUGAS' ? (
-                    <FileSignature className="w-5 h-5" />
-                  ) : previewModal.type === 'SPPD' ? (
-                    <FileText className="w-5 h-5" />
-                  ) : (
-                    <ClipboardCheck className="w-5 h-5 text-amber-400" />
-                  )}
+                  {previewModal.type === 'SURAT_TUGAS' ? <FileSignature className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
                 </div>
                 <div>
                   <h3 className="text-base font-bold">
-                    {previewModal.type === 'SURAT_TUGAS'
-                      ? 'Pratinjau Surat Perintah Tugas'
-                      : previewModal.type === 'SPPD'
-                      ? 'Pratinjau SPPD'
-                      : 'Pratinjau Laporan Hasil Kegiatan (Lembar ke-3)'}
+                    {previewModal.type === 'SURAT_TUGAS' ? 'Pratinjau Surat Perintah Tugas' : 'Pratinjau SPPD'}
                   </h3>
                   <p className="text-xs text-slate-400">
                     Tujuan: <strong className="text-white">{previewModal.task.industry.name}</strong> • Petugas:{' '}
@@ -1437,21 +1476,19 @@ export default function PersuratanSppdPage() {
                 </button>
 
                 {/* Download DOCX Button */}
-                {previewModal.type !== 'LAPORAN_KEGIATAN' && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleDownloadClick(
-                        previewModal.task,
-                        previewModal.type === 'SURAT_TUGAS' ? 'tugas' : 'sppd'
-                      )
-                    }
-                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Unduh DOCX</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDownloadClick(
+                      previewModal.task,
+                      previewModal.type === 'SURAT_TUGAS' ? 'tugas' : 'sppd'
+                    )
+                  }
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Unduh DOCX</span>
+                </button>
 
                 {/* Close Button */}
                 <button
@@ -1481,7 +1518,9 @@ export default function PersuratanSppdPage() {
       {uploadModal.isOpen && uploadModal.task && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
-            <h2 className="text-xl font-bold mb-1">Unggah PDF {uploadModal.type}</h2>
+            <h2 className="text-xl font-bold mb-1">
+              Unggah PDF {uploadModal.type === 'TUGAS' ? 'Surat Tugas' : uploadModal.type === 'SPPD' ? 'SPPD' : 'Laporan Hasil Kegiatan'}
+            </h2>
             <p className="text-xs text-slate-500 mb-6">
               Penugasan: {uploadModal.task.teacher.name} ke {uploadModal.task.industry.name}
             </p>
@@ -1737,7 +1776,7 @@ export default function PersuratanSppdPage() {
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
                       Mode Pemilahan Halaman
                     </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                       <button
                         type="button"
                         onClick={() => setBulkUploadModal((prev) => ({ ...prev, mode: 'AUTO', analysisResult: null }))}
@@ -1752,7 +1791,7 @@ export default function PersuratanSppdPage() {
                           <span>Deteksi Otomatis</span>
                         </div>
                         <p className="text-[11px] text-slate-500 line-clamp-2">
-                          Mengenali otomatis apakah lembar merupakan Surat Tugas (1 hal) atau SPPD (2 hal).
+                          Mengenali Surat Tugas (1 hal), SPPD (2 hal), atau Lap. Kegiatan (1 hal).
                         </p>
                       </button>
 
@@ -1789,6 +1828,24 @@ export default function PersuratanSppdPage() {
                         </div>
                         <p className="text-[11px] text-slate-500 line-clamp-2">
                           Setiap 2 halaman (Lembar 1 & 2) dipecah sebagai satu berkas SPPD.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setBulkUploadModal((prev) => ({ ...prev, mode: 'LAPORAN', analysisResult: null }))}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          bulkUploadModal.mode === 'LAPORAN'
+                            ? 'border-amber-500 bg-amber-50/20 dark:bg-amber-500/10 ring-2 ring-amber-500/20'
+                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white mb-1">
+                          <ClipboardList className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Lap. Kegiatan Saja</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2">
+                          Setiap 1 halaman (Lembar 3) dipecah sebagai Laporan Hasil Kegiatan.
                         </p>
                       </button>
                     </div>
@@ -1916,11 +1973,14 @@ export default function PersuratanSppdPage() {
                                   className={`px-2.5 py-1.5 rounded-xl font-bold text-xs border cursor-pointer ${
                                     item.docType === 'TUGAS'
                                       ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30'
-                                      : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30'
+                                      : item.docType === 'SPPD'
+                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30'
+                                      : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30'
                                   }`}
                                 >
                                   <option value="TUGAS">Surat Tugas (1 Hal)</option>
                                   <option value="SPPD">SPPD (2 Hal)</option>
+                                  <option value="LAPORAN">Laporan Kegiatan (1 Hal)</option>
                                 </select>
                               </div>
 
@@ -1931,7 +1991,7 @@ export default function PersuratanSppdPage() {
                                   type="text"
                                   value={item.pageNumbersStr}
                                   onChange={(e) => handleUpdateMappingRow(item.id, 'pageNumbersStr', e.target.value)}
-                                  placeholder={item.docType === 'TUGAS' ? '1' : '2, 3'}
+                                  placeholder={item.docType === 'SPPD' ? '2, 3' : '1'}
                                   className="w-24 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                 />
                               </div>
@@ -2083,7 +2143,7 @@ export default function PersuratanSppdPage() {
                             </span>
                           </div>
                           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
-                            ✓ {item.docType === 'TUGAS' ? 'Surat Tugas' : 'SPPD'} berhasil disimpan (Hal {item.pageNumbers.join(', ')})
+                            ✓ {item.docType === 'TUGAS' ? 'Surat Tugas' : item.docType === 'SPPD' ? 'SPPD' : 'Laporan Hasil Kegiatan'} berhasil disimpan (Hal {item.pageNumbers.join(', ')})
                           </p>
                         </div>
                         <a

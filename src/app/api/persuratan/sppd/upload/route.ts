@@ -47,8 +47,10 @@ export async function POST(request: Request) {
     const updateData: any = {};
     if (type === 'TUGAS') {
       updateData.suratTugasUrl = fileUrl;
-    } else {
+    } else if (type === 'SPPD') {
       updateData.sppdUrl = fileUrl;
+    } else if (type === 'LAPORAN') {
+      updateData.laporanUrl = fileUrl;
     }
 
     // Jika kedua file sudah terupload (atau ini yang terakhir), ubah status menjadi SELESAI_TTE

@@ -308,6 +308,7 @@ model MonitoringAssignment {
   budgetAccount     String?           @default("Dana BOS")
   suratTugasUrl     String?           @db.Text
   sppdUrl           String?           @db.Text
+  laporanUrl        String?           @db.Text
 
   status            String            @default("TERJADWAL") // TERJADWAL, SELESAI, DIBATALKAN
   notes             String?           @db.Text
