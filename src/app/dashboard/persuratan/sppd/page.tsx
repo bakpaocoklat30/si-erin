@@ -2022,7 +2022,7 @@ export default function PersuratanSppdPage() {
                         rel="noreferrer"
                         className="text-[11px] text-blue-600 dark:text-blue-400 font-bold hover:underline inline-flex items-center gap-1"
                       >
-                        <ExternalLink className="w-3 h-3" /> Klik di sini jika PDF ingin dibuka di Tab Baru
+                        <ExternalLink className="w-3 h-3" /> Buka PDF di Tab Baru jika ingin melihat layar penuh
                       </a>
                     </div>
                   </div>
