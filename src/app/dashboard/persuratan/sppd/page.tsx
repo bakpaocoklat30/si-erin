@@ -40,6 +40,7 @@ export default function PersuratanSppdPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [purposeFilter, setPurposeFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   // Upload modal state
   const [uploadModal, setUploadModal] = useState<{ isOpen: boolean; task: any; type: 'TUGAS' | 'SPPD' | null }>({
@@ -114,7 +115,13 @@ export default function PersuratanSppdPage() {
                           t.teacher.name.toLowerCase().includes(searchQuery.toLowerCase());
     const pType = getAssignmentType(t.purpose).type;
     const matchesPurpose = purposeFilter === 'ALL' || pType === purposeFilter;
-    return matchesSearch && matchesPurpose;
+    let matchesStatus = true;
+    if (statusFilter === 'PROSES_TTE') {
+      matchesStatus = t.status === 'MENUNGGU_TTE' || t.status === 'PROSES_TTE';
+    } else if (statusFilter === 'TERBIT_TTE') {
+      matchesStatus = t.status === 'SELESAI_TTE' || t.status === 'TERBIT_TTE';
+    }
+    return matchesSearch && matchesPurpose && matchesStatus;
   });
 
   return (
@@ -131,24 +138,28 @@ export default function PersuratanSppdPage() {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          {[
-            { id: 'ALL', label: 'Semua Jenis' },
-            { id: 'PENERJUNAN', label: '🚚 Penerjunan' },
-            { id: 'MONITORING', label: '📋 Monitoring' },
-            { id: 'PENARIKAN', label: '🎓 Penarikan' },
-          ].map((pf) => (
-            <button
-              key={pf.id}
-              onClick={() => setPurposeFilter(pf.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                purposeFilter === pf.id
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
-                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-white text-slate-700'
-              }`}
-            >
-              {pf.label}
-            </button>
-          ))}
+          {/* Dropdown Jenis Penugasan */}
+          <select
+            value={purposeFilter}
+            onChange={(e) => setPurposeFilter(e.target.value)}
+            className="px-3.5 py-2.5 rounded-xl border outline-none text-xs font-bold bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 cursor-pointer focus:border-blue-500"
+          >
+            <option value="ALL">Semua Jenis Penugasan</option>
+            <option value="PENERJUNAN">🚚 Penerjunan PKL</option>
+            <option value="MONITORING">📋 Monitoring PKL</option>
+            <option value="PENARIKAN">🎓 Penarikan PKL</option>
+          </select>
+
+          {/* Dropdown Status TTE */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3.5 py-2.5 rounded-xl border outline-none text-xs font-bold bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 cursor-pointer focus:border-blue-500"
+          >
+            <option value="ALL">Semua Status</option>
+            <option value="PROSES_TTE">Proses TTE</option>
+            <option value="TERBIT_TTE">Terbit TTE</option>
+          </select>
         </div>
 
         <div className="relative">

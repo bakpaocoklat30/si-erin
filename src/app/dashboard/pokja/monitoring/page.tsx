@@ -57,6 +57,45 @@ import {
 } from '@/lib/monitoring-templates';
 
 
+
+function getStatusBadge(status: string = 'TERJADWAL') {
+  switch (status) {
+    case 'TERJADWAL':
+    case 'DRAFT':
+      return {
+        label: 'Draft',
+        badgeClass: 'bg-slate-500/15 text-slate-400 border-slate-500/30'
+      };
+    case 'MENUNGGU_TTE':
+    case 'PROSES_TTE':
+      return {
+        label: 'Proses TTE',
+        badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+      };
+    case 'SELESAI_TTE':
+    case 'TERBIT_TTE':
+      return {
+        label: 'Terbit TTE',
+        badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+      };
+    case 'SELESAI':
+      return {
+        label: 'Selesai',
+        badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+      };
+    case 'DIBATALKAN':
+      return {
+        label: 'Dibatalkan',
+        badgeClass: 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+      };
+    default:
+      return {
+        label: status,
+        badgeClass: 'bg-slate-500/15 text-slate-400 border-slate-500/30'
+      };
+  }
+}
+
 function getAssignmentType(purpose: string = '') {
   const p = (purpose || '').toLowerCase();
   if (p.includes('penerjunan') || p.includes('pengantaran')) {
@@ -228,7 +267,18 @@ export default function PokjaMonitoringPage() {
         (item.industry.address && item.industry.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
         item.teacher.name.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
+      let matchesStatus = true;
+      if (statusFilter === 'DRAFT') {
+        matchesStatus = item.status === 'DRAFT' || item.status === 'TERJADWAL' || !item.status;
+      } else if (statusFilter === 'PROSES_TTE') {
+        matchesStatus = item.status === 'PROSES_TTE' || item.status === 'MENUNGGU_TTE';
+      } else if (statusFilter === 'TERBIT_TTE') {
+        matchesStatus = item.status === 'TERBIT_TTE' || item.status === 'SELESAI_TTE';
+      } else if (statusFilter === 'SELESAI') {
+        matchesStatus = item.status === 'SELESAI';
+      } else if (statusFilter !== 'ALL') {
+        matchesStatus = item.status === statusFilter;
+      }
       const pType = getAssignmentType(item.purpose).type;
       const matchesPurpose = purposeFilter === 'ALL' || pType === purposeFilter;
 
@@ -755,46 +805,44 @@ export default function PokjaMonitoringPage() {
         </div>
 
         
-        {/* Filter Jenis Surat Tugas (Penerjunan, Monitoring, Penarikan) */}
-        <div className="flex items-center space-x-1.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          {[
-            { id: 'ALL', label: 'Semua Jenis' },
-            { id: 'PENERJUNAN', label: '🚚 Penerjunan' },
-            { id: 'MONITORING', label: '📋 Monitoring' },
-            { id: 'PENARIKAN', label: '🎓 Penarikan' },
-          ].map((pf) => (
-            <button
-              key={pf.id}
-              onClick={() => setPurposeFilter(pf.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                purposeFilter === pf.id
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
-                  : theme === 'dark'
-                  ? 'bg-slate-800 text-slate-400 hover:text-white'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+        {/* Dropdown Filters: Jenis Penugasan & Status */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          {/* Dropdown Jenis Penugasan */}
+          <div className="relative">
+            <select
+              value={purposeFilter}
+              onChange={(e) => setPurposeFilter(e.target.value)}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer ${
+                theme === 'dark'
+                  ? 'bg-slate-800 border-slate-700 text-white'
+                  : 'bg-slate-50 border-slate-200 text-slate-800 shadow-sm'
               }`}
             >
-              {pf.label}
-            </button>
-          ))}
-        </div>
+              <option value="ALL">Semua Jenis Penugasan</option>
+              <option value="PENERJUNAN">🚚 Penerjunan PKL</option>
+              <option value="MONITORING">📋 Monitoring PKL</option>
+              <option value="PENARIKAN">🎓 Penarikan PKL</option>
+            </select>
+          </div>
 
-        <div className="flex items-center space-x-2 w-full md:w-auto overflow-x-auto">
-          {['ALL', 'TERJADWAL', 'SELESAI', 'DIBATALKAN'].map((st) => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                statusFilter === st
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                  : theme === 'dark'
-                  ? 'bg-slate-800 text-slate-400 hover:text-white'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+          {/* Dropdown Status */}
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer ${
+                theme === 'dark'
+                  ? 'bg-slate-800 border-slate-700 text-white'
+                  : 'bg-slate-50 border-slate-200 text-slate-800 shadow-sm'
               }`}
             >
-              {st === 'ALL' ? 'Semua Status' : st}
-            </button>
-          ))}
+              <option value="ALL">Semua Status</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PROSES_TTE">Proses TTE</option>
+              <option value="TERBIT_TTE">Terbit TTE</option>
+              <option value="SELESAI">Selesai</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -970,17 +1018,16 @@ export default function PokjaMonitoringPage() {
 
                       {/* Status */}
                       <td className="py-4 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
-                            assignment.status === 'TERJADWAL'
-                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                              : assignment.status === 'SELESAI'
-                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                          }`}
-                        >
-                          {assignment.status || 'TERJADWAL'}
-                        </span>
+                        {(() => {
+                          const sBadge = getStatusBadge(assignment.status);
+                          return (
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${sBadge.badgeClass}`}
+                            >
+                              {sBadge.label}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Dokumen & Cetak */}
