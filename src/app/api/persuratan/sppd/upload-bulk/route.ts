@@ -232,6 +232,8 @@ export async function POST(req: NextRequest) {
 
           if (hasTugas && hasSppd) {
             updateData.status = 'SELESAI_TTE';
+          } else if (curTask?.status !== 'SELESAI_TTE') {
+            updateData.status = 'PROSES_TTE';
           }
 
           const updated = await db.monitoringAssignment.update({
@@ -287,6 +289,8 @@ export async function POST(req: NextRequest) {
 
           if (hasTugas && hasSppd) {
             updateData.status = 'SELESAI_TTE';
+          } else if (curTask?.status !== 'SELESAI_TTE') {
+            updateData.status = 'PROSES_TTE';
           }
 
           const updated = await db.monitoringAssignment.update({

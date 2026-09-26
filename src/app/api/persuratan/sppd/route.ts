@@ -13,7 +13,11 @@ export async function GET(request: Request) {
     const [assignments, departments, schoolSetting] = await Promise.all([
       db.monitoringAssignment.findMany({
         where: {
-          status: { in: ['MENUNGGU_TTE', 'SELESAI_TTE'] }
+          OR: [
+            { status: { in: ['MENUNGGU_TTE', 'PROSES_TTE', 'SELESAI_TTE', 'TERBIT_TTE'] } },
+            { suratTugasUrl: { not: null } },
+            { sppdUrl: { not: null } },
+          ],
         },
         include: {
           industry: {

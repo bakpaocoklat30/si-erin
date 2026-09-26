@@ -1844,36 +1844,6 @@ export default function PersuratanSppdPage() {
                     </div>
                   </div>
 
-                  {/* Loading State saat Analisis Berjalan */}
-                  {bulkUploadModal.analyzing && (
-                    <div className="p-8 rounded-2xl bg-emerald-50/60 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-center space-y-2 animate-pulse">
-                      <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mx-auto" />
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        Sedang menganalisis teks halaman PDF & mencocokkan ke database penugasan...
-                      </p>
-                      <p className="text-[11px] text-slate-400">
-                        Halaman akan otomatis dikelompokkan dan guru yang sesuai akan dipilih.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Empty State jika belum ada dokumen yang dianalisis */}
-                  {bulkUploadModal.file && !bulkUploadModal.analyzing && bulkUploadModal.mappings.length === 0 && (
-                    <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-center space-y-3">
-                      <p className="text-xs text-slate-500">
-                        Belum ada pemetaan halaman. Klik tombol <strong>Analisis Halaman</strong> atau tambahkan baris dokumen secara manual.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleBulkUploadAnalyze}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-md"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Mulai Analisis Halaman</span>
-                      </button>
-                    </div>
-                  )}
-
                   {/* 4. Tabel Pemetaan Interaktif Halaman & Guru */}
                   {bulkUploadModal.mappings.length > 0 && (
                     <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in">
@@ -1886,24 +1856,9 @@ export default function PersuratanSppdPage() {
                             Tentukan nomor halaman dan pemilik naskah. Anda bebas mengubah pilihan guru maupun nomor halaman.
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                            {bulkUploadModal.mappings.length} Dokumen
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleBulkUploadCommit}
-                            disabled={bulkUploadModal.committing}
-                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                          >
-                            {bulkUploadModal.committing ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5" />
-                            )}
-                            <span>Simpan ke Sistem</span>
-                          </button>
-                        </div>
+                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                          {bulkUploadModal.mappings.length} Dokumen Siap Dipisahkan
+                        </span>
                       </div>
 
                       {/* Baris Dokumen */}

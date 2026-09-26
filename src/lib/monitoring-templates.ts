@@ -99,6 +99,8 @@ export interface MonitoringAssignmentData {
   destinationPlace?: string | null;
   budgetSource?: string | null;
   budgetAccount?: string | null;
+  suratTugasUrl?: string | null;
+  sppdUrl?: string | null;
   status?: string;
   notes?: string | null;
 }

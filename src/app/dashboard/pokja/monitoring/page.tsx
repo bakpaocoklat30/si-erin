@@ -58,25 +58,25 @@ import {
 
 
 
-function getStatusBadge(status: string = 'TERJADWAL') {
+function getStatusBadge(status: string = 'TERJADWAL', hasTugas?: boolean, hasSppd?: boolean) {
+  if (status === 'SELESAI_TTE' || status === 'TERBIT_TTE' || (hasTugas && hasSppd)) {
+    return {
+      label: 'Terbit TTE',
+      badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+    };
+  }
+  if (hasTugas || hasSppd || status === 'PROSES_TTE' || status === 'MENUNGGU_TTE') {
+    return {
+      label: 'Proses TTE',
+      badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+    };
+  }
   switch (status) {
     case 'TERJADWAL':
     case 'DRAFT':
       return {
         label: 'Draft',
         badgeClass: 'bg-slate-500/15 text-slate-400 border-slate-500/30'
-      };
-    case 'MENUNGGU_TTE':
-    case 'PROSES_TTE':
-      return {
-        label: 'Proses TTE',
-        badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-      };
-    case 'SELESAI_TTE':
-    case 'TERBIT_TTE':
-      return {
-        label: 'Terbit TTE',
-        badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30'
       };
     case 'SELESAI':
       return {
@@ -267,13 +267,16 @@ export default function PokjaMonitoringPage() {
         (item.industry.address && item.industry.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
         item.teacher.name.toLowerCase().includes(searchQuery.toLowerCase());
 
+      const hasTugas = Boolean(item.suratTugasUrl);
+      const hasSppd = Boolean(item.sppdUrl);
+
       let matchesStatus = true;
       if (statusFilter === 'DRAFT') {
-        matchesStatus = item.status === 'DRAFT' || item.status === 'TERJADWAL' || !item.status;
+        matchesStatus = (item.status === 'DRAFT' || item.status === 'TERJADWAL' || !item.status) && !hasTugas && !hasSppd;
       } else if (statusFilter === 'PROSES_TTE') {
-        matchesStatus = item.status === 'PROSES_TTE' || item.status === 'MENUNGGU_TTE';
+        matchesStatus = item.status === 'PROSES_TTE' || item.status === 'MENUNGGU_TTE' || ((hasTugas || hasSppd) && !(hasTugas && hasSppd));
       } else if (statusFilter === 'TERBIT_TTE') {
-        matchesStatus = item.status === 'TERBIT_TTE' || item.status === 'SELESAI_TTE';
+        matchesStatus = item.status === 'TERBIT_TTE' || item.status === 'SELESAI_TTE' || (hasTugas && hasSppd);
       } else if (statusFilter === 'SELESAI') {
         matchesStatus = item.status === 'SELESAI';
       } else if (statusFilter !== 'ALL') {
@@ -289,10 +292,15 @@ export default function PokjaMonitoringPage() {
   // Statistik Ringkas
   const stats = useMemo(() => {
     const total = assignments.length;
-    const terjadwal = assignments.filter((a) => a.status === 'TERJADWAL').length;
+    const terbitTte = assignments.filter(
+      (a) => a.status === 'SELESAI_TTE' || a.status === 'TERBIT_TTE' || (Boolean(a.suratTugasUrl) && Boolean(a.sppdUrl))
+    ).length;
+    const terjadwal = assignments.filter(
+      (a) => (a.status === 'TERJADWAL' || a.status === 'DRAFT') && !a.suratTugasUrl && !a.sppdUrl
+    ).length;
     const selesai = assignments.filter((a) => a.status === 'SELESAI').length;
     const uniqueIndustries = new Set(assignments.map((a) => a.industry.id)).size;
-    return { total, terjadwal, selesai, uniqueIndustries };
+    return { total, terjadwal, terbitTte, selesai, uniqueIndustries };
   }, [assignments]);
 
   // Helper sinkronisasi Tempat Tujuan SPPD otomatis berdasarkan Industri Utama + Rute
@@ -708,7 +716,7 @@ export default function PokjaMonitoringPage() {
       )}
 
       {/* 📊 STATISTIK CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div
           className={`p-5 rounded-2xl border transition-all ${
             theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
@@ -736,7 +744,22 @@ export default function PokjaMonitoringPage() {
             </div>
           </div>
           <h3 className="text-2xl font-bold text-amber-500 mt-2">{stats.terjadwal}</h3>
-          <p className="text-[11px] text-slate-400 mt-0.5">Menunggu kunjungan</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Menunggu proses/TTE</p>
+        </div>
+
+        <div
+          className={`p-5 rounded-2xl border transition-all ${
+            theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Terbit TTE</p>
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+          </div>
+          <h3 className="text-2xl font-bold text-emerald-500 mt-2">{stats.terbitTte}</h3>
+          <p className="text-[11px] text-slate-400 mt-0.5">Dokumen TTE siap unduh</p>
         </div>
 
         <div
@@ -746,11 +769,11 @@ export default function PokjaMonitoringPage() {
         >
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Industri Tujuan</p>
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500">
+            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500">
               <Building2 className="w-5 h-5" />
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-emerald-500 mt-2">{stats.uniqueIndustries}</h3>
+          <h3 className="text-2xl font-bold text-purple-500 mt-2">{stats.uniqueIndustries}</h3>
           <p className="text-[11px] text-slate-400 mt-0.5">Mitra DUDI termonitor</p>
         </div>
 
@@ -1036,20 +1059,35 @@ export default function PokjaMonitoringPage() {
                       {/* Status */}
                       <td className="py-4 px-4 text-center">
                         {(() => {
-                          const sBadge = getStatusBadge(assignment.status);
+                          const hasTugas = Boolean(assignment.suratTugasUrl);
+                          const hasSppd = Boolean(assignment.sppdUrl);
+                          const sBadge = getStatusBadge(assignment.status, hasTugas, hasSppd);
                           return (
-                            <span
-                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${sBadge.badgeClass}`}
-                            >
-                              {sBadge.label}
-                            </span>
+                            <div className="flex flex-col items-center gap-1">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${sBadge.badgeClass}`}
+                              >
+                                {sBadge.label}
+                              </span>
+                              {(hasTugas || hasSppd) && (
+                                <div className="flex items-center gap-1 text-[9px] font-semibold text-slate-400">
+                                  <span className={hasTugas ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
+                                    Tugas {hasTugas ? '✓' : '✗'}
+                                  </span>
+                                  <span>•</span>
+                                  <span className={hasSppd ? 'text-teal-400 font-bold' : 'text-slate-500'}>
+                                    SPPD {hasSppd ? '✓' : '✗'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           );
                         })()}
                       </td>
 
                       {/* Dokumen & Cetak */}
                       <td className="py-4 px-6 text-center">
-                        <div className="flex items-center justify-center space-x-1.5">
+                        <div className="flex items-center justify-center space-x-1.5 flex-wrap gap-y-1.5">
                           {/* Tombol Surat Tugas (Pratinjau) */}
                           <button
                             onClick={() =>
@@ -1087,7 +1125,7 @@ export default function PokjaMonitoringPage() {
                                 useTteTags: true,
                               })
                             }
-                            className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-bold border border-emerald-500/30 transition-all cursor-pointer shadow-sm"
+                            className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-purple-600/15 hover:bg-purple-600 text-purple-400 hover:text-white text-xs font-bold border border-purple-500/30 transition-all cursor-pointer shadow-sm"
                             title="Pratinjau & Cetak SPPD TTE Jateng"
                           >
                             <FileText className="w-3.5 h-3.5" />
@@ -1098,11 +1136,39 @@ export default function PokjaMonitoringPage() {
                           <a
                             href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=sppd&tte=true`}
                             download
-                            className="p-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer"
+                            className="p-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-600 text-purple-400 hover:text-white border border-purple-500/20 transition-all cursor-pointer"
                             title="Unduh File DOCX SPPD"
                           >
                             <Download className="w-3.5 h-3.5" />
                           </a>
+
+                          {/* 🌟 Tautan PDF TTE Surat Tugas Terbit */}
+                          {assignment.suratTugasUrl && (
+                            <a
+                              href={assignment.suratTugasUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-bold border border-emerald-500/30 transition-all cursor-pointer shadow-sm"
+                              title="Buka / Unduh Berkas PDF Surat Tugas TTE Resmi yang Terbit"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              <span>PDF Tugas TTE</span>
+                            </a>
+                          )}
+
+                          {/* 🌟 Tautan PDF TTE SPPD Terbit */}
+                          {assignment.sppdUrl && (
+                            <a
+                              href={assignment.sppdUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-600 text-teal-400 hover:text-white text-xs font-bold border border-teal-500/30 transition-all cursor-pointer shadow-sm"
+                              title="Buka / Unduh Berkas PDF SPPD TTE Resmi yang Terbit"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              <span>PDF SPPD TTE</span>
+                            </a>
+                          )}
                         </div>
                       </td>
 
@@ -1110,7 +1176,12 @@ export default function PokjaMonitoringPage() {
                       <td className="py-4 px-4 text-right">
                         <div className="flex items-center justify-end space-x-1.5">
                           
-                          {assignment.status !== 'MENUNGGU_TTE' && assignment.status !== 'SELESAI_TTE' && (
+                          {assignment.status !== 'MENUNGGU_TTE' &&
+                            assignment.status !== 'PROSES_TTE' &&
+                            assignment.status !== 'SELESAI_TTE' &&
+                            assignment.status !== 'TERBIT_TTE' &&
+                            !assignment.suratTugasUrl &&
+                            !assignment.sppdUrl && (
                             <button
                               onClick={async () => {
                                 if (!confirm('Anda yakin ingin mengirim penugasan ini ke Tata Usaha untuk di-TTE?')) return;
