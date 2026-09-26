@@ -847,20 +847,21 @@ export function buildLaporanXml(
   const headmasterName = options?.schoolSetting?.headmaster || 'Joko Pramono, S.Pd., M.Ds';
   const headmasterNip = options?.schoolSetting?.headmasterNip || '19690317 199802 1 004';
 
-  const kopParagraphMatch = baseXml.match(/<w:p\b[\s\S]*?<w:drawing>[\s\S]*?<\/w:drawing>[\s\S]*?<\/w:p>/);
-  const kopParagraph = kopParagraphMatch ? kopParagraphMatch[0] : '<w:p/>';
+  const drawingMatch = baseXml.match(/<w:r\b[^>]*>[\s\S]*?<w:drawing>[\s\S]*?<\/w:drawing>[\s\S]*?<\/w:r>/);
+  const kopDrawing = drawingMatch ? drawingMatch[0] : '';
+  const kopParagraph = `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>${kopDrawing}</w:p>`;
 
   const tteSignatureLeftDocx = useTte
     ? `
-      <w:p><w:pPr><w:spacing w:before="600" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>\${ttd_pengirim}</w:t></w:r></w:p>
-      <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:u w:val="single"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>\${nama_pengirim}</w:t></w:r></w:p>
-      <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Pembina Utama Muda, IV/c</w:t></w:r></w:p>
-      <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>NIP. \${nip_pengirim}</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:before="450" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr><w:t>\${ttd_pengirim}</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:u w:val="single"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>\${nama_pengirim}</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Pembina Utama Muda, IV/c</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>NIP. \${nip_pengirim}</w:t></w:r></w:p>
     `
     : `
-      <w:p><w:pPr><w:spacing w:before="900" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:u w:val="single"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(headmasterName)}</w:t></w:r></w:p>
-      <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Pembina Utama Muda, IV/c</w:t></w:r></w:p>
-      <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>NIP. ${escapeXml(headmasterNip)}</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:before="750" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:u w:val="single"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(headmasterName)}</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Pembina Utama Muda, IV/c</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>NIP. ${escapeXml(headmasterNip)}</w:t></w:r></w:p>
     `;
 
   const pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
@@ -868,35 +869,59 @@ export function buildLaporanXml(
   const sheets = allTeachers.map((teacher) => {
     return `
       ${kopParagraph}
-      <w:p><w:pPr><w:spacing w:before="600" w:after="100"/></w:pPr></w:p>
+      
+      <!-- Nomor & Lembar ke (Rata Kanan) -->
       <w:tbl>
         <w:tblPr>
+          <w:tblW w:w="4200" w:type="dxa"/>
           <w:jc w:val="right"/>
           <w:tblBorders>
             <w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/>
           </w:tblBorders>
+          <w:tblCellMar>
+            <w:top w:w="15" w:type="dxa"/><w:bottom w:w="15" w:type="dxa"/><w:left w:w="40" w:type="dxa"/><w:right w:w="40" w:type="dxa"/>
+          </w:tblCellMar>
         </w:tblPr>
         <w:tblGrid>
           <w:gridCol w:w="1200"/>
           <w:gridCol w:w="200"/>
-          <w:gridCol w:w="2600"/>
+          <w:gridCol w:w="2800"/>
         </w:tblGrid>
         <w:tr>
-          <w:tc><w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>No</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>:</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(docNumber)}</w:t></w:r></w:p></w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="1200" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>No</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="200" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>:</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="2800" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>${escapeXml(docNumber)}</w:t></w:r></w:p>
+          </w:tc>
         </w:tr>
         <w:tr>
-          <w:tc><w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Lembar ke</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>:</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>3</w:t></w:r></w:p></w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="1200" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>Lembar ke</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="200" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>:</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="2800" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>3</w:t></w:r></w:p>
+          </w:tc>
         </w:tr>
       </w:tbl>
 
+      <!-- Judul Dokumen -->
       <w:p>
         <w:pPr>
           <w:jc w:val="center"/>
-          <w:spacing w:before="240" w:after="300"/>
+          <w:spacing w:before="160" w:after="200"/>
         </w:pPr>
         <w:r>
           <w:rPr>
@@ -910,43 +935,77 @@ export function buildLaporanXml(
         </w:r>
       </w:p>
 
+      <!-- Identitas Petugas -->
       <w:tbl>
         <w:tblPr>
+          <w:tblW w:w="9900" w:type="dxa"/>
+          <w:jc w:val="center"/>
           <w:tblBorders>
             <w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/>
           </w:tblBorders>
+          <w:tblCellMar>
+            <w:top w:w="25" w:type="dxa"/><w:bottom w:w="25" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:right w:w="40" w:type="dxa"/>
+          </w:tblCellMar>
         </w:tblPr>
         <w:tblGrid>
-          <w:gridCol w:w="1600"/>
-          <w:gridCol w:w="300"/>
-          <w:gridCol w:w="7500"/>
+          <w:gridCol w:w="1400"/>
+          <w:gridCol w:w="250"/>
+          <w:gridCol w:w="8250"/>
         </w:tblGrid>
         <w:tr>
-          <w:tc><w:p><w:pPr><w:spacing w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr><w:t>Nama</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr><w:t>:</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr><w:t>${escapeXml(teacher.name)}</w:t></w:r></w:p></w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="1400" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Nama</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="250" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>:</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="8250" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(teacher.name)}</w:t></w:r></w:p>
+          </w:tc>
         </w:tr>
         <w:tr>
-          <w:tc><w:p><w:pPr><w:spacing w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr><w:t>NIP</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr><w:t>:</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr><w:t>${escapeXml(teacher.nip)}</w:t></w:r></w:p></w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="1400" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>NIP</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="250" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>:</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="8250" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(teacher.nip)}</w:t></w:r></w:p>
+          </w:tc>
         </w:tr>
         <w:tr>
-          <w:tc><w:p><w:pPr><w:spacing w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr><w:t>Jabatan</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr><w:t>:</w:t></w:r></w:p></w:tc>
-          <w:tc><w:p><w:pPr><w:spacing w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr><w:t>Guru</w:t></w:r></w:p></w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="1400" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Jabatan</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="250" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>:</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="8250" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Guru</w:t></w:r></w:p>
+          </w:tc>
         </w:tr>
       </w:tbl>
 
+      <!-- Laporan Singkat -->
       <w:p>
         <w:pPr>
-          <w:spacing w:before="240" w:after="120"/>
+          <w:spacing w:before="140" w:after="40"/>
         </w:pPr>
         <w:r>
           <w:rPr>
             <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
-            <w:sz w:val="23"/>
-            <w:szCs w:val="23"/>
+            <w:sz w:val="22"/>
+            <w:szCs w:val="22"/>
           </w:rPr>
           <w:t>Laporan Singkat :</w:t>
         </w:r>
@@ -954,80 +1013,116 @@ export function buildLaporanXml(
       <w:p>
         <w:pPr>
           <w:jc w:val="both"/>
-          <w:spacing w:line="340" w:lineRule="auto" w:after="240"/>
+          <w:spacing w:line="280" w:lineRule="auto" w:before="0" w:after="160"/>
         </w:pPr>
         <w:r>
           <w:rPr>
             <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
-            <w:sz w:val="23"/>
-            <w:szCs w:val="23"/>
+            <w:sz w:val="22"/>
+            <w:szCs w:val="22"/>
           </w:rPr>
           <w:t>Telah melaksanakan kegiatan ${escapeXml(cleanPurpose)} ${escapeXml(dayDatePhrase)} di ${escapeXml(industryText)}</w:t>
         </w:r>
       </w:p>
+
+      <!-- Catatan (Label + 3 Garis Bergaris Ruled Lines) -->
       <w:p>
         <w:pPr>
-          <w:pBdr>
-            <w:bottom w:val="single" w:sz="6" w:space="1" w:color="000000"/>
-          </w:pBdr>
-          <w:spacing w:before="120" w:after="160"/>
+          <w:spacing w:before="120" w:after="40"/>
         </w:pPr>
         <w:r>
           <w:rPr>
             <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
-            <w:sz w:val="23"/>
-            <w:szCs w:val="23"/>
+            <w:sz w:val="22"/>
+            <w:szCs w:val="22"/>
           </w:rPr>
           <w:t>Catatan:</w:t>
         </w:r>
       </w:p>
-      <w:p>
-        <w:pPr>
-          <w:pBdr>
-            <w:bottom w:val="single" w:sz="6" w:space="1" w:color="000000"/>
-          </w:pBdr>
-          <w:spacing w:before="240" w:after="160"/>
-        </w:pPr>
-        <w:r><w:t></w:t></w:r>
-      </w:p>
-      <w:p>
-        <w:pPr>
-          <w:pBdr>
-            <w:bottom w:val="single" w:sz="6" w:space="1" w:color="000000"/>
-          </w:pBdr>
-          <w:spacing w:before="240" w:after="300"/>
-        </w:pPr>
-        <w:r><w:t></w:t></w:r>
-      </w:p>
-
       <w:tbl>
         <w:tblPr>
+          <w:tblW w:w="9900" w:type="dxa"/>
+          <w:jc w:val="center"/>
+          <w:tblBorders>
+            <w:top w:val="none"/>
+            <w:left w:val="none"/>
+            <w:bottom w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+            <w:right w:val="none"/>
+            <w:insideH w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+            <w:insideV w:val="none"/>
+          </w:tblBorders>
+          <w:tblCellMar>
+            <w:top w:w="0" w:type="dxa"/>
+            <w:bottom w:w="0" w:type="dxa"/>
+            <w:left w:w="0" w:type="dxa"/>
+            <w:right w:w="0" w:type="dxa"/>
+          </w:tblCellMar>
+        </w:tblPr>
+        <w:tblGrid>
+          <w:gridCol w:w="9900"/>
+        </w:tblGrid>
+        <w:tr>
+          <w:trPr><w:trHeight w:val="380" w:hRule="atLeast"/></w:trPr>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="9900" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+          </w:tc>
+        </w:tr>
+        <w:tr>
+          <w:trPr><w:trHeight w:val="380" w:hRule="atLeast"/></w:trPr>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="9900" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+          </w:tc>
+        </w:tr>
+        <w:tr>
+          <w:trPr><w:trHeight w:val="380" w:hRule="atLeast"/></w:trPr>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="9900" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+          </w:tc>
+        </w:tr>
+      </w:tbl>
+
+      <!-- Jarak sebelum Tanda Tangan -->
+      <w:p><w:pPr><w:spacing w:before="180" w:after="0"/></w:pPr></w:p>
+
+      <!-- Dua Kolom Tanda Tangan -->
+      <w:tbl>
+        <w:tblPr>
+          <w:tblW w:w="9900" w:type="dxa"/>
+          <w:jc w:val="center"/>
           <w:tblBorders>
             <w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/>
           </w:tblBorders>
+          <w:tblCellMar>
+            <w:top w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>
+          </w:tblCellMar>
         </w:tblPr>
         <w:tblGrid>
-          <w:gridCol w:w="5200"/>
-          <w:gridCol w:w="4200"/>
+          <w:gridCol w:w="5500"/>
+          <w:gridCol w:w="4400"/>
         </w:tblGrid>
         <w:tr>
           <w:tc>
-            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Mengetahui,</w:t></w:r></w:p>
-            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Kepala SMK Negeri 1 Adiwerna</w:t></w:r></w:p>
+            <w:tcPr><w:tcW w:w="5500" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Mengetahui,</w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Kepala SMK Negeri 1 Adiwerna</w:t></w:r></w:p>
             ${tteSignatureLeftDocx}
           </w:tc>
           <w:tc>
-            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t xml:space="preserve">Adiwerna,  ${escapeXml(signatureDate)}</w:t></w:r></w:p>
-            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Penyusun,</w:t></w:r></w:p>
-            <w:p><w:pPr><w:spacing w:before="900" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(teacher.name)}</w:t></w:r></w:p>
-            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>NIP.${escapeXml(teacher.nip)}</w:t></w:r></w:p>
+            <w:tcPr><w:tcW w:w="4400" w:type="dxa"/></w:tcPr>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t xml:space="preserve">Adiwerna,  ${escapeXml(signatureDate)}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:line="240" w:lineRule="auto" w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Penyusun,</w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="750" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(teacher.name)}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>NIP. ${escapeXml(teacher.nip)}</w:t></w:r></w:p>
           </w:tc>
         </w:tr>
       </w:tbl>
     `;
   });
 
-  const sectPr = extractSectPr(baseXml);
+  const sectPr = `<w:sectPr><w:pgSz w:w="11906" w:h="16838" w:code="9"/><w:pgMar w:top="500" w:right="1000" w:bottom="700" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
   const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
   const mergedContent = sheets.join(pageBreak);
 
