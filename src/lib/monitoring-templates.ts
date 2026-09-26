@@ -511,11 +511,13 @@ export function generateSuratTugasHtml(
     <div style="width: 100px; flex-shrink: 0;">Untuk</div>
     <div style="width: 25px; flex-shrink: 0;">:</div>
     <div style="flex: 1; text-align: justify;">
+      
       ${
         allIndustries.length === 1
-          ? `Melaksanakan kegiatan Monitoring murid Praktik Kerja Lapangan ${dayAndDateStr} di ${allIndustries[0].name} yang beralamat di ${allIndustries[0].address || '-'}.`
+          ? `${assignment.purpose || 'Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)'} ${dayAndDateStr} di ${allIndustries[0].name} yang beralamat di ${allIndustries[0].address || '-'}.`
           : `
-            <p style="margin: 0 0 6px 0;">Melaksanakan kegiatan Monitoring murid Praktik Kerja Lapangan ${dayAndDateStr} di :</p>
+            <p style="margin: 0 0 6px 0;">${assignment.purpose || 'Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)'} ${dayAndDateStr} di :</p>
+
             <div style="padding-left: 8px;">
               <table style="border-collapse: collapse; border: none; width: 100%; font-family: 'Times New Roman', Times, serif; font-size: 11.5pt;">
                 <tbody>
