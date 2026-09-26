@@ -658,9 +658,9 @@ export function buildSppdXml(
             );
             if (isMany) {
               rowXml = rowXml
-                .replace(/<w:trHeight\b[^>]*\/>/g, '<w:trHeight w:val="680"/>')
-                .replace(/w:after="300"/g, 'w:after="60"')
-                .replace(/w:after="240"/g, 'w:after="60"')
+                .replace(/<w:trHeight\b[^>]*\/>/g, '<w:trHeight w:val="1080"/>')
+                .replace(/w:after="300"/g, 'w:after="280"')
+                .replace(/w:after="240"/g, 'w:after="260"')
                 .replace(/w:sz w:val="20"/g, 'w:sz w:val="18"')
                 .replace(/w:szCs w:val="20"/g, 'w:szCs w:val="18"');
             }

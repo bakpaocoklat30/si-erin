@@ -898,20 +898,20 @@ export function generateSppdHtml(
           .map(
             (row) => `
         <tr>
-          <td style="width: 50%; padding: ${isMany ? '2.5px 5px' : '5px 7px'}; vertical-align: top;">
+          <td style="width: 50%; padding: ${isMany ? '3px 6px' : '5px 7px'}; vertical-align: top;">
             <div><strong>${row.roman}. Tiba di</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${row.tibaName}</div>
             <div style="margin: ${isMany ? '1px 0' : '2px 0'};">Pada Tanggal &nbsp;&nbsp;: </div>
             <div style="margin: ${isMany ? '1px 0' : '2px 0'};">Kepala &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: </div>
-            <div style="height: ${isMany ? '25px' : '44px'};"></div>
+            <div style="height: 42px;"></div>
             <div>( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
             <div style="font-size: 8pt;">NIP. </div>
           </td>
-          <td style="width: 50%; padding: ${isMany ? '2.5px 5px' : '5px 7px'}; vertical-align: top;">
+          <td style="width: 50%; padding: ${isMany ? '3px 6px' : '5px 7px'}; vertical-align: top;">
             <div>Berangkat dari : ${row.tibaName}</div>
             <div>Ke &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${row.nextName}</div>
             <div style="margin: ${isMany ? '1px 0' : '2px 0'};">Pada Tanggal &nbsp;&nbsp;: </div>
             <div style="margin: ${isMany ? '1px 0' : '2px 0'};">Kepala &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: </div>
-            <div style="height: ${isMany ? '25px' : '44px'};"></div>
+            <div style="height: 42px;"></div>
             <div>( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
             <div style="font-size: 8pt;">NIP. </div>
           </td>
