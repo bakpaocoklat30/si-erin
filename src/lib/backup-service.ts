@@ -323,13 +323,13 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   const users = prisma.user ? await prisma.user.findMany() : [];
   const academicYears = prisma.academicYear ? await prisma.academicYear.findMany({ orderBy: { createdAt: 'desc' } }) : [];
   const departments = prisma.department ? await prisma.department.findMany() : [];
-  const classRooms = prisma.classRoom ? await prisma.classRoom.findMany({ include: { period: { include: { academicYear: true } } } }) : [];
-  const internshipPeriods = prisma.internshipPeriod ? await prisma.internshipPeriod.findMany({ include: { academicYear: true, classes: true } }) : [];
+  const classRooms = prisma.classRoom ? await prisma.classRoom.findMany() : [];
+  const internshipPeriods = prisma.internshipPeriod ? await prisma.internshipPeriod.findMany() : [];
   const coefficients = prisma.internshipCoefficient ? await prisma.internshipCoefficient.findMany() : [];
   const categories = prisma.industryCategory ? await prisma.industryCategory.findMany() : [];
   const industries = prisma.industry ? await prisma.industry.findMany() : [];
-  const students = prisma.student ? await prisma.student.findMany({ include: { placement: { include: { industry: true } } } }) : [];
-  const placements = prisma.internshipPlacement ? await prisma.internshipPlacement.findMany({ include: { student: true, industry: true } }) : [];
+  const students = prisma.student ? await prisma.student.findMany() : [];
+  const placements = prisma.internshipPlacement ? await prisma.internshipPlacement.findMany() : [];
   const teacherHours = prisma.teacherHourAllocation ? await prisma.teacherHourAllocation.findMany() : [];
   const systemSettings = prisma.systemSetting ? await prisma.systemSetting.findMany() : [];
   const auditLogs = prisma.auditLog ? await prisma.auditLog.findMany() : [];
