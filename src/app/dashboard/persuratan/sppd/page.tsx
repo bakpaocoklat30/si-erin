@@ -194,11 +194,9 @@ export default function PersuratanSppdPage() {
           };
         });
         setTaskNumberMap(nMap);
-      } else {
-        console.error('Gagal mengambil data tugas persuratan SPPD:', json?.error);
       }
     } catch (err) {
-      console.error('Error saat fetch tugas persuratan SPPD:', err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -2012,17 +2010,21 @@ export default function PersuratanSppdPage() {
                         </button>
                       </div>
                     </div>
-                    <object
-                      data={`${bulkPdfPreviewUrl}#toolbar=1&navpanes=1&view=FitH`}
-                      type="application/pdf"
-                      className="w-full flex-1 border-0"
-                    >
-                      <iframe
-                        src={bulkPdfPreviewUrl}
-                        title="PDF Preview"
-                        className="w-full h-full border-0"
-                      />
-                    </object>
+                    <iframe
+                      src={`${bulkPdfPreviewUrl}#toolbar=1&navpanes=1&view=FitH`}
+                      title="Pratinjau Berkas PDF"
+                      className="w-full flex-1 border-0 bg-white"
+                    />
+                    <div className="px-3 py-1.5 bg-slate-200/80 dark:bg-slate-800/80 border-t border-slate-300 dark:border-slate-700 text-center shrink-0">
+                      <a
+                        href={bulkPdfPreviewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-blue-600 dark:text-blue-400 font-bold hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Klik di sini jika PDF ingin dibuka di Tab Baru
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>
