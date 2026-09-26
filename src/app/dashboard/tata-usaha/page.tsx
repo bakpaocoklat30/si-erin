@@ -38,7 +38,7 @@ export default function TataUsahaDashboardPage() {
       title: 'Surat Penerjunan',
       description: 'Cetak surat tugas pengantaran/penerjunan siswa ke lokasi industri.',
       icon: Truck,
-      href: '/dashboard/persuratan/coming-soon?title=Surat%20Penerjunan',
+      href: '/dashboard/persuratan/penerjunan',
       color: 'from-emerald-500 to-teal-500',
       iconColor: 'text-teal-100'
     },

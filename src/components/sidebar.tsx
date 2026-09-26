@@ -118,7 +118,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
   // ----------------------------------------------------------------------
   const persuratanMenuItems: MenuItem[] = [
     { name: 'Surat Permohonan', href: '/dashboard/persuratan/permohonan', icon: FileText },
-    { name: 'Surat Penerjunan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penerjunan', icon: Truck },
+    { name: 'Surat Penerjunan', href: '/dashboard/persuratan/penerjunan', icon: Truck },
     { name: 'Surat Monitoring', href: '/dashboard/persuratan/coming-soon?title=Surat%20Monitoring', icon: Search },
     { name: 'Surat Penarikan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penarikan', icon: Award },
     { name: 'Template Surat', href: '/dashboard/persuratan/coming-soon?title=Template%20Surat', icon: FileSpreadsheet },
@@ -197,7 +197,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
       groupLabel: 'Manajemen Persuratan PKL',
       items: [
         { name: 'Surat Permohonan', href: '/dashboard/persuratan/permohonan', icon: FileText },
-        { name: 'Surat Penerjunan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penerjunan', icon: Truck },
+        { name: 'Surat Penerjunan', href: '/dashboard/persuratan/penerjunan', icon: Truck },
         { name: 'Surat Tugas & SPPD', href: '/dashboard/persuratan/coming-soon?title=Surat%20Tugas%20%26%20SPPD', icon: Search },
         { name: 'Surat Penarikan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penarikan', icon: Award },
       ]
