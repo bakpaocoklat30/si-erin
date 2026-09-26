@@ -59,50 +59,21 @@ function extractTextFromPdfStreamBuffer(buffer: Buffer): string {
 }
 
 /**
- * Ekstraksi teks dari setiap halaman PDF dengan dukungan PDF terenkripsi/TTE dan dual-engine fallback
+ * Ekstraksi teks dari setiap halaman PDF dengan dukungan PDF terenkripsi/TTE menggunakan pdf-lib & zlib stream
  */
 export async function parsePdfPages(buffer: Buffer): Promise<Array<{ pageNum: number; text: string }>> {
-  // 1. Dapatkan jumlah halaman yang akurat via pdf-lib (dengan ignoreEncryption: true untuk berkas TTE)
+  // 1. Dapatkan jumlah halaman yang akurat via pdf-lib (dengan ignoreEncryption & throwOnInvalidObject: false)
   let totalPages = 1;
   let pdfLibDoc: PDFDocument | null = null;
   try {
-    pdfLibDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+    pdfLibDoc = await PDFDocument.load(buffer, { ignoreEncryption: true, throwOnInvalidObject: false });
     totalPages = pdfLibDoc.getPageCount();
   } catch (err) {
-    console.warn('pdf-lib failed to get page count directly:', err);
+    console.warn('pdf-lib failed to load document directly:', err);
   }
 
-  // 2. Coba engine PDFParse terlebih dahulu
-  try {
-    const { PDFParse } = await import('pdf-parse');
-    const parser = new PDFParse({ data: buffer });
-    try {
-      const res = await parser.getText();
-      if (res && res.pages && res.pages.length > 0) {
-        const pages = res.pages.map((p: any) => ({
-          pageNum: p.num,
-          text: (p.text || '').replace(/\s+/g, ' ').trim(),
-        }));
-
-        // Pastikan teks berhasil diekstrak (tidak kosong melompong)
-        const hasText = pages.some((p: any) => p.text.length > 10);
-        if (hasText) {
-          return pages;
-        }
-      }
-    } finally {
-      try {
-        await parser.destroy();
-      } catch {
-        // ignore
-      }
-    }
-  } catch (parseErr) {
-    console.warn('PDFParse failed, falling back to stream extraction:', parseErr);
-  }
-
-  // 3. Fallback: Ekstraksi halaman per halaman dengan pdf-lib stream decompressor
-  if (pdfLibDoc) {
+  // 2. Ekstraksi halaman per halaman secara presisi
+  if (pdfLibDoc && totalPages > 0) {
     try {
       const pages: Array<{ pageNum: number; text: string }> = [];
       for (let i = 0; i < totalPages; i++) {
@@ -123,11 +94,11 @@ export async function parsePdfPages(buffer: Buffer): Promise<Array<{ pageNum: nu
       }
       return pages;
     } catch (streamErr) {
-      console.error('Stream fallback extraction failed:', streamErr);
+      console.error('Stream extraction failed:', streamErr);
     }
   }
 
-  // Fallback terakhir: ekstraksi seluruh buffer
+  // Fallback: ekstraksi seluruh buffer
   const globalText = extractTextFromPdfStreamBuffer(buffer);
   return [{ pageNum: 1, text: globalText }];
 }
@@ -187,26 +158,6 @@ export function cleanIndustryName(name?: string | null): string {
     .trim();
 }
 
-/**
- * Ekstraksi teks dari setiap halaman PDF
- */
-export async function parsePdfPages(buffer: Buffer): Promise<Array<{ pageNum: number; text: string }>> {
-  const parser = new PDFParse({ data: buffer });
-  try {
-    const res = await parser.getText();
-    const pages = (res.pages || []).map((p: any) => ({
-      pageNum: p.num,
-      text: p.text || '',
-    }));
-    return pages;
-  } finally {
-    try {
-      await parser.destroy();
-    } catch {
-      // ignore
-    }
-  }
-}
 
 /**
  * Deteksi segmentasi dokumen (Surat Tugas vs SPPD) berdasarkan isi halaman
@@ -472,7 +423,10 @@ export async function extractAndSaveSegmentPdf(
   assignmentId: string
 ): Promise<{ fileName: string; fileUrl: string; buffer: Buffer }> {
   const newPdf = await PDFDocument.create();
-  const copiedPages = await newPdf.copyPages(sourcePdfDoc, segment.pageIndices);
+  const pageCount = sourcePdfDoc.getPageCount();
+  const validIndices = segment.pageIndices.filter((idx) => typeof idx === 'number' && idx >= 0 && idx < pageCount);
+  const targetIndices = validIndices.length > 0 ? validIndices : [0];
+  const copiedPages = await newPdf.copyPages(sourcePdfDoc, targetIndices);
   copiedPages.forEach((p) => newPdf.addPage(p));
   const pdfBytes = await newPdf.save();
   const buffer = Buffer.from(pdfBytes);

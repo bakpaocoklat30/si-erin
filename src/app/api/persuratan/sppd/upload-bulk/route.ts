@@ -11,6 +11,7 @@ import {
   DocumentSegment,
 } from '@/lib/pdf-splitter';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
@@ -120,57 +121,78 @@ export async function POST(req: NextRequest) {
     }
 
     // 6. Jika COMMIT: Ekstrak PDF per segment dan simpan ke database
-    const sourcePdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
+    let sourcePdfDoc: PDFDocument;
+    try {
+      sourcePdfDoc = await PDFDocument.load(pdfBuffer, {
+        ignoreEncryption: true,
+        throwOnInvalidObject: false,
+      });
+    } catch (loadErr: any) {
+      console.error('Failed to load sourcePdfDoc:', loadErr);
+      return NextResponse.json(
+        { error: `Gagal memuat dokumen PDF: ${loadErr?.message || 'Format PDF tidak valid atau rusak'}` },
+        { status: 400 }
+      );
+    }
+
     const updatedAssignments: any[] = [];
 
     for (const item of matchedResults) {
-      const { fileName, fileUrl } = await extractAndSaveSegmentPdf(
-        sourcePdfDoc,
-        item.segment,
-        item.assignment.id
-      );
+      try {
+        const { fileName, fileUrl } = await extractAndSaveSegmentPdf(
+          sourcePdfDoc,
+          item.segment,
+          item.assignment.id
+        );
 
-      item.savedFileName = fileName;
-      item.savedFileUrl = fileUrl;
+        item.savedFileName = fileName;
+        item.savedFileUrl = fileUrl;
 
-      // Update data di database
-      const updateData: any = {};
-      if (item.segment.docType === 'TUGAS') {
-        updateData.suratTugasUrl = fileUrl;
-      } else {
-        updateData.sppdUrl = fileUrl;
-      }
-
-      // Cek apakah kedua berkas sudah terunggah
-      const curTask = await db.monitoringAssignment.findUnique({
-        where: { id: item.assignment.id },
-      });
-
-      const hasTugas = item.segment.docType === 'TUGAS' || Boolean(curTask?.suratTugasUrl);
-      const hasSppd = item.segment.docType === 'SPPD' || Boolean(curTask?.sppdUrl);
-
-      if (hasTugas && hasSppd) {
-        updateData.status = 'SELESAI_TTE';
-      }
-
-      const updated = await db.monitoringAssignment.update({
-        where: { id: item.assignment.id },
-        data: updateData,
-        include: {
-          teacher: { select: { name: true, nip: true } },
-          industry: { select: { name: true } },
+        // Update data di database
+        const updateData: any = {};
+        if (item.segment.docType === 'TUGAS') {
+          updateData.suratTugasUrl = fileUrl;
+        } else {
+          updateData.sppdUrl = fileUrl;
         }
-      });
 
-      updatedAssignments.push({
-        id: updated.id,
-        teacherName: updated.teacher.name,
-        industryName: updated.industry.name,
-        docType: item.segment.docType,
-        pageNumbers: item.segment.pageNumbers,
-        fileUrl,
-        status: updated.status,
-      });
+        // Cek apakah kedua berkas sudah terunggah
+        const curTask = await db.monitoringAssignment.findUnique({
+          where: { id: item.assignment.id },
+        });
+
+        const hasTugas = item.segment.docType === 'TUGAS' || Boolean(curTask?.suratTugasUrl);
+        const hasSppd = item.segment.docType === 'SPPD' || Boolean(curTask?.sppdUrl);
+
+        if (hasTugas && hasSppd) {
+          updateData.status = 'SELESAI_TTE';
+        }
+
+        const updated = await db.monitoringAssignment.update({
+          where: { id: item.assignment.id },
+          data: updateData,
+          include: {
+            teacher: { select: { name: true, nip: true } },
+            industry: { select: { name: true } },
+          },
+        });
+
+        updatedAssignments.push({
+          id: updated.id,
+          teacherName: updated.teacher?.name || '-',
+          industryName: updated.industry?.name || '-',
+          docType: item.segment.docType,
+          pageNumbers: item.segment.pageNumbers,
+          fileUrl,
+          status: updated.status,
+        });
+      } catch (segmentErr: any) {
+        console.error(`Gagal memisahkan segment halaman ${item.segment.pageNumbers.join(',')}:`, segmentErr);
+        unmatchedResults.push({
+          segment: item.segment,
+          reason: `Gagal memisahkan halaman PDF: ${segmentErr?.message || 'Kesalahan pemisahan berkas'}`,
+        });
+      }
     }
 
     return NextResponse.json({

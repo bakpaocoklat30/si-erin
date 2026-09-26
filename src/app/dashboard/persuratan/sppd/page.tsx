@@ -620,7 +620,10 @@ export default function PersuratanSppdPage() {
       try {
         json = JSON.parse(text);
       } catch {
-        throw new Error(`Respon server (${res.status} ${res.statusText}): ${text.substring(0, 150) || 'Bukan format JSON'}`);
+        const matchPre = text.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+        const matchH1 = text.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+        const errDetail = matchPre?.[1]?.replace(/<[^>]+>/g, '').trim() || matchH1?.[1]?.replace(/<[^>]+>/g, '').trim();
+        throw new Error(errDetail || `Respon server (${res.status} ${res.statusText})`);
       }
 
       if (res.ok && json?.success) {
@@ -658,7 +661,10 @@ export default function PersuratanSppdPage() {
       try {
         json = JSON.parse(text);
       } catch {
-        throw new Error(`Respon server (${res.status} ${res.statusText}): ${text.substring(0, 150) || 'Bukan format JSON'}`);
+        const matchPre = text.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+        const matchH1 = text.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+        const errDetail = matchPre?.[1]?.replace(/<[^>]+>/g, '').trim() || matchH1?.[1]?.replace(/<[^>]+>/g, '').trim();
+        throw new Error(errDetail || `Respon server (${res.status} ${res.statusText})`);
       }
 
       if (res.ok && json?.success) {
