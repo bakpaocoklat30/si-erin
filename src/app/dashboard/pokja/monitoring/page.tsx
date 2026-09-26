@@ -96,7 +96,7 @@ function getStatusBadge(status: string = 'TERJADWAL') {
   }
 }
 
-function getAssignmentType(purpose: string = '') {
+function getAssignmentType(purpose?: string | null) {
   const p = (purpose || '').toLowerCase();
   if (p.includes('penerjunan') || p.includes('pengantaran')) {
     return {

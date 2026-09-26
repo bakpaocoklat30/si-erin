@@ -36,17 +36,31 @@ function escapeXml(unsafe: any): string {
  * 📜 GENERATE SURAT TUGAS MONITORING PKL (.docx)
  * Injects teacher data, dates, and industry details directly into template/Surat Tugas Monitoring PKL.docx
  */
-export async function generateSuratTugasDocx(
+
+function extractBodyContent(xml: string): string {
+  const bodyStartIdx = xml.indexOf('<w:body>') + '<w:body>'.length;
+  const sectPrIdx = xml.lastIndexOf('<w:sectPr');
+  if (sectPrIdx !== -1) {
+    return xml.substring(bodyStartIdx, sectPrIdx);
+  }
+  const bodyEndIdx = xml.lastIndexOf('</w:body>');
+  return xml.substring(bodyStartIdx, bodyEndIdx);
+}
+
+function extractSectPr(xml: string): string {
+  const sectPrStart = xml.lastIndexOf('<w:sectPr');
+  if (sectPrStart === -1) return '';
+  const sectPrEnd = xml.indexOf('</w:sectPr>', sectPrStart);
+  if (sectPrEnd === -1) return '';
+  return xml.substring(sectPrStart, sectPrEnd + '</w:sectPr>'.length);
+}
+
+export function buildSuratTugasXml(
+  baseXml: string,
   assignment: MonitoringAssignmentData,
   options?: GeneratorOptions
-): Promise<Buffer> {
-  const templatePath = path.join(process.cwd(), 'template', 'Surat Tugas Monitoring PKL.docx');
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`File template tidak ditemukan di: ${templatePath}`);
-  }
-
-  const zip = new AdmZip(templatePath);
-  let xml = zip.readAsText('word/document.xml');
+): string {
+  let xml = baseXml;
 
   const useTte = options?.useTteTags !== false;
   const letterNo =
@@ -239,7 +253,59 @@ export async function generateSuratTugasDocx(
     );
   }
 
+  return xml;
+}
+
+export async function generateSuratTugasDocx(
+  assignment: MonitoringAssignmentData,
+  options?: GeneratorOptions
+): Promise<Buffer> {
+  const templatePath = path.join(process.cwd(), 'template', 'Surat Tugas Monitoring PKL.docx');
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`File template Surat Tugas tidak ditemukan di: ${templatePath}`);
+  }
+  const zip = new AdmZip(templatePath);
+  const baseXml = zip.readAsText('word/document.xml');
+  const xml = buildSuratTugasXml(baseXml, assignment, options);
   zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
+  return zip.toBuffer();
+}
+
+export async function generateMergedSuratTugasDocx(
+  assignments: MonitoringAssignmentData[],
+  options?: GeneratorOptions
+): Promise<Buffer> {
+  if (!assignments || assignments.length === 0) {
+    throw new Error('Tidak ada penugasan yang dipilih.');
+  }
+  if (assignments.length === 1) {
+    return generateSuratTugasDocx(assignments[0], options);
+  }
+
+  const templatePath = path.join(process.cwd(), 'template', 'Surat Tugas Monitoring PKL.docx');
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`File template Surat Tugas tidak ditemukan di: ${templatePath}`);
+  }
+  const zip = new AdmZip(templatePath);
+  const baseXml = zip.readAsText('word/document.xml');
+
+  const pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  const bodyContents: string[] = [];
+
+  for (const item of assignments) {
+    const xml = buildSuratTugasXml(baseXml, item, options);
+    bodyContents.push(extractBodyContent(xml));
+  }
+
+  const sectPr = extractSectPr(baseXml);
+  const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
+  const mergedXml =
+    baseXml.substring(0, bodyStartIdx) +
+    bodyContents.join(pageBreak) +
+    sectPr +
+    '</w:body></w:document>';
+
+  zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();
 }
 
@@ -268,17 +334,12 @@ function toRoman(num: number): string {
  * Dinamis mendukung banyak guru yang ditugaskan, banyak industri tujuan, dan banyak hari.
  * Mengikuti format resmi dokumen fisik Pemerintah Provinsi Jawa Tengah & SMKN 1 Adiwerna.
  */
-export async function generateSppdDocx(
+export function buildSppdXml(
+  baseXml: string,
   assignment: MonitoringAssignmentData,
   options?: GeneratorOptions
-): Promise<Buffer> {
-  const templatePath = path.join(process.cwd(), 'template', 'SPPD TTE.docx');
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`File template SPPD tidak ditemukan di: ${templatePath}`);
-  }
-
-  const zip = new AdmZip(templatePath);
-  let xml = zip.readAsText('word/document.xml');
+): string {
+  let xml = baseXml;
 
   const useTte = options?.useTteTags !== false;
   const sppdNo =
@@ -647,6 +708,58 @@ export async function generateSppdDocx(
     xml = xml.replace(/\${nip_pengirim}/g, escapeXml(headmasterNip));
   }
 
+  return xml;
+}
+
+export async function generateSppdDocx(
+  assignment: MonitoringAssignmentData,
+  options?: GeneratorOptions
+): Promise<Buffer> {
+  const templatePath = path.join(process.cwd(), 'template', 'SPPD TTE.docx');
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`File template SPPD tidak ditemukan di: ${templatePath}`);
+  }
+  const zip = new AdmZip(templatePath);
+  const baseXml = zip.readAsText('word/document.xml');
+  const xml = buildSppdXml(baseXml, assignment, options);
   zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
+  return zip.toBuffer();
+}
+
+export async function generateMergedSppdDocx(
+  assignments: MonitoringAssignmentData[],
+  options?: GeneratorOptions
+): Promise<Buffer> {
+  if (!assignments || assignments.length === 0) {
+    throw new Error('Tidak ada penugasan yang dipilih.');
+  }
+  if (assignments.length === 1) {
+    return generateSppdDocx(assignments[0], options);
+  }
+
+  const templatePath = path.join(process.cwd(), 'template', 'SPPD TTE.docx');
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`File template SPPD tidak ditemukan di: ${templatePath}`);
+  }
+  const zip = new AdmZip(templatePath);
+  const baseXml = zip.readAsText('word/document.xml');
+
+  const pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  const bodyContents: string[] = [];
+
+  for (const item of assignments) {
+    const xml = buildSppdXml(baseXml, item, options);
+    bodyContents.push(extractBodyContent(xml));
+  }
+
+  const sectPr = extractSectPr(baseXml);
+  const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
+  const mergedXml =
+    baseXml.substring(0, bodyStartIdx) +
+    bodyContents.join(pageBreak) +
+    sectPr +
+    '</w:body></w:document>';
+
+  zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();
 }
