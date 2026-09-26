@@ -957,3 +957,241 @@ export function generateSppdHtml(
 </html>
   `;
 }
+
+/**
+ * 📋 GENERATOR LEMBAR LAPORAN HASIL KEGIATAN (LEMBAR KE-3 SPPD / MONITORING TTE JATENG)
+ */
+export function generateLaporanHasilKegiatanHtml(
+  assignment: MonitoringAssignmentData,
+  options?: GeneratorOptions
+): string {
+  const useTte = options?.useTteTags !== false;
+  const docNumber =
+    assignment.sppdNumber && assignment.sppdNumber.trim() !== '' && assignment.sppdNumber !== '${nomor_naskah}'
+      ? assignment.sppdNumber
+      : assignment.letterNumber && assignment.letterNumber.trim() !== '' && assignment.letterNumber !== '${nomor_naskah}'
+      ? assignment.letterNumber
+      : useTte
+      ? '${nomor_naskah}'
+      : '800.1.11.1 /        /2026';
+
+  // Guru Utama & Guru Pendamping
+  const mainTeacher = assignment.teacher;
+  const companionList = parseCompanionTeachers(assignment.companionTeachers);
+  const allTeachers = [
+    {
+      name: mainTeacher.name,
+      nip: mainTeacher.nip || mainTeacher.username || '-',
+      role: 'Guru',
+    },
+    ...companionList.map((c) => ({
+      name: c.name,
+      nip: c.nip || '-',
+      role: 'Guru',
+    })),
+  ];
+
+  // Industri & Alamat
+  const rawTargetIndustries = parseTargetIndustries(assignment.targetIndustries);
+  const allIndustries = [
+    {
+      name: assignment.industry.name,
+      address: assignment.industry.address || assignment.industry.regency || '',
+    },
+    ...rawTargetIndustries.map((ind: any) => ({
+      name: ind.name,
+      address: ind.address || ind.regency || '',
+    })),
+  ];
+
+  let industryText = '';
+  if (allIndustries.length === 1) {
+    const ind = allIndustries[0];
+    industryText = `${ind.name}${ind.address ? ' di ' + ind.address : ''}`;
+  } else {
+    industryText = allIndustries.map((ind) => `${ind.name}${ind.address ? ' di ' + ind.address : ''}`).join(', ');
+  }
+
+  // Bersihkan teks maksud penugasan agar naratif alami
+  let cleanPurpose = (assignment.purpose || 'Monitoring Murid Praktek Kerja Lapangan').trim();
+  cleanPurpose = cleanPurpose.replace(/^melaksanakan\s+kegiatan\s+/i, '');
+
+  // Format Hari dan Tanggal
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const startDate = new Date(assignment.monitoringDate);
+  const startDay = isNaN(startDate.getTime()) ? '' : days[startDate.getDay()];
+  const returnDate = assignment.returnDate ? new Date(assignment.returnDate) : null;
+  const isMultiDay = returnDate && !isNaN(returnDate.getTime()) && returnDate.getTime() !== startDate.getTime();
+
+  let dayDatePhrase = '';
+  if (isMultiDay && returnDate) {
+    const endDay = days[returnDate.getDay()];
+    dayDatePhrase = `pada hari ${startDay} - ${endDay} tanggal ${formatIndonesianDateRange(startDate, returnDate)}`;
+  } else {
+    dayDatePhrase = `pada hari ${startDay}  tanggal  ${formatIndonesianDate(assignment.monitoringDate)}`;
+  }
+
+  const signatureDate = formatIndonesianDate(assignment.returnDate || assignment.monitoringDate);
+  const headmasterName = options?.schoolSetting?.headmaster || 'Joko Pramono, S.Pd., M.Ds';
+  const headmasterNip = options?.schoolSetting?.headmasterNip || '19690317 199802 1 004';
+
+  const tteSignatureBlock = useTte
+    ? `
+      <div style="height: 60px; display: flex; align-items: center;">
+        <span style="font-family: monospace; font-size: 9.5pt; color: #334155; background: #f8fafc; padding: 2px 8px; border: 1px dashed #cbd5e1; border-radius: 4px;">
+          \${ttd_pengirim}
+        </span>
+      </div>
+      <p style="margin: 0; font-weight: bold; text-decoration: underline;">\${nama_pengirim}</p>
+      <p style="margin: 2px 0 0 0;">Pembina Utama Muda, IV/c</p>
+      <p style="margin: 2px 0 0 0;">NIP. \${nip_pengirim}</p>
+    `
+    : `
+      <div style="height: 60px;"></div>
+      <p style="margin: 0; font-weight: bold; text-decoration: underline;">${headmasterName}</p>
+      <p style="margin: 2px 0 0 0;">Pembina Utama Muda, IV/c</p>
+      <p style="margin: 2px 0 0 0;">NIP. ${headmasterNip}</p>
+    `;
+
+  const sheetsHtml = allTeachers
+    .map((teacher, idx) => {
+      return `
+    <div class="laporan-sheet" style="${idx > 0 ? 'page-break-before: always; margin-top: 35px;' : ''}">
+      <!-- KOP RESMI -->
+      ${getOfficialKopHtml()}
+
+      <!-- NOMOR & LEMBAR KE (KANAN ATAS) -->
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 24px; font-family: 'Times New Roman', Times, serif; font-size: 11pt;">
+        <table style="border-collapse: collapse; border: none;">
+          <tr>
+            <td style="padding: 1px 12px 1px 0; border: none;">No</td>
+            <td style="padding: 1px 8px 1px 0; border: none;">:</td>
+            <td style="padding: 1px 0; border: none; min-width: 140px;">${docNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 1px 12px 1px 0; border: none;">Lembar ke</td>
+            <td style="padding: 1px 8px 1px 0; border: none;">:</td>
+            <td style="padding: 1px 0; border: none;">3</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- JUDUL LAPORAN -->
+      <div style="text-align: center; margin-bottom: 28px;">
+        <h2 style="margin: 0; font-family: 'Times New Roman', Times, serif; font-size: 13pt; font-weight: bold; text-decoration: underline; letter-spacing: 0.5px;">
+          LAPORAN HASIL KEGIATAN
+        </h2>
+      </div>
+
+      <!-- IDENTITAS GURU -->
+      <div style="margin-bottom: 24px; font-family: 'Times New Roman', Times, serif; font-size: 11.5pt; line-height: 1.55;">
+        <table style="border-collapse: collapse; border: none;">
+          <tr>
+            <td style="width: 110px; padding: 3px 0; border: none; vertical-align: top;">Nama</td>
+            <td style="width: 25px; padding: 3px 0; border: none; vertical-align: top;">:</td>
+            <td style="padding: 3px 0; border: none; vertical-align: top;">${teacher.name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 3px 0; border: none; vertical-align: top;">NIP</td>
+            <td style="padding: 3px 0; border: none; vertical-align: top;">:</td>
+            <td style="padding: 3px 0; border: none; vertical-align: top;">${teacher.nip}</td>
+          </tr>
+          <tr>
+            <td style="padding: 3px 0; border: none; vertical-align: top;">Jabatan</td>
+            <td style="padding: 3px 0; border: none; vertical-align: top;">:</td>
+            <td style="padding: 3px 0; border: none; vertical-align: top;">Guru</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- LAPORAN SINGKAT & CATATAN -->
+      <div style="margin-bottom: 20px; font-family: 'Times New Roman', Times, serif; font-size: 11.5pt; line-height: 1.55;">
+        <p style="margin: 0 0 12px 0;">Laporan Singkat :</p>
+        <p style="margin: 0 0 20px 0; text-align: justify; line-height: 1.65;">
+          Telah melaksanakan kegiatan ${cleanPurpose} ${dayDatePhrase} di ${industryText}
+        </p>
+
+        <!-- RUANG CATATAN BERGARIS -->
+        <div style="margin-top: 14px;">
+          <div style="display: flex; align-items: flex-end; margin-bottom: 24px;">
+            <span style="margin-right: 6px;">Catatan:</span>
+            <div style="flex: 1; border-bottom: 1px solid #000; height: 16px;"></div>
+          </div>
+          <div style="border-bottom: 1px solid #000; height: 26px; margin-bottom: 24px;"></div>
+          <div style="border-bottom: 1px solid #000; height: 26px; margin-bottom: 30px;"></div>
+        </div>
+      </div>
+
+      <!-- TANDA TANGAN (DUA KOLOM: KIRI KEPALA SEKOLAH, KANAN GURU PENYUSUN) -->
+      <div style="margin-top: 45px; display: flex; justify-content: space-between; font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.35;">
+        <!-- Kolom Kiri: Mengetahui Kepala SMK Negeri 1 Adiwerna -->
+        <div style="width: 280px; text-align: left;">
+          <p style="margin: 0;">Mengetahui,</p>
+          <p style="margin: 2px 0 0 0;">Kepala SMK Negeri 1 Adiwerna</p>
+          ${tteSignatureBlock}
+        </div>
+
+        <!-- Kolom Kanan: Penyusun (Guru) -->
+        <div style="width: 260px; text-align: left;">
+          <p style="margin: 0;">Adiwerna, &nbsp;${signatureDate}</p>
+          <p style="margin: 2px 0 0 0;">Penyusun,</p>
+          <div style="height: 60px;"></div>
+          <p style="margin: 0; font-weight: bold;">${teacher.name}</p>
+          <p style="margin: 2px 0 0 0;">NIP.${teacher.nip}</p>
+        </div>
+      </div>
+    </div>
+    `;
+    })
+    .join('');
+
+  return `
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Laporan Hasil Kegiatan - ${allIndustries[0]?.name || ''}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm 15mm 10mm 15mm;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 11.5pt;
+      line-height: 1.45;
+      color: #000;
+      background: #fff;
+      margin: 0 auto;
+      padding: 0;
+      max-width: 175mm;
+    }
+    .text-center { text-align: center; }
+    .text-justify { text-align: justify; }
+    .font-bold { font-weight: bold; }
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 0;
+        max-width: 100%;
+      }
+      .no-print { display: none !important; }
+      .laporan-sheet {
+        page-break-after: always;
+      }
+      .laporan-sheet:last-child {
+        page-break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  ${sheetsHtml}
+</body>
+</html>
+  `;
+}

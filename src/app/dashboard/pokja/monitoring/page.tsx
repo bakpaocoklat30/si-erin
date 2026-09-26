@@ -48,6 +48,7 @@ import {
 import {
   generateSuratTugasHtml,
   generateSppdHtml,
+  generateLaporanHasilKegiatanHtml,
   MonitoringAssignmentData,
   formatIndonesianDate,
   formatIndonesianDateRange,
@@ -171,10 +172,10 @@ export default function PokjaMonitoringPage() {
   const [targetIndustries, setTargetIndustries] = useState<AdditionalIndustryItem[]>([]);
   const [selectedAddIndustryId, setSelectedAddIndustryId] = useState('');
 
-  // Modal State: Print Preview (Surat Tugas / SPPD)
+  // Modal State: Print Preview (Surat Tugas / SPPD / Laporan Kegiatan)
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
-    type: 'SURAT_TUGAS' | 'SPPD';
+    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN_KEGIATAN';
     assignment: MonitoringAssignmentData | null;
     useTteTags: boolean;
   }>({
@@ -619,11 +620,17 @@ export default function PokjaMonitoringPage() {
   };
 
   // Handler: Cetak Langsung / Buka Jendela Print Browser
-  const handlePrintDocument = (type: 'SURAT_TUGAS' | 'SPPD', assignment: MonitoringAssignmentData, useTte: boolean) => {
+  const handlePrintDocument = (
+    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN_KEGIATAN',
+    assignment: MonitoringAssignmentData,
+    useTte: boolean
+  ) => {
     const html =
       type === 'SURAT_TUGAS'
         ? generateSuratTugasHtml(assignment, { schoolSetting, useTteTags: useTte })
-        : generateSppdHtml(assignment, { schoolSetting, useTteTags: useTte });
+        : type === 'SPPD'
+        ? generateSppdHtml(assignment, { schoolSetting, useTteTags: useTte })
+        : generateLaporanHasilKegiatanHtml(assignment, { schoolSetting, useTteTags: useTte });
 
     const printWin = window.open('', '_blank');
     if (printWin) {
@@ -638,11 +645,17 @@ export default function PokjaMonitoringPage() {
   };
 
   // Handler: Buka di Tab Baru
-  const handleOpenInNewTab = (type: 'SURAT_TUGAS' | 'SPPD', assignment: MonitoringAssignmentData, useTte: boolean) => {
+  const handleOpenInNewTab = (
+    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN_KEGIATAN',
+    assignment: MonitoringAssignmentData,
+    useTte: boolean
+  ) => {
     const html =
       type === 'SURAT_TUGAS'
         ? generateSuratTugasHtml(assignment, { schoolSetting, useTteTags: useTte })
-        : generateSppdHtml(assignment, { schoolSetting, useTteTags: useTte });
+        : type === 'SPPD'
+        ? generateSppdHtml(assignment, { schoolSetting, useTteTags: useTte })
+        : generateLaporanHasilKegiatanHtml(assignment, { schoolSetting, useTteTags: useTte });
 
     const newWin = window.open('', '_blank');
     if (newWin) {
@@ -657,7 +670,9 @@ export default function PokjaMonitoringPage() {
     if (!previewModal.assignment) return '';
     return previewModal.type === 'SURAT_TUGAS'
       ? generateSuratTugasHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags })
-      : generateSppdHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
+      : previewModal.type === 'SPPD'
+      ? generateSppdHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags })
+      : generateLaporanHasilKegiatanHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
   }, [previewModal, schoolSetting]);
 
   return (
@@ -1168,6 +1183,29 @@ export default function PokjaMonitoringPage() {
                               <ShieldCheck className="w-3.5 h-3.5" />
                               <span>PDF SPPD TTE</span>
                             </a>
+                          )}
+
+                          {/* 🌟 Tombol Lembar Laporan Hasil Kegiatan (Muncul setelah dokumen TTE terbit) */}
+                          {(assignment.suratTugasUrl ||
+                            assignment.sppdUrl ||
+                            assignment.status === 'SELESAI_TTE' ||
+                            assignment.status === 'TERBIT_TTE') && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewModal({
+                                  isOpen: true,
+                                  type: 'LAPORAN_KEGIATAN',
+                                  assignment,
+                                  useTteTags: true,
+                                })
+                              }
+                              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-600 text-amber-400 hover:text-white text-xs font-bold border border-amber-500/30 transition-all cursor-pointer shadow-sm"
+                              title="Pratinjau & Cetak Lembar Laporan Hasil Kegiatan (Lembar ke-3)"
+                            >
+                              <ClipboardCheck className="w-3.5 h-3.5" />
+                              <span>Lap. Kegiatan</span>
+                            </button>
                           )}
                         </div>
                       </td>
@@ -1789,11 +1827,21 @@ export default function PokjaMonitoringPage() {
             <div className="px-6 py-4 border-b border-slate-800/30 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
               <div className="flex items-center space-x-3">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
-                  {previewModal.type === 'SURAT_TUGAS' ? <FileSignature className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                  {previewModal.type === 'SURAT_TUGAS' ? (
+                    <FileSignature className="w-5 h-5" />
+                  ) : previewModal.type === 'SPPD' ? (
+                    <FileText className="w-5 h-5" />
+                  ) : (
+                    <ClipboardCheck className="w-5 h-5 text-amber-400" />
+                  )}
                 </div>
                 <div>
                   <h3 className="text-base font-bold">
-                    {previewModal.type === 'SURAT_TUGAS' ? 'Surat Perintah Tugas Monitoring' : 'Surat Perintah Perjalanan Dinas (SPPD)'}
+                    {previewModal.type === 'SURAT_TUGAS'
+                      ? 'Surat Perintah Tugas Monitoring'
+                      : previewModal.type === 'SPPD'
+                      ? 'Surat Perintah Perjalanan Dinas (SPPD)'
+                      : 'Laporan Hasil Kegiatan (Lembar ke-3)'}
                   </h3>
                   <p className="text-xs text-slate-400">
                     Tujuan: <strong className="text-white">{previewModal.assignment.industry.name}</strong> • Petugas:{' '}
@@ -1837,17 +1885,19 @@ export default function PokjaMonitoringPage() {
                 </button>
 
                 {/* Download Real DOCX Button */}
-                <a
-                  href={`/api/pokja/monitoring/${previewModal.assignment.id}/download-docx?type=${
-                    previewModal.type === 'SURAT_TUGAS' ? 'tugas' : 'sppd'
-                  }&tte=${previewModal.useTteTags}`}
-                  download
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
-                  title="Unduh berkas resmi Microsoft Word (.docx)"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Unduh DOCX</span>
-                </a>
+                {previewModal.type !== 'LAPORAN_KEGIATAN' && (
+                  <a
+                    href={`/api/pokja/monitoring/${previewModal.assignment.id}/download-docx?type=${
+                      previewModal.type === 'SURAT_TUGAS' ? 'tugas' : 'sppd'
+                    }&tte=${previewModal.useTteTags}`}
+                    download
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                    title="Unduh berkas resmi Microsoft Word (.docx)"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Unduh DOCX</span>
+                  </a>
+                )}
 
                 {/* Open in New Tab */}
                 <button
