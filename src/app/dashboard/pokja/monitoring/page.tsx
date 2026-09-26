@@ -78,6 +78,7 @@ export default function PokjaMonitoringPage() {
 
   // Form Field State
   const [formIndustryId, setFormIndustryId] = useState('');
+  const [formIndustryAddress, setFormIndustryAddress] = useState('');
   const [formTeacherId, setFormTeacherId] = useState('');
   const [formTeacherRank, setFormTeacherRank] = useState('');
   const [formMonitoringDate, setFormMonitoringDate] = useState('');
@@ -216,6 +217,8 @@ export default function PokjaMonitoringPage() {
     const todayStr = new Date().toISOString().split('T')[0];
     const firstInd = industries[0];
     const initialAddress = firstInd?.address || '';
+    setFormIndustryId(firstInd?.id || '');
+    setFormIndustryAddress(initialAddress);
     const firstTeacher = teachers[0];
     setFormTeacherId(firstTeacher?.id || '');
     setFormTeacherRank(firstTeacher?.rank || '');
