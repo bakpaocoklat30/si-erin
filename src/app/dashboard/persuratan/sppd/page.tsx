@@ -2002,11 +2002,17 @@ export default function PersuratanSppdPage() {
                         </button>
                       </div>
                     </div>
-                    <iframe
-                      src={bulkPdfPreviewUrl}
-                      title="PDF Preview"
+                    <object
+                      data={`${bulkPdfPreviewUrl}#toolbar=1&navpanes=1&view=FitH`}
+                      type="application/pdf"
                       className="w-full flex-1 border-0"
-                    />
+                    >
+                      <iframe
+                        src={bulkPdfPreviewUrl}
+                        title="PDF Preview"
+                        className="w-full h-full border-0"
+                      />
+                    </object>
                   </div>
                 )}
               </div>
