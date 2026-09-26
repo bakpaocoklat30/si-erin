@@ -188,21 +188,24 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
   // ----------------------------------------------------------------------
   const tataUsahaGroups: MenuGroup[] = [
     {
-      groupLabel: 'Utama & Analytics TU',
+      groupLabel: 'Menu Utama',
       items: [
         { name: 'Dashboard Utama', href: '/dashboard', icon: LayoutDashboard },
-        { name: 'Analytics & Ekspor', href: '/dashboard/admin/analytics', icon: BarChart3 },
-        { name: 'Analytics Persuratan TU', href: '/dashboard/tata-usaha', icon: ShieldCheck },
       ]
     },
     {
       groupLabel: 'Manajemen Persuratan PKL',
-      items: persuratanMenuItems
+      items: [
+        { name: 'Surat Permohonan', href: '/dashboard/persuratan/permohonan', icon: FileText },
+        { name: 'Surat Penerjunan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penerjunan', icon: Truck },
+        { name: 'Surat Tugas & SPPD', href: '/dashboard/persuratan/coming-soon?title=Surat%20Tugas%20%26%20SPPD', icon: Search },
+        { name: 'Surat Penarikan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penarikan', icon: Award },
+      ]
     },
     {
       groupLabel: 'Pengaturan Akun',
       items: [
-        { name: 'Pengaturan Akun & Password', href: '/dashboard/settings', icon: Settings },
+        { name: 'Ubah Sandi & Profil', href: '/dashboard/settings', icon: Settings },
       ]
     }
   ];
