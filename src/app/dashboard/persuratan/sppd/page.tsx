@@ -177,7 +177,7 @@ export default function PersuratanSppdPage() {
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/persuratan/sppd');
+      const res = await fetch('/api/persuratan/sppd', { cache: 'no-store' });
       const json = await res.json();
       if (json.success) {
         setTasks(json.data || []);
@@ -194,9 +194,11 @@ export default function PersuratanSppdPage() {
           };
         });
         setTaskNumberMap(nMap);
+      } else {
+        console.error('Gagal mengambil data tugas persuratan SPPD:', json?.error);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error saat fetch tugas persuratan SPPD:', err);
     } finally {
       setLoading(false);
     }
@@ -389,10 +391,11 @@ export default function PersuratanSppdPage() {
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       // 1. Search Query
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
-        t.industry.name.toLowerCase().includes(q) ||
-        t.teacher.name.toLowerCase().includes(q) ||
+        !q ||
+        (t.industry?.name || '').toLowerCase().includes(q) ||
+        (t.teacher?.name || '').toLowerCase().includes(q) ||
         (t.purpose && t.purpose.toLowerCase().includes(q));
 
       // 2. Purpose Filter
@@ -402,9 +405,16 @@ export default function PersuratanSppdPage() {
       // 3. Status Filter
       let matchesStatus = true;
       if (statusFilter === 'PROSES_TTE') {
-        matchesStatus = t.status === 'MENUNGGU_TTE' || t.status === 'PROSES_TTE';
+        matchesStatus =
+          t.status === 'MENUNGGU_TTE' ||
+          t.status === 'PROSES_TTE' ||
+          t.status === 'TERJADWAL' ||
+          (!t.suratTugasUrl || !t.sppdUrl);
       } else if (statusFilter === 'TERBIT_TTE') {
-        matchesStatus = t.status === 'SELESAI_TTE' || t.status === 'TERBIT_TTE';
+        matchesStatus =
+          t.status === 'SELESAI_TTE' ||
+          t.status === 'TERBIT_TTE' ||
+          (Boolean(t.suratTugasUrl) && Boolean(t.sppdUrl));
       }
 
       // 4. Department Filter

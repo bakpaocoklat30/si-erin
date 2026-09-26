@@ -18,13 +18,13 @@ export default withAuth(
 
     // 1. Terapkan Security Headers (Helmet Protection) ke setiap respons
     const response = NextResponse.next();
-    response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+    response.headers.set('X-Frame-Options', 'DENY');
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('X-XSS-Protection', '1; mode=block');
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
     response.headers.set(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' unpkg.com cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' unpkg.com fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' fonts.gstatic.com; frame-src 'self' blob:; object-src 'self' blob:;"
+      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' unpkg.com cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' unpkg.com fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' fonts.gstatic.com;"
     );
 
     // Jika belum login, biarkan next-auth mengarahkan ke halaman sign-in

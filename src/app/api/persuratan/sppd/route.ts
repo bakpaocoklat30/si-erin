@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { db } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,11 +15,7 @@ export async function GET(request: Request) {
     const [assignments, departments, schoolSetting] = await Promise.all([
       db.monitoringAssignment.findMany({
         where: {
-          OR: [
-            { status: { in: ['TERJADWAL', 'MENUNGGU_TTE', 'PROSES_TTE', 'SELESAI_TTE', 'TERBIT_TTE'] } },
-            { suratTugasUrl: { not: null } },
-            { sppdUrl: { not: null } },
-          ],
+          status: { not: 'DIBATALKAN' }
         },
         include: {
           industry: {
