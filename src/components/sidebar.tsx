@@ -200,7 +200,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
       items: [
         { name: 'Surat Permohonan', href: '/dashboard/persuratan/permohonan', icon: FileText },
         { name: 'Surat Penerjunan', href: '/dashboard/persuratan/penerjunan', icon: Truck },
-        { name: 'Surat Tugas & SPPD', href: '/dashboard/persuratan/coming-soon?title=Surat%20Tugas%20%26%20SPPD', icon: Search },
+        { name: 'Surat Tugas & SPPD', href: '/dashboard/persuratan/sppd', icon: Search },
         { name: 'Surat Penarikan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penarikan', icon: Award },
       ]
     },

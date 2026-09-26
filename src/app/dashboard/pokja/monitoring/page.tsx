@@ -60,6 +60,8 @@ export default function PokjaMonitoringPage() {
   const { theme } = useTheme();
 
   // Data State
+  const [selectedAssignments, setSelectedAssignments] = useState<string[]>([]);
+
   const [assignments, setAssignments] = useState<MonitoringAssignmentData[]>([]);
   const [industries, setIndustries] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -119,6 +121,34 @@ export default function PokjaMonitoringPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch data
+  
+  const handleRequestTteBulk = async () => {
+    if (selectedAssignments.length === 0) {
+      alert('Pilih setidaknya satu penugasan untuk dimintakan TTE.');
+      return;
+    }
+    if (!confirm(`Anda yakin ingin mengirim ${selectedAssignments.length} penugasan ini ke Tata Usaha untuk di-TTE?`)) return;
+
+    try {
+      const res = await fetch('/api/pokja/monitoring/request-tte', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedAssignments })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('Berhasil mengirim permintaan TTE ke Tata Usaha!');
+        setSelectedAssignments([]);
+        fetchData(); // refresh
+      } else {
+        alert(data.error || 'Gagal mengirim permintaan TTE');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Terjadi kesalahan jaringan.');
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -655,6 +685,19 @@ export default function PokjaMonitoringPage() {
           theme === 'dark' ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
         }`}
       >
+        
+        <div className="flex items-center gap-3">
+          {selectedAssignments.length > 0 && (
+            <button
+              onClick={handleRequestTteBulk}
+              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all"
+            >
+              <FileSignature className="w-4 h-4" />
+              Minta TTE ({selectedAssignments.length})
+            </button>
+          )}
+        </div>
+
         <div className="relative w-full md:w-96">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -703,7 +746,21 @@ export default function PokjaMonitoringPage() {
               }`}
             >
               <tr>
-                <th className="py-4 px-4 w-12 text-center">No</th>
+                <th className="py-4 px-4 w-12 text-center">
+    <input 
+      type="checkbox" 
+      onChange={(e) => {
+        if (e.target.checked) {
+          setSelectedAssignments(filteredAssignments.map(a => a.id as string));
+        } else {
+          setSelectedAssignments([]);
+        }
+      }}
+      checked={selectedAssignments.length > 0 && selectedAssignments.length === filteredAssignments.length}
+      className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"
+    />
+  </th>
+  <th className="py-4 px-4 w-12 text-center">No</th>
                 <th className="py-4 px-6">Industri Mitra (DUDI)</th>
                 <th className="py-4 px-6">Guru Petugas Monitoring</th>
                 <th className="py-4 px-5">Tanggal Kunjungan</th>
@@ -715,7 +772,7 @@ export default function PokjaMonitoringPage() {
             <tbody className="divide-y divide-slate-800/20">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
                       <p className="text-xs font-semibold">Memuat Jadwal Monitoring...</p>
@@ -724,7 +781,7 @@ export default function PokjaMonitoringPage() {
                 </tr>
               ) : filteredAssignments.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <ClipboardCheck className="w-10 h-10 text-slate-500/50" />
                       <p className="font-semibold text-sm">Belum ada penugasan monitoring yang dijadwalkan.</p>
@@ -1358,6 +1415,19 @@ export default function PokjaMonitoringPage() {
               {/* BARIS 6: KENDARAAN & SUMBER ANGGARAN SPPD */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Maksud Perjalanan (Tujuan)</label>
+                  <select
+                    value={formPurpose}
+                    onChange={(e) => setFormPurpose(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-2xl border text-xs font-semibold ${theme === "dark" ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
+                  >
+                    <option value="Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)">Monitoring PKL</option>
+                    <option value="Melaksanakan kegiatan Penerjunan/Pengantaran siswa Praktik Kerja Lapangan (PKL)">Penerjunan / Pengantaran PKL</option>
+                    <option value="Melaksanakan kegiatan Penarikan/Penjemputan siswa Praktik Kerja Lapangan (PKL)">Penarikan / Penjemputan PKL</option>
+                  </select>
+                </div>
+
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Alat Angkut</label>
                   <select
                     value={formTransportType}

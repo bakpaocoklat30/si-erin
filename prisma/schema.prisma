@@ -306,6 +306,9 @@ model MonitoringAssignment {
   destinationPlace  String?           // Tujuan (DUDI)
   budgetSource      String?           @default("SMK Negeri 1 Adiwerna")
   budgetAccount     String?           @default("Dana BOS")
+  suratTugasUrl     String?           @db.Text
+  sppdUrl           String?           @db.Text
+
   status            String            @default("TERJADWAL") // TERJADWAL, SELESAI, DIBATALKAN
   notes             String?           @db.Text
   createdAt         DateTime          @default(now())

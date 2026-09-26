@@ -46,7 +46,7 @@ export default function TataUsahaDashboardPage() {
       title: 'Surat Tugas dan SPPD',
       description: 'Kelola Surat Perintah Perjalanan Dinas (SPPD) dan tugas monitoring.',
       icon: Search,
-      href: '/dashboard/persuratan/coming-soon?title=Surat%20Tugas%20%26%20SPPD',
+      href: '/dashboard/persuratan/sppd',
       color: 'from-amber-500 to-orange-500',
       iconColor: 'text-orange-100'
     },
