@@ -98,24 +98,48 @@ export async function POST(req: NextRequest) {
         action: 'analyze',
         totalPages: pages.length,
         totalSegments: segments.length,
+        pages: pages.map((p) => ({
+          pageNum: p.pageNum,
+          snippet: p.text.substring(0, 300),
+        })),
         matchedCount: matchedResults.length,
         unmatchedCount: unmatchedResults.length,
-        matched: matchedResults.map((m) => ({
-          pageNumbers: m.segment.pageNumbers,
-          docType: m.segment.docType,
-          assignmentId: m.assignment.id,
-          teacherName: m.assignment.teacher?.name,
-          teacherNip: m.assignment.teacher?.nip || m.assignment.teacher?.username,
-          industryName: m.assignment.industry?.name,
-          score: m.score,
-          matchReasons: m.matchReasons,
-          purpose: m.assignment.purpose,
-        })),
-        unmatched: unmatchedResults.map((u) => ({
-          pageNumbers: u.segment.pageNumbers,
-          docType: u.segment.docType,
-          snippet: u.segment.combinedText.substring(0, 150),
-          reason: u.reason,
+        detected: [
+          ...matchedResults.map((m, idx) => ({
+            id: `seg_${idx}`,
+            pageNumbers: m.segment.pageNumbers,
+            docType: m.segment.docType,
+            assignmentId: m.assignment.id,
+            teacherName: m.assignment.teacher?.name,
+            teacherNip: m.assignment.teacher?.nip || m.assignment.teacher?.username,
+            industryName: m.assignment.industry?.name,
+            score: m.score,
+            matchReasons: m.matchReasons,
+            snippet: m.segment.combinedText.substring(0, 200),
+          })),
+          ...unmatchedResults.map((u, idx) => ({
+            id: `unseg_${idx}`,
+            pageNumbers: u.segment.pageNumbers,
+            docType: u.segment.docType,
+            assignmentId: '',
+            teacherName: '',
+            teacherNip: '',
+            industryName: '',
+            score: 0,
+            matchReasons: [],
+            reason: u.reason,
+            snippet: u.segment.combinedText.substring(0, 200),
+          })),
+        ].sort((a, b) => (a.pageNumbers[0] || 0) - (b.pageNumbers[0] || 0)),
+        assignments: assignments.map((a) => ({
+          id: a.id,
+          teacherName: a.teacher?.name || 'Tanpa Nama',
+          teacherNip: a.teacher?.nip || a.teacher?.username || '',
+          industryName: a.industry?.name || 'Tanpa Industri',
+          monitoringDate: a.monitoringDate,
+          department: a.teacher?.department || '',
+          hasTugas: Boolean(a.suratTugasUrl),
+          hasSppd: Boolean(a.sppdUrl),
         })),
       });
     }
@@ -135,63 +159,143 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const updatedAssignments: any[] = [];
+    // Cek apakah ada custom mappings dari pilihan user di UI
+    const mappingsRaw = formData.get('mappings') as string | null;
+    let customMappings: Array<{
+      docType: 'TUGAS' | 'SPPD';
+      pageNumbers: number[];
+      assignmentId: string;
+    }> | null = null;
 
-    for (const item of matchedResults) {
+    if (mappingsRaw) {
       try {
-        const { fileName, fileUrl } = await extractAndSaveSegmentPdf(
-          sourcePdfDoc,
-          item.segment,
-          item.assignment.id
-        );
+        customMappings = JSON.parse(mappingsRaw);
+      } catch (e) {
+        console.warn('Failed to parse customMappings:', e);
+      }
+    }
 
-        item.savedFileName = fileName;
-        item.savedFileUrl = fileUrl;
+    const updatedAssignments: any[] = [];
+    const failedSegments: any[] = [];
 
-        // Update data di database
-        const updateData: any = {};
-        if (item.segment.docType === 'TUGAS') {
-          updateData.suratTugasUrl = fileUrl;
-        } else {
-          updateData.sppdUrl = fileUrl;
+    if (customMappings && customMappings.length > 0) {
+      // Jalankan pemisahan berdasarkan konfigurasi halaman & guru yang ditentukan Tata Usaha di UI
+      for (const item of customMappings) {
+        if (!item.assignmentId || !item.pageNumbers || item.pageNumbers.length === 0) continue;
+
+        try {
+          const segment: DocumentSegment = {
+            docType: item.docType,
+            pageNumbers: item.pageNumbers,
+            pageIndices: item.pageNumbers.map((n) => n - 1),
+            combinedText: '',
+          };
+
+          const { fileUrl } = await extractAndSaveSegmentPdf(
+            sourcePdfDoc,
+            segment,
+            item.assignmentId
+          );
+
+          const updateData: any = {};
+          if (item.docType === 'TUGAS') {
+            updateData.suratTugasUrl = fileUrl;
+          } else {
+            updateData.sppdUrl = fileUrl;
+          }
+
+          const curTask = await db.monitoringAssignment.findUnique({
+            where: { id: item.assignmentId },
+          });
+
+          const hasTugas = item.docType === 'TUGAS' || Boolean(curTask?.suratTugasUrl);
+          const hasSppd = item.docType === 'SPPD' || Boolean(curTask?.sppdUrl);
+
+          if (hasTugas && hasSppd) {
+            updateData.status = 'SELESAI_TTE';
+          }
+
+          const updated = await db.monitoringAssignment.update({
+            where: { id: item.assignmentId },
+            data: updateData,
+            include: {
+              teacher: { select: { name: true, nip: true } },
+              industry: { select: { name: true } },
+            },
+          });
+
+          updatedAssignments.push({
+            id: updated.id,
+            teacherName: updated.teacher?.name || '-',
+            industryName: updated.industry?.name || '-',
+            docType: item.docType,
+            pageNumbers: item.pageNumbers,
+            fileUrl,
+            status: updated.status,
+          });
+        } catch (err: any) {
+          console.error(`Gagal memisahkan halaman ${item.pageNumbers.join(',')}:`, err);
+          failedSegments.push({
+            pageNumbers: item.pageNumbers,
+            docType: item.docType,
+            reason: err?.message || 'Gagal memisahkan berkas',
+          });
         }
+      }
+    } else {
+      // Fallback: simpan berdasarkan matchedResults deteksi otomatis
+      for (const item of matchedResults) {
+        try {
+          const { fileUrl } = await extractAndSaveSegmentPdf(
+            sourcePdfDoc,
+            item.segment,
+            item.assignment.id
+          );
 
-        // Cek apakah kedua berkas sudah terunggah
-        const curTask = await db.monitoringAssignment.findUnique({
-          where: { id: item.assignment.id },
-        });
+          const updateData: any = {};
+          if (item.segment.docType === 'TUGAS') {
+            updateData.suratTugasUrl = fileUrl;
+          } else {
+            updateData.sppdUrl = fileUrl;
+          }
 
-        const hasTugas = item.segment.docType === 'TUGAS' || Boolean(curTask?.suratTugasUrl);
-        const hasSppd = item.segment.docType === 'SPPD' || Boolean(curTask?.sppdUrl);
+          const curTask = await db.monitoringAssignment.findUnique({
+            where: { id: item.assignment.id },
+          });
 
-        if (hasTugas && hasSppd) {
-          updateData.status = 'SELESAI_TTE';
+          const hasTugas = item.segment.docType === 'TUGAS' || Boolean(curTask?.suratTugasUrl);
+          const hasSppd = item.segment.docType === 'SPPD' || Boolean(curTask?.sppdUrl);
+
+          if (hasTugas && hasSppd) {
+            updateData.status = 'SELESAI_TTE';
+          }
+
+          const updated = await db.monitoringAssignment.update({
+            where: { id: item.assignment.id },
+            data: updateData,
+            include: {
+              teacher: { select: { name: true, nip: true } },
+              industry: { select: { name: true } },
+            },
+          });
+
+          updatedAssignments.push({
+            id: updated.id,
+            teacherName: updated.teacher?.name || '-',
+            industryName: updated.industry?.name || '-',
+            docType: item.segment.docType,
+            pageNumbers: item.segment.pageNumbers,
+            fileUrl,
+            status: updated.status,
+          });
+        } catch (segmentErr: any) {
+          console.error(`Gagal memisahkan segment halaman ${item.segment.pageNumbers.join(',')}:`, segmentErr);
+          failedSegments.push({
+            pageNumbers: item.segment.pageNumbers,
+            docType: item.segment.docType,
+            reason: `Gagal memisahkan halaman PDF: ${segmentErr?.message || 'Kesalahan pemisahan berkas'}`,
+          });
         }
-
-        const updated = await db.monitoringAssignment.update({
-          where: { id: item.assignment.id },
-          data: updateData,
-          include: {
-            teacher: { select: { name: true, nip: true } },
-            industry: { select: { name: true } },
-          },
-        });
-
-        updatedAssignments.push({
-          id: updated.id,
-          teacherName: updated.teacher?.name || '-',
-          industryName: updated.industry?.name || '-',
-          docType: item.segment.docType,
-          pageNumbers: item.segment.pageNumbers,
-          fileUrl,
-          status: updated.status,
-        });
-      } catch (segmentErr: any) {
-        console.error(`Gagal memisahkan segment halaman ${item.segment.pageNumbers.join(',')}:`, segmentErr);
-        unmatchedResults.push({
-          segment: item.segment,
-          reason: `Gagal memisahkan halaman PDF: ${segmentErr?.message || 'Kesalahan pemisahan berkas'}`,
-        });
       }
     }
 
@@ -199,17 +303,11 @@ export async function POST(req: NextRequest) {
       success: true,
       action: 'commit',
       totalPages: pages.length,
-      totalSegments: segments.length,
-      matchedCount: matchedResults.length,
-      unmatchedCount: unmatchedResults.length,
+      savedCount: updatedAssignments.length,
+      failedCount: failedSegments.length,
       updatedAssignments,
-      unmatched: unmatchedResults.map((u) => ({
-        pageNumbers: u.segment.pageNumbers,
-        docType: u.segment.docType,
-        reason: u.reason,
-        snippet: u.segment.combinedText.substring(0, 150),
-      })),
-      message: `Berhasil memisahkan ${matchedResults.length} dari ${segments.length} dokumen hasil TTE dan memperbarui database.`,
+      failedSegments,
+      message: `Berhasil memisahkan ${updatedAssignments.length} dokumen hasil TTE dan memperbarui database.`,
     });
   } catch (error: any) {
     console.error('Error Bulk Upload TTE:', error);

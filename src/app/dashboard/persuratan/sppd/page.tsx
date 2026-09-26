@@ -25,6 +25,8 @@ import {
   AlertCircle,
   Check,
   UploadCloud,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import {
   generateSuratTugasHtml,
@@ -134,6 +136,14 @@ export default function PersuratanSppdPage() {
     committing: boolean;
     analysisResult: any | null;
     commitResult: any | null;
+    mappings: Array<{
+      id: string;
+      docType: 'TUGAS' | 'SPPD';
+      pageNumbersStr: string;
+      assignmentId: string;
+      snippet?: string;
+      autoMatched?: boolean;
+    }>;
   }>({
     isOpen: false,
     file: null,
@@ -142,6 +152,7 @@ export default function PersuratanSppdPage() {
     committing: false,
     analysisResult: null,
     commitResult: null,
+    mappings: [],
   });
 
   const fetchTasks = async () => {
@@ -586,28 +597,42 @@ export default function PersuratanSppdPage() {
     }
   };
 
-  // 🌟 Bulk Upload Handlers
-  const handleBulkUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setBulkUploadModal((prev) => ({
-        ...prev,
-        file: e.target.files![0],
-        analysisResult: null,
-        commitResult: null,
-      }));
+  // 🌟 Helper Parser Nomor Halaman (misal: "1", "2, 3", "4-5")
+  const parsePageNumbers = (str: string): number[] => {
+    const result: number[] = [];
+    const parts = str.split(/[,;\s]+/);
+    for (const part of parts) {
+      if (!part) continue;
+      if (part.includes('-')) {
+        const [start, end] = part.split('-').map((s) => parseInt(s.trim(), 10));
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          for (let i = start; i <= end; i++) {
+            if (!result.includes(i)) result.push(i);
+          }
+        }
+      } else {
+        const num = parseInt(part.trim(), 10);
+        if (!isNaN(num) && !result.includes(num)) {
+          result.push(num);
+        }
+      }
     }
+    return result.sort((a, b) => a - b);
   };
 
-  const handleBulkUploadAnalyze = async () => {
-    if (!bulkUploadModal.file) {
-      alert('Pilih berkas PDF terlebih dahulu.');
-      return;
-    }
-    setBulkUploadModal((prev) => ({ ...prev, analyzing: true, analysisResult: null }));
+  // 🌟 Bulk Upload Handlers dengan Dukungan Penentuan Manual Tata Usaha
+  const triggerBulkAnalyze = async (file: File, mode: string) => {
+    setBulkUploadModal((prev) => ({
+      ...prev,
+      analyzing: true,
+      analysisResult: null,
+      mappings: [],
+    }));
+
     try {
       const fd = new FormData();
-      fd.append('file', bulkUploadModal.file);
-      fd.append('mode', bulkUploadModal.mode);
+      fd.append('file', file);
+      fd.append('mode', mode);
       fd.append('action', 'analyze');
 
       const res = await fetch('/api/persuratan/sppd/upload-bulk', {
@@ -627,7 +652,20 @@ export default function PersuratanSppdPage() {
       }
 
       if (res.ok && json?.success) {
-        setBulkUploadModal((prev) => ({ ...prev, analysisResult: json }));
+        const initialMappings = (json.detected || []).map((d: any, idx: number) => ({
+          id: d.id || `map_${idx}_${Date.now()}`,
+          docType: d.docType || 'TUGAS',
+          pageNumbersStr: (d.pageNumbers || []).join(', '),
+          assignmentId: d.assignmentId || '',
+          snippet: d.snippet || '',
+          autoMatched: Boolean(d.assignmentId),
+        }));
+
+        setBulkUploadModal((prev) => ({
+          ...prev,
+          analysisResult: json,
+          mappings: initialMappings,
+        }));
       } else {
         alert(json?.error || `Gagal menganalisis berkas PDF (Status ${res.status})`);
       }
@@ -639,17 +677,97 @@ export default function PersuratanSppdPage() {
     }
   };
 
+  const handleBulkUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setBulkUploadModal((prev) => ({
+        ...prev,
+        file,
+        analysisResult: null,
+        commitResult: null,
+        mappings: [],
+      }));
+      triggerBulkAnalyze(file, bulkUploadModal.mode);
+    }
+  };
+
+  const handleBulkUploadAnalyze = () => {
+    if (!bulkUploadModal.file) {
+      alert('Pilih berkas PDF terlebih dahulu.');
+      return;
+    }
+    triggerBulkAnalyze(bulkUploadModal.file, bulkUploadModal.mode);
+  };
+
+  const handleAddMappingRow = () => {
+    setBulkUploadModal((prev) => ({
+      ...prev,
+      mappings: [
+        ...prev.mappings,
+        {
+          id: `map_custom_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          docType: 'TUGAS',
+          pageNumbersStr: '',
+          assignmentId: '',
+          snippet: '',
+          autoMatched: false,
+        },
+      ],
+    }));
+  };
+
+  const handleRemoveMappingRow = (id: string) => {
+    setBulkUploadModal((prev) => ({
+      ...prev,
+      mappings: prev.mappings.filter((m) => m.id !== id),
+    }));
+  };
+
+  const handleUpdateMappingRow = (id: string, field: string, value: any) => {
+    setBulkUploadModal((prev) => ({
+      ...prev,
+      mappings: prev.mappings.map((m) => (m.id === id ? { ...m, [field]: value } : m)),
+    }));
+  };
+
   const handleBulkUploadCommit = async () => {
     if (!bulkUploadModal.file) {
       alert('Pilih berkas PDF terlebih dahulu.');
       return;
     }
+
+    if (bulkUploadModal.mappings.length === 0) {
+      alert('Belum ada pemetaan dokumen yang ditentukan. Klik "+ Tambah Dokumen" atau analisis berkas terlebih dahulu.');
+      return;
+    }
+
+    // Validasi input pemetaan dokumen oleh user
+    const validMappings: any[] = [];
+    for (let i = 0; i < bulkUploadModal.mappings.length; i++) {
+      const item = bulkUploadModal.mappings[i];
+      const pages = parsePageNumbers(item.pageNumbersStr);
+      if (pages.length === 0) {
+        alert(`Dokumen #${i + 1}: Mohon isi nomor halaman PDF yang valid (contoh: 1 atau 2, 3).`);
+        return;
+      }
+      if (!item.assignmentId) {
+        alert(`Dokumen #${i + 1} (Hal. ${item.pageNumbersStr}): Mohon pilih guru & penugasan tujuan terlebih dahulu.`);
+        return;
+      }
+      validMappings.push({
+        docType: item.docType,
+        pageNumbers: pages,
+        assignmentId: item.assignmentId,
+      });
+    }
+
     setBulkUploadModal((prev) => ({ ...prev, committing: true }));
     try {
       const fd = new FormData();
       fd.append('file', bulkUploadModal.file);
       fd.append('mode', bulkUploadModal.mode);
       fd.append('action', 'commit');
+      fd.append('mappings', JSON.stringify(validMappings));
 
       const res = await fetch('/api/persuratan/sppd/upload-bulk', {
         method: 'POST',
@@ -672,6 +790,7 @@ export default function PersuratanSppdPage() {
           ...prev,
           commitResult: json,
           analysisResult: null,
+          mappings: [],
         }));
         await fetchTasks();
       } else {
@@ -714,6 +833,7 @@ export default function PersuratanSppdPage() {
                 committing: false,
                 analysisResult: null,
                 commitResult: null,
+                mappings: [],
               })
             }
             className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all shrink-0"
@@ -1430,6 +1550,7 @@ export default function PersuratanSppdPage() {
                     committing: false,
                     analysisResult: null,
                     commitResult: null,
+                    mappings: [],
                   })
                 }
                 className="text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
@@ -1554,138 +1675,165 @@ export default function PersuratanSppdPage() {
                   </div>
                 </div>
 
-                {/* 3. Tombol Aksi Analisis & Simpan */}
-                <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={handleBulkUploadAnalyze}
-                    disabled={!bulkUploadModal.file || bulkUploadModal.analyzing || bulkUploadModal.committing}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  >
-                    {bulkUploadModal.analyzing ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-                    ) : (
-                      <Eye className="w-4 h-4 text-emerald-500" />
+                {/* 3. Status File & Aksi Analisis */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <div className="text-xs text-slate-500">
+                    {bulkUploadModal.analysisResult && (
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        📄 Total <strong>{bulkUploadModal.analysisResult.totalPages}</strong> Halaman terdeteksi pada berkas PDF
+                      </span>
                     )}
-                    <span>Pratinjau Pemilahan</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleBulkUploadCommit}
-                    disabled={!bulkUploadModal.file || bulkUploadModal.analyzing || bulkUploadModal.committing}
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {bulkUploadModal.committing ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                    <span>Pisahkan & Simpan Langsung</span>
-                  </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleBulkUploadAnalyze}
+                      disabled={!bulkUploadModal.file || bulkUploadModal.analyzing || bulkUploadModal.committing}
+                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      {bulkUploadModal.analyzing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                      )}
+                      <span>{bulkUploadModal.analysisResult ? 'Analisis Ulang' : 'Analisis Halaman'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddMappingRow}
+                      disabled={bulkUploadModal.analyzing || bulkUploadModal.committing}
+                      className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Tambah Dokumen</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* 4. Hasil Analisis / Pratinjau Pemilahan */}
-                {bulkUploadModal.analysisResult && (
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3 animate-in fade-in">
+                {/* 4. Tabel Pemetaan Interaktif Halaman & Guru */}
+                {bulkUploadModal.mappings.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in">
                     <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                          Hasil Deteksi:
-                        </span>
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                          {bulkUploadModal.analysisResult.matchedCount} Dokumen Cocok
-                        </span>
-                        {bulkUploadModal.analysisResult.unmatchedCount > 0 && (
-                          <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">
-                            {bulkUploadModal.analysisResult.unmatchedCount} Tidak Cocok
-                          </span>
-                        )}
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                          Daftar Pemilahan Halaman Dokumen
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Tentukan nomor halaman dan pemilik naskah. Anda bebas mengubah pilihan guru maupun nomor halaman.
+                        </p>
                       </div>
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        Total {bulkUploadModal.analysisResult.totalPages} Halaman ({bulkUploadModal.analysisResult.totalSegments} Berkas)
+                      <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        {bulkUploadModal.mappings.length} Dokumen Siap Dipisahkan
                       </span>
                     </div>
 
-                    {/* Daftar Dokumen Cocok */}
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                      {bulkUploadModal.analysisResult.matched.map((item: any, idx: number) => (
+                    {/* Baris Dokumen */}
+                    <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                      {bulkUploadModal.mappings.map((item, idx) => (
                         <div
-                          key={idx}
-                          className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-start justify-between gap-3 text-xs"
+                          key={item.id}
+                          className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2.5 transition-all hover:border-slate-300 dark:hover:border-slate-700"
                         >
-                          <div>
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <span className="font-black text-slate-900 dark:text-white">
-                                {item.teacherName}
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                            {/* Indeks & Jenis Dokumen */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-xs flex items-center justify-center shrink-0">
+                                {idx + 1}
                               </span>
-                              <span
-                                className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                              <select
+                                value={item.docType}
+                                onChange={(e) => handleUpdateMappingRow(item.id, 'docType', e.target.value)}
+                                className={`px-2.5 py-1.5 rounded-xl font-bold text-xs border cursor-pointer ${
                                   item.docType === 'TUGAS'
-                                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                    : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30'
+                                    : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30'
                                 }`}
                               >
-                                {item.docType === 'TUGAS' ? 'Surat Tugas' : 'SPPD (2 Lembar)'}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-semibold">
-                                (Hal. {item.pageNumbers.join(', ')})
-                              </span>
+                                <option value="TUGAS">Surat Tugas (1 Hal)</option>
+                                <option value="SPPD">SPPD (2 Hal)</option>
+                              </select>
                             </div>
-                            <p className="text-slate-600 dark:text-slate-400 text-[11px]">
-                              Tujuan: <strong className="text-slate-700 dark:text-slate-300">{item.industryName}</strong>
-                            </p>
-                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                              {item.matchReasons.map((r: string, rIdx: number) => (
-                                <span
-                                  key={rIdx}
-                                  className="text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 rounded"
-                                >
-                                  ✓ {r}
-                                </span>
-                              ))}
+
+                            {/* Nomor Halaman */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <label className="text-[11px] font-bold text-slate-500">Hal:</label>
+                              <input
+                                type="text"
+                                value={item.pageNumbersStr}
+                                onChange={(e) => handleUpdateMappingRow(item.id, 'pageNumbersStr', e.target.value)}
+                                placeholder={item.docType === 'TUGAS' ? '1' : '2, 3'}
+                                className="w-24 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              />
                             </div>
+
+                            {/* Pilihan Guru & Penugasan Tujuan */}
+                            <div className="flex-1 min-w-[200px]">
+                              <select
+                                value={item.assignmentId}
+                                onChange={(e) => handleUpdateMappingRow(item.id, 'assignmentId', e.target.value)}
+                                className={`w-full px-3 py-1.5 rounded-xl text-xs border font-medium cursor-pointer ${
+                                  item.assignmentId
+                                    ? 'bg-emerald-50/40 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30 text-slate-900 dark:text-white'
+                                    : 'bg-amber-50/50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-300'
+                                }`}
+                              >
+                                <option value="">-- Pilih Guru & Penugasan --</option>
+                                {(bulkUploadModal.analysisResult?.assignments || tasks).map((a: any) => (
+                                  <option key={a.id} value={a.id}>
+                                    {a.teacher?.name || a.teacherName} — {a.industry?.name || a.industryName}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Hapus Baris */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMappingRow(item.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer shrink-0 self-center"
+                              title="Hapus baris dokumen ini"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
 
-                          <div className="text-right shrink-0">
-                            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Terdeteksi
-                            </span>
-                          </div>
+                          {/* Cuplikan Teks Halaman PDF */}
+                          {item.snippet && (
+                            <div className="text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-800/40 px-2.5 py-1.5 rounded-lg truncate flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-500 dark:text-slate-400 shrink-0">
+                                Isi Teks:
+                              </span>
+                              <span className="truncate">{item.snippet}</span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
 
-                    {/* Peringatan jika ada yang tidak cocok */}
-                    {bulkUploadModal.analysisResult.unmatchedCount > 0 && (
-                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-700 dark:text-amber-400 text-xs space-y-1">
-                        <div className="flex items-center gap-1.5 font-bold">
-                          <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>
-                            Terdapat {bulkUploadModal.analysisResult.unmatchedCount} dokumen yang belum cocok dengan database
-                          </span>
-                        </div>
-                        <p className="text-[11px] opacity-90">
-                          Pastikan nama guru dan industri pada penugasan di sistem telah diisi sesuai naskah.
-                        </p>
-                      </div>
-                    )}
+                    {/* Tombol Simpan & Tambah Baris */}
+                    <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700">
+                      <button
+                        type="button"
+                        onClick={handleAddMappingRow}
+                        className="w-full sm:w-auto px-4 py-2 border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 text-slate-600 dark:text-slate-400 hover:text-blue-500 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Tambah Dokumen Lain</span>
+                      </button>
 
-                    {/* Tombol Konfirmasi Simpan Hasil Analisis */}
-                    <div className="pt-2 flex justify-end">
                       <button
                         type="button"
                         onClick={handleBulkUploadCommit}
                         disabled={bulkUploadModal.committing}
-                        className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        className="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                       >
                         {bulkUploadModal.committing ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                          <Check className="w-4 h-4" />
+                          <Sparkles className="w-4 h-4" />
                         )}
                         <span>
-                          Konfirmasi & Simpan {bulkUploadModal.analysisResult.matchedCount} Dokumen ke Sistem
+                          Simpan & Pisahkan {bulkUploadModal.mappings.length} Dokumen ke Sistem
                         </span>
                       </button>
                     </div>
@@ -1751,6 +1899,7 @@ export default function PersuratanSppdPage() {
                         committing: false,
                         analysisResult: null,
                         commitResult: null,
+                        mappings: [],
                       })
                     }
                     className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-xs font-black rounded-xl transition-all cursor-pointer"
