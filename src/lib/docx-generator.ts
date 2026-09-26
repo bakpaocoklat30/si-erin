@@ -1080,7 +1080,7 @@ export async function generateMergedLaporanDocx(
     bodyContents.push(extractBodyContent(xml));
   }
 
-  const sectPr = extractSectPr(baseXml);
+  const sectPr = `<w:sectPr><w:pgSz w:w="11906" w:h="16838" w:code="9"/><w:pgMar w:top="500" w:right="1000" w:bottom="700" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
   const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
   const mergedXml =
     baseXml.substring(0, bodyStartIdx) +

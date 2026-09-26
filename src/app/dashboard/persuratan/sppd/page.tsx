@@ -32,6 +32,7 @@ import {
 import {
   generateSuratTugasHtml,
   generateSppdHtml,
+  generateLaporanHasilKegiatanHtml,
   formatIndonesianDateRange,
   calculateDurationDays,
 } from '@/lib/monitoring-templates';
@@ -108,7 +109,7 @@ export default function PersuratanSppdPage() {
 
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
-    type: 'SURAT_TUGAS' | 'SPPD';
+    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN';
     task: any | null;
     useTteTags: boolean;
   }>({
@@ -367,7 +368,7 @@ export default function PersuratanSppdPage() {
   };
 
   // Safe Preview Handler with Number Check
-  const handleOpenPreview = async (task: any, type: 'SURAT_TUGAS' | 'SPPD') => {
+  const handleOpenPreview = async (task: any, type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN') => {
     if (taskNumberMap[task.id]?.isModified) {
       await handleSaveNumbers(task.id);
     }
@@ -381,7 +382,7 @@ export default function PersuratanSppdPage() {
         taskNumberMap[task.id]?.sppdNumber || task.sppdNumber || '${nomor_naskah}',
     };
 
-    const docTypeKey = type === 'SURAT_TUGAS' ? 'tugas' : 'sppd';
+    const docTypeKey = type === 'SURAT_TUGAS' ? 'tugas' : type === 'SPPD' ? 'sppd' : 'laporan';
     const tteState = isTteActive(task.id, docTypeKey);
 
     setPreviewModal({
@@ -559,15 +560,22 @@ export default function PersuratanSppdPage() {
   // Preview HTML
   const previewHtml = useMemo(() => {
     if (!previewModal.task) return '';
-    return previewModal.type === 'SURAT_TUGAS'
-      ? generateSuratTugasHtml(previewModal.task, {
-          schoolSetting,
-          useTteTags: previewModal.useTteTags,
-        })
-      : generateSppdHtml(previewModal.task, {
-          schoolSetting,
-          useTteTags: previewModal.useTteTags,
-        });
+    if (previewModal.type === 'SURAT_TUGAS') {
+      return generateSuratTugasHtml(previewModal.task, {
+        schoolSetting,
+        useTteTags: previewModal.useTteTags,
+      });
+    }
+    if (previewModal.type === 'SPPD') {
+      return generateSppdHtml(previewModal.task, {
+        schoolSetting,
+        useTteTags: previewModal.useTteTags,
+      });
+    }
+    return generateLaporanHasilKegiatanHtml(previewModal.task, {
+      schoolSetting,
+      useTteTags: previewModal.useTteTags,
+    });
   }, [previewModal, schoolSetting]);
 
   // Print Document
@@ -1376,6 +1384,16 @@ export default function PersuratanSppdPage() {
                         </button>
                       </div>
 
+                      {/* Tombol Pratinjau Laporan Kegiatan */}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPreview(task, 'LAPORAN')}
+                        className="w-full py-1.5 bg-amber-500/10 hover:bg-amber-600 text-amber-600 hover:text-white dark:text-amber-400 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5 transition-all cursor-pointer"
+                        title="Pratinjau tampilan Laporan Hasil Kegiatan sebelum diunduh"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Pratinjau
+                      </button>
+
                       {/* Tombol Unduh DOCX Laporan */}
                       <button
                         type="button"
@@ -1429,12 +1447,30 @@ export default function PersuratanSppdPage() {
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-800/30 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
               <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
-                  {previewModal.type === 'SURAT_TUGAS' ? <FileSignature className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                <div
+                  className={`p-2 rounded-xl ${
+                    previewModal.type === 'SURAT_TUGAS'
+                      ? 'bg-blue-500/10 text-blue-400'
+                      : previewModal.type === 'SPPD'
+                      ? 'bg-indigo-500/10 text-indigo-400'
+                      : 'bg-amber-500/10 text-amber-400'
+                  }`}
+                >
+                  {previewModal.type === 'SURAT_TUGAS' ? (
+                    <FileSignature className="w-5 h-5" />
+                  ) : previewModal.type === 'SPPD' ? (
+                    <FileText className="w-5 h-5" />
+                  ) : (
+                    <ClipboardList className="w-5 h-5" />
+                  )}
                 </div>
                 <div>
                   <h3 className="text-base font-bold">
-                    {previewModal.type === 'SURAT_TUGAS' ? 'Pratinjau Surat Perintah Tugas' : 'Pratinjau SPPD'}
+                    {previewModal.type === 'SURAT_TUGAS'
+                      ? 'Pratinjau Surat Perintah Tugas'
+                      : previewModal.type === 'SPPD'
+                      ? 'Pratinjau SPPD'
+                      : 'Pratinjau Laporan Hasil Kegiatan'}
                   </h3>
                   <p className="text-xs text-slate-400">
                     Tujuan: <strong className="text-white">{previewModal.task.industry.name}</strong> • Petugas:{' '}
@@ -1481,7 +1517,11 @@ export default function PersuratanSppdPage() {
                   onClick={() =>
                     handleDownloadClick(
                       previewModal.task,
-                      previewModal.type === 'SURAT_TUGAS' ? 'tugas' : 'sppd'
+                      previewModal.type === 'SURAT_TUGAS'
+                        ? 'tugas'
+                        : previewModal.type === 'SPPD'
+                        ? 'sppd'
+                        : 'laporan'
                     )
                   }
                   className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
