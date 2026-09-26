@@ -20,6 +20,9 @@ import {
   Layers,
   Building,
   Users,
+  Save,
+  AlertCircle,
+  Check,
 } from 'lucide-react';
 import {
   generateSuratTugasHtml,
@@ -70,6 +73,15 @@ export default function PersuratanSppdPage() {
   // Checklist Selection for Bulk Download
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
+  // TTE Mode Toggle per Task & per Document Type (Default: ON / true)
+  // { [taskId]: { tugas: boolean, sppd: boolean } }
+  const [taskTteMap, setTaskTteMap] = useState<Record<string, { tugas: boolean; sppd: boolean }>>({});
+
+  // Letter Numbers Local State (for editing and saving)
+  // { [taskId]: { letterNumber: string, sppdNumber: string, isModified: boolean } }
+  const [taskNumberMap, setTaskNumberMap] = useState<Record<string, { letterNumber: string; sppdNumber: string; isModified: boolean }>>({});
+  const [savingNumberId, setSavingNumberId] = useState<string | null>(null);
+
   // Preview Modal State
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
@@ -102,6 +114,17 @@ export default function PersuratanSppdPage() {
         setTasks(json.data || []);
         if (json.departments) setDepartments(json.departments);
         if (json.schoolSetting) setSchoolSetting(json.schoolSetting);
+
+        // Initialize number map with current numbers
+        const nMap: Record<string, { letterNumber: string; sppdNumber: string; isModified: boolean }> = {};
+        (json.data || []).forEach((t: any) => {
+          nMap[t.id] = {
+            letterNumber: t.letterNumber === '${nomor_naskah}' ? '' : (t.letterNumber || ''),
+            sppdNumber: t.sppdNumber === '${nomor_naskah}' ? '' : (t.sppdNumber || ''),
+            isModified: false,
+          };
+        });
+        setTaskNumberMap(nMap);
       }
     } catch (err) {
       console.error(err);
@@ -113,6 +136,185 @@ export default function PersuratanSppdPage() {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  // TTE Toggle Helper
+  const isTteActive = (taskId: string, type: 'tugas' | 'sppd'): boolean => {
+    return taskTteMap[taskId]?.[type] ?? true; // Default ON
+  };
+
+  const handleToggleTte = (taskId: string, type: 'tugas' | 'sppd') => {
+    setTaskTteMap((prev) => {
+      const current = prev[taskId] ?? { tugas: true, sppd: true };
+      return {
+        ...prev,
+        [taskId]: {
+          ...current,
+          [type]: !current[type],
+        },
+      };
+    });
+  };
+
+  // Letter Number Change Handler
+  const handleNumberChange = (taskId: string, field: 'letterNumber' | 'sppdNumber', value: string) => {
+    setTaskNumberMap((prev) => {
+      const current = prev[taskId] || { letterNumber: '', sppdNumber: '', isModified: false };
+      return {
+        ...prev,
+        [taskId]: {
+          ...current,
+          [field]: value,
+          isModified: true,
+        },
+      };
+    });
+  };
+
+  // Save Letter Numbers to Database via PUT
+  const handleSaveNumbers = async (taskId: string) => {
+    const entry = taskNumberMap[taskId];
+    if (!entry) return;
+
+    setSavingNumberId(taskId);
+    try {
+      const res = await fetch(`/api/pokja/monitoring/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          letterNumber: entry.letterNumber.trim() !== '' ? entry.letterNumber.trim() : '${nomor_naskah}',
+          sppdNumber: entry.sppdNumber.trim() !== '' ? entry.sppdNumber.trim() : '${nomor_naskah}',
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setTaskNumberMap((prev) => ({
+          ...prev,
+          [taskId]: {
+            ...prev[taskId],
+            isModified: false,
+          },
+        }));
+        // Update local tasks array
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  letterNumber: entry.letterNumber.trim() || '${nomor_naskah}',
+                  sppdNumber: entry.sppdNumber.trim() || '${nomor_naskah}',
+                }
+              : t
+          )
+        );
+      } else {
+        alert(json.error || 'Gagal menyimpan nomor naskah.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Terjadi kesalahan jaringan.');
+    } finally {
+      setSavingNumberId(null);
+    }
+  };
+
+  // Save single number on the fly if prompted
+  const handleSaveSingleNumber = async (taskId: string, type: 'tugas' | 'sppd', value: string) => {
+    try {
+      const payload: any = {};
+      if (type === 'tugas') payload.letterNumber = value;
+      else payload.sppdNumber = value;
+
+      const res = await fetch(`/api/pokja/monitoring/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setTaskNumberMap((prev) => {
+          const cur = prev[taskId] || { letterNumber: '', sppdNumber: '', isModified: false };
+          return {
+            ...prev,
+            [taskId]: {
+              ...cur,
+              [type === 'tugas' ? 'letterNumber' : 'sppdNumber']: value,
+              isModified: false,
+            },
+          };
+        });
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, ...payload } : t))
+        );
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Safe Download Handler with Number Check
+  const handleDownloadClick = async (task: any, type: 'tugas' | 'sppd') => {
+    let currentNumber =
+      type === 'tugas'
+        ? (taskNumberMap[task.id]?.letterNumber !== undefined
+            ? taskNumberMap[task.id].letterNumber
+            : task.letterNumber)
+        : (taskNumberMap[task.id]?.sppdNumber !== undefined
+            ? taskNumberMap[task.id].sppdNumber
+            : task.sppdNumber);
+
+    if (
+      !currentNumber ||
+      currentNumber.trim() === '' ||
+      currentNumber.trim() === '${nomor_naskah}'
+    ) {
+      const inputVal = prompt(
+        `⚠️ Nomor ${type === 'tugas' ? 'Surat Tugas' : 'SPPD'} belum diisi!\n\n` +
+          `Silakan masukkan nomor naskah resmi untuk ${task.teacher.name} ke ${task.industry.name}:`,
+        type === 'tugas' ? '800.1.11.1/' : '090/'
+      );
+
+      if (!inputVal || inputVal.trim() === '') {
+        alert('Pengunduhan dibatalkan karena nomor naskah wajib diisi.');
+        return;
+      }
+
+      await handleSaveSingleNumber(task.id, type, inputVal.trim());
+      currentNumber = inputVal.trim();
+    } else if (taskNumberMap[task.id]?.isModified) {
+      await handleSaveNumbers(task.id);
+    }
+
+    const tteState = isTteActive(task.id, type);
+    window.location.href = `/api/pokja/monitoring/${task.id}/download-docx?type=${type}&tte=${tteState}`;
+  };
+
+  // Safe Preview Handler with Number Check
+  const handleOpenPreview = async (task: any, type: 'SURAT_TUGAS' | 'SPPD') => {
+    if (taskNumberMap[task.id]?.isModified) {
+      await handleSaveNumbers(task.id);
+    }
+
+    // Refresh task with latest numbers for accurate preview
+    const updatedTask = {
+      ...task,
+      letterNumber:
+        taskNumberMap[task.id]?.letterNumber || task.letterNumber || '${nomor_naskah}',
+      sppdNumber:
+        taskNumberMap[task.id]?.sppdNumber || task.sppdNumber || '${nomor_naskah}',
+    };
+
+    const docTypeKey = type === 'SURAT_TUGAS' ? 'tugas' : 'sppd';
+    const tteState = isTteActive(task.id, docTypeKey);
+
+    setPreviewModal({
+      isOpen: true,
+      type,
+      task: updatedTask,
+      useTteTags: tteState,
+    });
+  };
 
   // Filter Tasks
   const filteredTasks = useMemo(() => {
@@ -169,12 +371,45 @@ export default function PersuratanSppdPage() {
     );
   };
 
-  const handleBulkDownload = (type: 'tugas' | 'sppd') => {
+  // Safe Bulk Download with Number Check
+  const handleBulkDownload = async (type: 'tugas' | 'sppd') => {
     if (selectedTaskIds.length === 0) {
       alert('Pilih setidaknya satu penugasan terlebih dahulu.');
       return;
     }
-    const url = `/api/persuratan/sppd/download-bulk?type=${type}&ids=${selectedTaskIds.join(',')}`;
+
+    // Check if any selected task is missing its letter number
+    const missing = selectedTaskIds.filter((id) => {
+      const t = tasks.find((item) => item.id === id);
+      const num =
+        type === 'tugas'
+          ? (taskNumberMap[id]?.letterNumber !== undefined
+              ? taskNumberMap[id].letterNumber
+              : t?.letterNumber)
+          : (taskNumberMap[id]?.sppdNumber !== undefined
+              ? taskNumberMap[id].sppdNumber
+              : t?.sppdNumber);
+      return !num || num.trim() === '' || num.trim() === '${nomor_naskah}';
+    });
+
+    if (missing.length > 0) {
+      alert(
+        `⚠️ PERHATIAN: Terdapat ${missing.length} penugasan yang nomor ${
+          type === 'tugas' ? 'Surat Tugas' : 'SPPD'
+        }-nya masih kosong!\n\n` +
+          'Mohon lengkapi seluruh nomor naskah pada kartu penugasan terpilih terlebih dahulu sebelum mengunduh berkas kolektif.'
+      );
+      return;
+    }
+
+    // Auto-save any modified numbers
+    for (const id of selectedTaskIds) {
+      if (taskNumberMap[id]?.isModified) {
+        await handleSaveNumbers(id);
+      }
+    }
+
+    const url = `/api/persuratan/sppd/download-bulk?type=${type}&ids=${selectedTaskIds.join(',')}&tte=true`;
     window.location.href = url;
   };
 
@@ -256,7 +491,7 @@ export default function PersuratanSppdPage() {
           <div>
             <h1 className="text-2xl font-black text-slate-900 dark:text-white">Surat Tugas & SPPD (TTE)</h1>
             <p className="text-sm font-medium text-slate-500">
-              Pratinjau, unduh Word kolektif untuk pengajuan TTE, lalu unggah file PDF yang sudah bertanda tangan elektronik.
+              Lengkapi nomor surat, atur mode TTE, pratinjau naskah, lalu unduh Word secara mandiri atau kolektif.
             </p>
           </div>
         </div>
@@ -395,6 +630,11 @@ export default function PersuratanSppdPage() {
               const isSelected = selectedTaskIds.includes(task.id);
               const studentCount = task.industry?.placements?.length || 0;
 
+              const isTugasTteOn = isTteActive(task.id, 'tugas');
+              const isSppdTteOn = isTteActive(task.id, 'sppd');
+
+              const hasUnsavedNumbers = taskNumberMap[task.id]?.isModified;
+
               return (
                 <div
                   key={task.id}
@@ -451,45 +691,105 @@ export default function PersuratanSppdPage() {
                   </div>
 
                   {/* Purpose Box */}
-                  <div className="mb-4 text-xs font-semibold text-slate-600 dark:text-slate-400 p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                  <div className="mb-3 text-xs font-semibold text-slate-600 dark:text-slate-400 p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
                     <p className="text-[10px] text-slate-400 uppercase font-bold mb-0.5">Maksud Perjalanan:</p>
                     <p className="line-clamp-2">{task.purpose}</p>
+                  </div>
+
+                  {/* 📝 NOMOR NASKAH INPUT SECTION */}
+                  <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800/80 mb-3 space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-400 flex items-center justify-between mb-1">
+                          <span>No. Surat Tugas</span>
+                          <span className="text-rose-500">*wajib</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Cth: 800.1.11.1/1000/2026"
+                          value={taskNumberMap[task.id]?.letterNumber ?? ''}
+                          onChange={(e) => handleNumberChange(task.id, 'letterNumber', e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-400 flex items-center justify-between mb-1">
+                          <span>No. SPPD</span>
+                          <span className="text-rose-500">*wajib</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Cth: 090/1000/2026"
+                          value={taskNumberMap[task.id]?.sppdNumber ?? ''}
+                          onChange={(e) => handleNumberChange(task.id, 'sppdNumber', e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+
+                    {hasUnsavedNumbers && (
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSaveNumbers(task.id)}
+                          disabled={savingNumberId === task.id}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+                        >
+                          {savingNumberId === task.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Save className="w-3 h-3" />
+                          )}
+                          <span>Simpan Nomor Naskah</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions Grid: Surat Tugas & SPPD */}
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
                     {/* Kolom 1: Surat Tugas */}
                     <div className="space-y-1.5 border-r border-slate-200 dark:border-slate-800 pr-2">
-                      <p className="text-[10px] uppercase font-black text-slate-400 text-center tracking-wider">
-                        Surat Tugas
-                      </p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
+                          Surat Tugas
+                        </p>
+
+                        {/* TOGGLE TTE SURAT TUGAS (DEFAULT ON) */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTte(task.id, 'tugas')}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                            isTugasTteOn
+                              ? 'bg-blue-600/20 text-blue-500 dark:text-blue-400 border-blue-500/40 shadow-sm'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                          }`}
+                          title="Klik untuk beralih antara Mode TTE Tag ${...} atau Mode TTD Langsung Kepala Sekolah"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>TTE: {isTugasTteOn ? 'ON' : 'OFF'}</span>
+                        </button>
+                      </div>
 
                       {/* Tombol Pratinjau Surat Tugas */}
                       <button
                         type="button"
-                        onClick={() =>
-                          setPreviewModal({
-                            isOpen: true,
-                            type: 'SURAT_TUGAS',
-                            task,
-                            useTteTags: true,
-                          })
-                        }
-                        className="w-full py-1.5 bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white dark:text-blue-400 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5 transition-all cursor-pointer"
+                        onClick={() => handleOpenPreview(task, 'SURAT_TUGAS')}
+                        className="w-full py-1.5 bg-blue-500/10 hover:bg-blue-500 text-blue-600 hover:text-white dark:text-blue-400 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5 transition-all cursor-pointer"
                         title="Pratinjau tampilan Surat Tugas sebelum diunduh"
                       >
                         <Eye className="w-3.5 h-3.5" /> Pratinjau
                       </button>
 
-                      {/* Tombol Unduh DOCX */}
-                      <a
-                        href={`/api/pokja/monitoring/${task.id}/download-docx?type=tugas&tte=true`}
-                        download
+                      {/* Tombol Unduh DOCX Surat Tugas */}
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadClick(task, 'tugas')}
                         className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5 transition-all cursor-pointer"
                         title="Unduh Berkas Word (.docx)"
                       >
                         <Download className="w-3.5 h-3.5" /> Unduh DOCX
-                      </a>
+                      </button>
 
                       {/* Upload / Lihat PDF TTE */}
                       {task.suratTugasUrl ? (
@@ -514,36 +814,46 @@ export default function PersuratanSppdPage() {
 
                     {/* Kolom 2: SPPD */}
                     <div className="space-y-1.5 pl-2">
-                      <p className="text-[10px] uppercase font-black text-slate-400 text-center tracking-wider">
-                        SPPD
-                      </p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
+                          SPPD
+                        </p>
+
+                        {/* TOGGLE TTE SPPD (DEFAULT ON) */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTte(task.id, 'sppd')}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                            isSppdTteOn
+                              ? 'bg-indigo-600/20 text-indigo-500 dark:text-indigo-400 border-indigo-500/40 shadow-sm'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                          }`}
+                          title="Klik untuk beralih antara Mode TTE Tag ${...} atau Mode TTD Langsung Kepala Sekolah"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>TTE: {isSppdTteOn ? 'ON' : 'OFF'}</span>
+                        </button>
+                      </div>
 
                       {/* Tombol Pratinjau SPPD */}
                       <button
                         type="button"
-                        onClick={() =>
-                          setPreviewModal({
-                            isOpen: true,
-                            type: 'SPPD',
-                            task,
-                            useTteTags: true,
-                          })
-                        }
-                        className="w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-600 text-indigo-500 hover:text-white dark:text-indigo-400 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5 transition-all cursor-pointer"
+                        onClick={() => handleOpenPreview(task, 'SPPD')}
+                        className="w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-600 text-indigo-600 hover:text-white dark:text-indigo-400 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5 transition-all cursor-pointer"
                         title="Pratinjau tampilan SPPD sebelum diunduh"
                       >
                         <Eye className="w-3.5 h-3.5" /> Pratinjau
                       </button>
 
-                      {/* Tombol Unduh DOCX */}
-                      <a
-                        href={`/api/pokja/monitoring/${task.id}/download-docx?type=sppd&tte=true`}
-                        download
+                      {/* Tombol Unduh DOCX SPPD */}
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadClick(task, 'sppd')}
                         className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs flex justify-center items-center gap-1.5 transition-all cursor-pointer"
                         title="Unduh Berkas Word (.docx)"
                       >
                         <Download className="w-3.5 h-3.5" /> Unduh DOCX
-                      </a>
+                      </button>
 
                       {/* Upload / Lihat PDF TTE */}
                       {task.sppdUrl ? (
@@ -635,16 +945,19 @@ export default function PersuratanSppdPage() {
                 </button>
 
                 {/* Download DOCX Button */}
-                <a
-                  href={`/api/pokja/monitoring/${previewModal.task.id}/download-docx?type=${
-                    previewModal.type === 'SURAT_TUGAS' ? 'tugas' : 'sppd'
-                  }&tte=${previewModal.useTteTags}`}
-                  download
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDownloadClick(
+                      previewModal.task,
+                      previewModal.type === 'SURAT_TUGAS' ? 'tugas' : 'sppd'
+                    )
+                  }
                   className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Unduh DOCX</span>
-                </a>
+                </button>
 
                 {/* Close Button */}
                 <button

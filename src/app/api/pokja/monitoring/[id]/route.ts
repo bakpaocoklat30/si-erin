@@ -17,7 +17,7 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'POKJA', 'PEMBIMBING'].includes((session.user as any)?.role)) {
+    if (!session || !['ADMIN', 'POKJA', 'PEMBIMBING', 'TATA_USAHA'].includes((session.user as any)?.role)) {
       return NextResponse.json({ success: false, error: 'Akses tidak diizinkan.' }, { status: 403 });
     }
 

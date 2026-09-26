@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 
     const options = {
       schoolSetting: schoolSetting || undefined,
-      useTteTags: true,
+      useTteTags: searchParams.get("tte") !== "false",
     };
 
     let docxBuffer: Buffer;
