@@ -273,7 +273,7 @@ export default function StudentDashboardPage() {
         }`}>
           <div className="flex justify-between items-center">
             <span className={`text-[11px] font-black uppercase tracking-wider ${
-              theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+              theme === 'dark' ? 'text-slate-400' : 'text-slate-700'
             }`}>
               STATUS IZIN PRAKERIN
             </span>
@@ -299,7 +299,7 @@ export default function StudentDashboardPage() {
             </p>
           </div>
 
-          <div className="pt-2 border-t border-inherit/40 text-[11px] font-bold text-slate-500 flex items-center justify-between">
+          <div className="pt-2 border-t border-inherit/40 text-[11px] font-bold text-slate-700 dark:text-slate-400 flex items-center justify-between">
             <span>File CV Siswa:</span>
             <span className={hasCv ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
               {hasCv ? '✓ Sudah Upload' : '✗ Belum Upload'}
@@ -313,7 +313,7 @@ export default function StudentDashboardPage() {
         }`}>
           <div className="flex justify-between items-center">
             <span className={`text-[11px] font-black uppercase tracking-wider ${
-              theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+              theme === 'dark' ? 'text-slate-400' : 'text-slate-700'
             }`}>
               KARTU BPJS TK
             </span>
@@ -328,7 +328,7 @@ export default function StudentDashboardPage() {
             <span className={`px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider ${
               hasBpjs 
                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
-                : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'
+                : 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20'
             }`}>
               {hasBpjs ? 'SUDAH DIUNGGAH' : 'BELUM DIUNGGAH'}
             </span>
@@ -340,7 +340,7 @@ export default function StudentDashboardPage() {
           </div>
 
           <div className="pt-2 border-t border-inherit/40 flex items-center justify-between text-xs">
-            <span className="text-[11px] font-bold text-slate-500">Status Perlindungan</span>
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-400">Status Perlindungan</span>
             <Link
               href="/dashboard/students/profile"
               className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center space-x-1"
@@ -357,7 +357,7 @@ export default function StudentDashboardPage() {
         }`}>
           <div className="flex justify-between items-center">
             <span className={`text-[11px] font-black uppercase tracking-wider ${
-              theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+              theme === 'dark' ? 'text-slate-400' : 'text-slate-700'
             }`}>
               IDENTITAS DIRI
             </span>
@@ -368,15 +368,15 @@ export default function StudentDashboardPage() {
 
           <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-500">NIS:</span>
+              <span className="text-slate-700 dark:text-slate-400 font-medium">NIS:</span>
               <strong className="text-slate-900 dark:text-slate-100">{studentInfo?.nis || '-'}</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Kelas:</span>
+              <span className="text-slate-700 dark:text-slate-400 font-medium">Kelas:</span>
               <strong className="text-slate-900 dark:text-slate-100">{studentInfo?.className || '-'}</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Jurusan:</span>
+              <span className="text-slate-700 dark:text-slate-400 font-medium">Jurusan:</span>
               <strong className="text-indigo-600 dark:text-indigo-400 truncate max-w-[160px]">{studentInfo?.department || '-'}</strong>
             </div>
           </div>
@@ -432,16 +432,16 @@ export default function StudentDashboardPage() {
               theme === 'dark' ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-100/80 border-slate-200'
             }`}>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Username / NIP:</span>
+                <span className="text-slate-700 dark:text-slate-400 font-bold">Username / NIP:</span>
                 <strong className="text-slate-900 dark:text-white font-bold">{schoolTeacher.username || schoolTeacher.nip || '-'}</strong>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Kontak WhatsApp:</span>
-                <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{schoolTeacher.phone || 'Tersedia via Pokja'}</strong>
+                <span className="text-slate-700 dark:text-slate-400 font-bold">Kontak WhatsApp:</span>
+                <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{schoolTeacher.phone || 'Tersedia via Pokja'}</strong>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Status Pendampingan:</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="text-slate-700 dark:text-slate-400 font-bold">Status Pendampingan:</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                   AKTIF MENDAMPINGI
                 </span>
               </div>
@@ -450,8 +450,8 @@ export default function StudentDashboardPage() {
         ) : (
           <div className="py-6 text-center space-y-2">
             <BookOpen className="w-8 h-8 text-slate-500 mx-auto opacity-50" />
-            <p className="text-xs font-bold text-slate-400">Belum ada Guru Pembimbing Sekolah yang ditugaskan untuk Anda.</p>
-            <p className="text-[11px] text-slate-500">Tim Pokja akan mengalokasikan guru pembimbing setelah alokasi jam dan kelas PKL selesai dipetakan.</p>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Belum ada Guru Pembimbing Sekolah yang ditugaskan untuk Anda.</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Tim Pokja akan mengalokasikan guru pembimbing setelah alokasi jam dan kelas PKL selesai dipetakan.</p>
           </div>
         )}
       </div>
@@ -491,7 +491,7 @@ export default function StudentDashboardPage() {
             <div className="lg:col-span-6 space-y-4">
               <div className="space-y-1">
                 <span className={`text-[10px] font-black uppercase tracking-wider ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                  theme === 'dark' ? 'text-slate-400' : 'text-slate-700'
                 }`}>
                   NAMA PERUSAHAAN / INDUSTRI
                 </span>
@@ -532,7 +532,7 @@ export default function StudentDashboardPage() {
                   <ExternalLink className="w-3 h-3" />
                 </button>
 
-                <span className="text-[11px] font-bold text-slate-500">
+                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-400">
                   Kategori: {activePlacement.industry?.sector || 'Umum'}
                 </span>
               </div>

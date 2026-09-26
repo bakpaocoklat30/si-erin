@@ -75,6 +75,7 @@ interface StudentItem {
   startDate?: string;
   endDate?: string;
   letterNumber?: string;
+  suratBalasanUrl?: string;
   student?: any;
 }
 
@@ -1025,7 +1026,7 @@ export default function PokjaKelompokPrakerinPage() {
           {/* FILTER PERIODE */}
           <div className="flex items-center space-x-2">
             <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-400">
               Periode:
             </span>
             <select
@@ -1049,7 +1050,7 @@ export default function PokjaKelompokPrakerinPage() {
           {/* FILTER STATUS TERVERIFIKASI */}
           <div className="flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-400">
               Status:
             </span>
             <select
@@ -1071,13 +1072,13 @@ export default function PokjaKelompokPrakerinPage() {
 
         {/* SEARCH BAR */}
         <div className="relative w-full lg:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Cari Industri, Periode, No Surat, Siswa..."
-            className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs font-semibold border outline-none transition-all ${
+            className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs font-semibold border outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
               theme === 'dark' 
                 ? 'bg-slate-950 border-slate-800 text-slate-100 focus:border-indigo-500' 
                 : 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 shadow-sm'
@@ -1358,7 +1359,7 @@ export default function PokjaKelompokPrakerinPage() {
                           <button
                             type="button"
                             onClick={() => setDeleteTargetStudent(item)}
-                            className="absolute top-3 right-3 p-1 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-500/10 transition-all cursor-pointer"
+                            className="absolute top-3 right-3 p-1 rounded-xl text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-500/10 transition-all cursor-pointer"
                             title="Keluarkan Siswa dari Kelompok ini"
                           >
                             <X className="w-4 h-4" />
@@ -1370,7 +1371,7 @@ export default function PokjaKelompokPrakerinPage() {
                               href={`https://wa.me/${student.phone.replace(/\D/g, '').replace(/^0/, '62')}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="absolute top-3 right-10 p-1 rounded-xl text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 transition-all cursor-pointer"
+                              className="absolute top-3 right-10 p-1 rounded-xl text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:bg-emerald-500/10 transition-all cursor-pointer"
                               title={`Hubungi ${student.name || 'Siswa'} via WhatsApp`}
                             >
                               <MessageCircle className="w-4 h-4" />
@@ -1440,7 +1441,9 @@ export default function PokjaKelompokPrakerinPage() {
               <button
                 type="button"
                 onClick={() => setDeleteTargetGroup(null)}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all cursor-pointer"
+                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                  theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1503,7 +1506,9 @@ export default function PokjaKelompokPrakerinPage() {
               <button
                 type="button"
                 onClick={() => setDeleteTargetStudent(null)}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all cursor-pointer"
+                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                  theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1562,7 +1567,9 @@ export default function PokjaKelompokPrakerinPage() {
               <button
                 type="button"
                 onClick={() => setDetailModalGroup(null)}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all cursor-pointer"
+                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                  theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1689,7 +1696,9 @@ export default function PokjaKelompokPrakerinPage() {
                   setInputLetterNumber('');
                   setSelectedFileName('');
                 }}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all cursor-pointer"
+                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                  theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1750,7 +1759,7 @@ export default function PokjaKelompokPrakerinPage() {
                       : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-indigo-600 shadow-sm'
                   }`}
                 />
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                <p className="text-[10px] text-slate-600 dark:text-slate-400">
                   Tanggal ini otomatis mendeteksi dari PDF surat atau gunakan tanggal terbit resmi untuk konfirmasi DUDI.
                 </p>
               </div>
@@ -1787,7 +1796,7 @@ export default function PokjaKelompokPrakerinPage() {
                   <p className="font-bold text-slate-800 dark:text-slate-200">
                     {suratBase64 ? 'File Surat Berhasil Dipilih (Klik untuk mengganti)' : 'Klik di sini untuk memilih Surat Permohonan'}
                   </p>
-                  <p className="text-[10px] text-slate-600 dark:text-slate-500 font-semibold">Format: PDF, PNG, JPG (Maksimal 5MB)</p>
+                  <p className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold">Format: PDF, PNG, JPG (Maksimal 5MB)</p>
                 </button>
               </div>
 
@@ -1834,7 +1843,9 @@ export default function PokjaKelompokPrakerinPage() {
               <button
                 type="button"
                 onClick={() => setActivePreviewUrl(null)}
-                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer"
+                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                  theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1930,7 +1941,9 @@ export default function PokjaKelompokPrakerinPage() {
                 <button
                   type="button"
                   onClick={() => setConfirmationGroup(null)}
-                  className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all cursor-pointer ml-1"
+                  className={`p-2 rounded-xl transition-all cursor-pointer ml-1 ${
+                    theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1948,7 +1961,7 @@ export default function PokjaKelompokPrakerinPage() {
                     <Edit3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                     <span>Pengaturan Dokumen</span>
                   </span>
-                  <span className="text-[10px] text-slate-500">Live Updated</span>
+                  <span className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold">Live Updated</span>
                 </div>
 
                 {/* NOMOR SURAT */}
@@ -1995,7 +2008,7 @@ export default function PokjaKelompokPrakerinPage() {
                       theme === 'dark' ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
                     }`}
                   />
-                  <p className="text-[10px] text-slate-500 leading-tight">
+                  <p className="text-[10px] text-slate-600 dark:text-slate-400 font-medium leading-tight">
                     {confirmationForm.isDateAutoDetected
                       ? '✨ Berhasil dideteksi langsung dari teks PDF surat permohonan.'
                       : 'Tanggal yang tertera pada surat permohonan sekolah ke industri.'}
@@ -2183,7 +2196,7 @@ export default function PokjaKelompokPrakerinPage() {
 
             {/* FOOTER MODAL */}
             <div className="p-4 border-t border-inherit flex flex-wrap justify-between items-center gap-3 bg-slate-50 dark:bg-slate-900/60">
-              <span className="text-xs text-slate-500 font-medium">
+              <span className="text-xs text-slate-700 dark:text-slate-400 font-medium">
                 💡 Format cetak siap A4 portrait standar resmi. Siswa/Pokja tinggal menyerahkan lembar ini ke DUDI.
               </span>
               <div className="flex items-center space-x-3">

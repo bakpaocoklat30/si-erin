@@ -553,7 +553,7 @@ export default function StudentPengajuanPage() {
             <div>
               <span className="font-extrabold block text-xs">1. Izin PKL dari Pokja</span>
               <span className={`text-[11px] font-medium ${
-                isAllowedPkl ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-500'
+                isAllowedPkl ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-400'
               }`}>
                 {isAllowedPkl ? 'Izin Dibuka' : 'Belum Diizinkan'}
               </span>
@@ -652,7 +652,7 @@ export default function StudentPengajuanPage() {
               {renderIndustryLogo(activePlacement.industry, "w-14 h-14", "text-xl")}
               <div className="space-y-1">
                 <span className={`text-[10px] uppercase font-bold tracking-wider ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                  theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
                 }`}>
                   Industri Tujuan PKL
                 </span>
@@ -662,7 +662,7 @@ export default function StudentPengajuanPage() {
                   {activePlacement.industry?.name}
                 </h3>
                 <p className={`text-xs font-medium ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+                  theme === 'dark' ? 'text-slate-400' : 'text-slate-700'
                 }`}>
                   {activePlacement.industry?.address}
                 </p>
@@ -697,7 +697,7 @@ export default function StudentPengajuanPage() {
           {/* STEPPER PROGRESS BAR */}
           <div className="space-y-4">
             <h4 className={`font-bold text-xs uppercase tracking-wider ${
-              theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+              theme === 'dark' ? 'text-slate-400' : 'text-slate-700'
             }`}>
               Progres Tahapan Alur Pengajuan (1 - 6):
             </h4>
@@ -705,8 +705,8 @@ export default function StudentPengajuanPage() {
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
                 currentStep >= 1 
-                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950'
-                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
+                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold'
+                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 font-semibold'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">01</span>
@@ -718,8 +718,8 @@ export default function StudentPengajuanPage() {
 
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
                 currentStep >= 2 
-                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950'
-                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
+                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold'
+                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 font-semibold'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">02</span>
@@ -731,8 +731,8 @@ export default function StudentPengajuanPage() {
 
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
                 currentStep >= 3 
-                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950'
-                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
+                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold'
+                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 font-semibold'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">03</span>
@@ -744,8 +744,8 @@ export default function StudentPengajuanPage() {
 
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
                 currentStep >= 4 
-                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950'
-                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
+                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold'
+                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 font-semibold'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">04</span>
@@ -757,8 +757,8 @@ export default function StudentPengajuanPage() {
 
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
                 currentStep >= 5 
-                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950'
-                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
+                  ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold'
+                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 font-semibold'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">05</span>
@@ -770,8 +770,8 @@ export default function StudentPengajuanPage() {
 
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
                 currentStep >= 6 
-                  ? theme === 'dark' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
+                  ? theme === 'dark' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold'
+                  : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 font-semibold'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">06</span>
@@ -925,7 +925,7 @@ export default function StudentPengajuanPage() {
             </div>
           ) : (
             <div className={`p-6 rounded-2xl border border-dashed text-center text-xs space-y-2 ${
-              theme === 'dark' ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-500'
+              theme === 'dark' ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-600'
             }`}>
               <Building2 className="w-8 h-8 mx-auto text-slate-400 dark:text-slate-600" />
               <p className="font-semibold text-slate-700 dark:text-slate-300">Belum Ada Industri Pilihan</p>
@@ -1033,7 +1033,7 @@ export default function StudentPengajuanPage() {
               <span>Katalog Industri Mitra (Ter-filter Khusus Jurusan)</span>
             </h3>
             <p className={`text-xs font-medium ${
-              theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+              theme === 'dark' ? 'text-slate-400' : 'text-slate-700'
             }`}>
               Hanya menampilkan DUDI yang dialokasikan oleh Pokja untuk jurusan <strong>{studentInfo?.department || 'Anda'}</strong>.
             </p>
@@ -1049,7 +1049,7 @@ export default function StudentPengajuanPage() {
                 className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all cursor-pointer ${
                   viewMode === 'grid'
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -1061,7 +1061,7 @@ export default function StudentPengajuanPage() {
                 className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all cursor-pointer ${
                   viewMode === 'table'
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                 }`}
               >
                 <TableIcon className="w-3.5 h-3.5" />
@@ -1085,13 +1085,13 @@ export default function StudentPengajuanPage() {
             </button>
 
             <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Cari nama/sektor/alamat..."
-                className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs font-semibold border outline-none transition-all ${
+                className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs font-semibold border outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
                   theme === 'dark' 
                     ? 'bg-slate-900 border-slate-800 text-slate-100 focus:border-indigo-500' 
                     : 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 shadow-sm'
@@ -1154,7 +1154,7 @@ export default function StudentPengajuanPage() {
                       </div>
 
                       <div className={`space-y-1.5 text-xs font-medium ${
-                        theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+                        theme === 'dark' ? 'text-slate-400' : 'text-slate-700'
                       }`}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-start space-x-1.5 overflow-hidden">
@@ -1190,7 +1190,7 @@ export default function StudentPengajuanPage() {
                         </div>
                         
                         {ind.jobDescription && (
-                          <div className="mt-2 text-[11px] leading-relaxed line-clamp-3 opacity-90 border-t border-slate-200 dark:border-slate-800 pt-2">
+                          <div className="mt-2 text-[11px] leading-relaxed line-clamp-3 opacity-90 border-t border-slate-200 dark:border-slate-800 pt-2 text-slate-700 dark:text-slate-300">
                             {ind.jobDescription}
                           </div>
                         )}
@@ -1205,7 +1205,7 @@ export default function StudentPengajuanPage() {
                     </div>
 
                     <div className="pt-2 flex justify-between items-center border-t border-inherit/40 text-xs font-semibold">
-                      <span className={`text-[11px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-700 font-medium'}`}>
                         HRD: {ind.contactPerson || '-'}
                       </span>
                       {isLockedForStudent ? (
@@ -1219,7 +1219,7 @@ export default function StudentPengajuanPage() {
                           <span>Terpilih</span>
                         </span>
                       ) : (
-                        <span className="text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-extrabold">
+                        <span className="text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 font-extrabold">
                           {isFull ? 'Kuota Penuh' : 'Pilih Industri'}
                         </span>
                       )}
@@ -1229,7 +1229,7 @@ export default function StudentPengajuanPage() {
               })
             ) : (
               <div className={`col-span-full p-10 text-center text-xs font-semibold rounded-3xl border space-y-2 ${
-                theme === 'dark' ? 'bg-slate-900/40 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
+                theme === 'dark' ? 'bg-slate-900/40 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-700'
               }`}>
                 <Building2 className="w-8 h-8 mx-auto text-slate-400" />
                 <p>Tidak ada industri mitra yang dialokasikan untuk jurusan Anda pada periode ini.</p>
@@ -1244,7 +1244,7 @@ export default function StudentPengajuanPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className={`uppercase text-[10px] font-black border-b tracking-wider ${
-                  theme === 'dark' ? 'bg-slate-950/80 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+                  theme === 'dark' ? 'bg-slate-950/80 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-700'
                 }`}>
                   <tr>
                     <th className="py-4 px-6">Perusahaan / DUDI</th>
@@ -1303,7 +1303,7 @@ export default function StudentPengajuanPage() {
                             {ind.sector || 'Umum'}
                           </td>
 
-                          <td className="py-4 px-6 max-w-xs whitespace-normal font-medium text-slate-600 dark:text-slate-300">
+                          <td className="py-4 px-6 max-w-xs whitespace-normal font-medium text-slate-700 dark:text-slate-300">
                             <div className="flex items-start space-x-1.5">
                               <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
                               <span>{ind.address || 'Alamat Belum Diisi'}</span>
@@ -1328,7 +1328,7 @@ export default function StudentPengajuanPage() {
                             )}
                           </td>
 
-                          <td className="py-4 px-6 whitespace-nowrap text-slate-600 dark:text-slate-400 font-medium">
+                          <td className="py-4 px-6 whitespace-nowrap text-slate-700 dark:text-slate-300 font-medium">
                             <div className="space-y-0.5">
                               <div className="font-semibold text-slate-900 dark:text-slate-200">
                                 {ind.contactPerson || '-'}
@@ -1385,7 +1385,7 @@ export default function StudentPengajuanPage() {
                                 disabled={isFull}
                                 className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
                                   isFull
-                                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 cursor-not-allowed'
                                     : 'bg-slate-900 hover:bg-indigo-600 text-white dark:bg-slate-800 dark:hover:bg-indigo-600 shadow-sm cursor-pointer'
                                 }`}
                               >
@@ -1398,7 +1398,7 @@ export default function StudentPengajuanPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-500 dark:text-slate-400 text-xs font-semibold">
+                      <td colSpan={7} className="py-12 text-center text-slate-700 dark:text-slate-400 text-xs font-semibold">
                         <Building2 className="w-8 h-8 mx-auto mb-2 text-slate-400" />
                         <span>Tidak ada industri mitra yang dialokasikan untuk jurusan Anda pada periode ini.</span>
                       </td>
@@ -1612,20 +1612,20 @@ export default function StudentPengajuanPage() {
                 theme === 'dark' ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'
               }`}>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Industri Mitra:</span>
-                  <strong className="text-indigo-900 dark:text-indigo-300">{selectedIndustry.name}</strong>
+                  <span className="text-slate-700 dark:text-slate-400 font-bold">Industri Mitra:</span>
+                  <strong className="text-indigo-950 dark:text-indigo-300 font-extrabold">{selectedIndustry.name}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Alamat:</span>
-                  <span className="text-slate-800 dark:text-slate-300 truncate max-w-[200px]">{selectedIndustry.address}</span>
+                  <span className="text-slate-700 dark:text-slate-400 font-bold">Alamat:</span>
+                  <span className="text-slate-900 dark:text-slate-200 font-semibold truncate max-w-[200px]">{selectedIndustry.address}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Rencana Mulai:</span>
-                  <strong className="text-slate-900 dark:text-slate-200">{startDate}</strong>
+                  <span className="text-slate-700 dark:text-slate-400 font-bold">Rencana Mulai:</span>
+                  <strong className="text-slate-900 dark:text-slate-200 font-bold">{startDate}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Rencana Selesai:</span>
-                  <strong className="text-slate-900 dark:text-slate-200">{endDate}</strong>
+                  <span className="text-slate-700 dark:text-slate-400 font-bold">Rencana Selesai:</span>
+                  <strong className="text-slate-900 dark:text-slate-200 font-bold">{endDate}</strong>
                 </div>
               </div>
 

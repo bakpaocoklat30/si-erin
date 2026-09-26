@@ -238,7 +238,7 @@ export default function StudentApplyPage() {
             <span>Portal Pengajuan Tempat PKL</span>
           </span>
           <h1 className="text-3xl font-extrabold tracking-tight">Pengajuan Prakerin 🏢</h1>
-          <p className="text-sm text-slate-400 max-w-2xl">
+          <p className="text-sm text-slate-700 dark:text-slate-400 max-w-2xl font-medium">
             Pilih industri mitra (DUDI), pantau 6 alur verifikasi surat permohonan, serta unggah surat balasan penerimaan dari perusahaan secara real-time.
           </p>
         </div>
@@ -269,31 +269,37 @@ export default function StudentApplyPage() {
 
       {/* SYARAT KELAYAKAN CHECKER */}
       {!isEligible && (
-        <div className="p-6 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 space-y-3">
+        <div className="p-6 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-400 space-y-3">
           <div className="flex items-center space-x-2 font-bold text-sm">
-            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600" />
             <span>Persyaratan Pengajuan PKL Belum Lengkap</span>
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
+          <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
             Sebelum dapat mengajukan tempat PKL, Anda wajib memenuhi 3 persyaratan utama berikut:
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
             <div className={`p-3 rounded-2xl border flex items-center space-x-2 ${
-              studentInfo?.isAllowedPkl ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-slate-950/60 border-slate-800 text-slate-400'
+              studentInfo?.isAllowedPkl 
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold' 
+                : 'bg-slate-100 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400'
             }`}>
-              {studentInfo?.isAllowedPkl ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
+              {studentInfo?.isAllowedPkl ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" /> : <XCircle className="w-4 h-4 shrink-0 text-rose-500" />}
               <span>1. Izin PKL dari Pokja</span>
             </div>
             <div className={`p-3 rounded-2xl border flex items-center space-x-2 ${
-              studentInfo?.cvUrl ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-slate-950/60 border-slate-800 text-slate-400'
+              studentInfo?.cvUrl 
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold' 
+                : 'bg-slate-100 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400'
             }`}>
-              {studentInfo?.cvUrl ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
+              {studentInfo?.cvUrl ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" /> : <XCircle className="w-4 h-4 shrink-0 text-rose-500" />}
               <span>2. Unggah File CV</span>
             </div>
             <div className={`p-3 rounded-2xl border flex items-center space-x-2 ${
-              studentInfo?.bpjsUrl ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-slate-950/60 border-slate-800 text-slate-400'
+              studentInfo?.bpjsUrl 
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold' 
+                : 'bg-slate-100 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400'
             }`}>
-              {studentInfo?.bpjsUrl ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
+              {studentInfo?.bpjsUrl ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" /> : <XCircle className="w-4 h-4 shrink-0 text-rose-500" />}
               <span>3. Unggah Kartu BPJS</span>
             </div>
           </div>
@@ -319,9 +325,9 @@ export default function StudentApplyPage() {
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-inherit pb-6">
             <div className="space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Industri Tujuan PKL</span>
-              <h3 className="text-2xl font-black text-indigo-400">{activePlacement.industry?.name}</h3>
-              <p className="text-xs text-slate-400">{activePlacement.industry?.address}</p>
+              <span className="text-[10px] uppercase font-bold text-slate-600 dark:text-slate-400 tracking-wider">Industri Tujuan PKL</span>
+              <h3 className="text-2xl font-black text-indigo-900 dark:text-indigo-400">{activePlacement.industry?.name}</h3>
+              <p className="text-xs text-slate-700 dark:text-slate-400 font-medium">{activePlacement.industry?.address}</p>
             </div>
 
             <div className="flex items-center space-x-3">
@@ -342,10 +348,10 @@ export default function StudentApplyPage() {
 
               <span className={`px-4 py-2 rounded-full text-xs font-extrabold border ${
                 activePlacement.status === 'DISETUJUI_INDUSTRI'
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border-emerald-500/30'
                   : activePlacement.status === 'DITOLAK_INDUSTRI'
-                    ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                    ? 'bg-red-500/10 text-red-800 dark:text-red-400 border-red-500/30'
+                    : 'bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/30'
               }`}>
                 TAHAP {currentStep}/6: {activePlacement.status.replace(/_/g, ' ')}
               </span>
@@ -354,13 +360,13 @@ export default function StudentApplyPage() {
 
           {/* STEPPER PROGRESS BAR (6 TAHAPAN) */}
           <div className="space-y-4">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Progres Tahapan Alur Pengajuan (1 - 6):</h4>
+            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-400">Progres Tahapan Alur Pengajuan (1 - 6):</h4>
             
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               
               {/* STEP 1: Pengajuan Dikirim */}
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
-                currentStep >= 1 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-950/40 border-slate-800 text-slate-500'
+                currentStep >= 1 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-100 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">01</span>
@@ -372,7 +378,7 @@ export default function StudentApplyPage() {
 
               {/* STEP 2: Review Pokja */}
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
-                currentStep >= 2 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-950/40 border-slate-800 text-slate-500'
+                currentStep >= 2 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-100 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">02</span>
@@ -384,7 +390,7 @@ export default function StudentApplyPage() {
 
               {/* STEP 3: Pembuatan Surat */}
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
-                currentStep >= 3 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-950/40 border-slate-800 text-slate-500'
+                currentStep >= 3 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-100 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">03</span>
@@ -396,7 +402,7 @@ export default function StudentApplyPage() {
 
               {/* STEP 4: Surat Tugas Diterbitkan */}
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
-                currentStep >= 4 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-950/40 border-slate-800 text-slate-500'
+                currentStep >= 4 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-100 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">04</span>
@@ -408,7 +414,7 @@ export default function StudentApplyPage() {
 
               {/* STEP 5: Kirim Surat ke Industri */}
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
-                currentStep >= 5 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-950/40 border-slate-800 text-slate-500'
+                currentStep >= 5 ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-slate-100 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">05</span>
@@ -420,7 +426,7 @@ export default function StudentApplyPage() {
 
               {/* STEP 6: Upload Balasan Industri */}
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
-                currentStep >= 6 ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-slate-950/40 border-slate-800 text-slate-500'
+                currentStep >= 6 ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-slate-100 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400'
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">06</span>
