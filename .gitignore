@@ -45,6 +45,7 @@ Thumbs.db
 
 # Non-Next.js Template, Instruction & SQL Reference Files
 *.md
+!CATATAN_PERUBAHAN_DAN_MIGRASI.md
 *.php
 *.sql
 *.html

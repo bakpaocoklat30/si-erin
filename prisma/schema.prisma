@@ -30,9 +30,13 @@ model User {
   role               String                  @default("SISWA")
   department         String?
   phone              String?
+  nip                String?
+  rank               String?
+  jobTitle           String?
   student            Student?                @relation("StudentAccount")
   supervisedStudents Student[]               @relation("TeacherStudents")
   teacherHours       TeacherHourAllocation[]
+  monitoringAssignments MonitoringAssignment[] @relation("AssignedTeacherMonitoring")
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 }
@@ -79,6 +83,7 @@ model InternshipPeriod {
   activeIndustries Json?                 @default("[]")
   classes          ClassRoom[]
   coefficient      InternshipCoefficient? // 🔑 Relasi 1-to-1 spesifik per periode
+  monitoringAssignments MonitoringAssignment[]
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
 }
@@ -134,6 +139,7 @@ model Industry {
   jobDescription String?              @db.Text
   totalQuota    Int                   @default(0)
   placements    InternshipPlacement[]
+  monitoringAssignments MonitoringAssignment[]
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 }
@@ -276,3 +282,37 @@ model SystemSetting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ======================================================================
+// 🌟 MODEL: PENUGASAN MONITORING PRAKERIN (SURAT TUGAS & SPPD TTE JATENG)
+// ======================================================================
+model MonitoringAssignment {
+  id                String            @id @default(cuid())
+  industryId        String
+  industry          Industry          @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  targetIndustries  Json?             @default("[]") // [{ id: "...", name: "...", address: "...", regency: "..." }]
+  teacherId         String
+  teacher           User              @relation("AssignedTeacherMonitoring", fields: [teacherId], references: [id], onDelete: Cascade)
+  companionTeachers Json?             @default("[]") // [{ name: "...", nip: "...", rank: "...", role: "..." }]
+  periodId          String?
+  period            InternshipPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  monitoringDate    DateTime
+  returnDate        DateTime?
+  letterNumber      String?           // Nomor Surat Tugas, default: "800.1.11.1 /1000/2026" atau "${nomor_naskah}"
+  sppdNumber        String?           // Nomor SPPD, default: "${nomor_naskah}"
+  purpose           String?           @default("Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)")
+  transportType     String?           @default("Mobil Dinas / Kendaraan Umum")
+  departurePlace    String?           @default("SMK Negeri 1 Adiwerna")
+  destinationPlace  String?           // Tujuan (DUDI)
+  budgetSource      String?           @default("SMK Negeri 1 Adiwerna")
+  budgetAccount     String?           @default("Dana BOS")
+  status            String            @default("TERJADWAL") // TERJADWAL, SELESAI, DIBATALKAN
+  notes             String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([industryId])
+  @@index([teacherId])
+  @@index([periodId])
+  @@index([monitoringDate])
+}

@@ -319,33 +319,72 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   console.log('[BACKUP SERVICE] 1/4 Mengekstrak seluruh data PostgreSQL via Prisma...');
   const prisma = db as any;
 
+  // Daftar kolom skema resmi yang valid untuk setiap tabel
+  const VALID_TABLE_COLUMNS: Record<string, Set<string>> = {
+    SchoolSetting: new Set(['id', 'name', 'shortName', 'logoUrl', 'address', 'phone', 'email', 'headmaster', 'headmasterNip', 'accreditation', 'createdAt', 'updatedAt']),
+    SystemSetting: new Set(['id', 'key', 'value', 'createdAt', 'updatedAt']),
+    User: new Set(['id', 'username', 'name', 'password', 'role', 'department', 'phone', 'nip', 'rank', 'jobTitle', 'createdAt', 'updatedAt']),
+    AcademicYear: new Set(['id', 'year', 'isActive', 'createdAt', 'updatedAt']),
+    Department: new Set(['id', 'code', 'name', 'createdAt', 'updatedAt']),
+    InternshipPeriod: new Set(['id', 'name', 'startDate', 'endDate', 'department', 'isActive', 'academicYearId', 'activeIndustries', 'createdAt', 'updatedAt']),
+    ClassRoom: new Set(['id', 'name', 'departmentId', 'isAllowedPkl', 'periodId', 'createdAt', 'updatedAt']),
+    InternshipCoefficient: new Set(['id', 'periodId', 'academicYear', 'periodName', 'totalClasses', 'hoursPerClass', 'totalStudents', 'coefficient', 'notes', 'createdAt', 'updatedAt']),
+    IndustryCategory: new Set(['id', 'name', 'description', 'createdAt', 'updatedAt']),
+    Industry: new Set(['id', 'name', 'nib', 'sector', 'npwp', 'logoUrl', 'province', 'regency', 'address', 'rt', 'rw', 'dusun', 'desaKelurahan', 'subDistrict', 'postalCode', 'latitude', 'longitude', 'contactPerson', 'phone', 'fax', 'email', 'website', 'workType', 'jobDescription', 'totalQuota', 'createdAt', 'updatedAt']),
+    Student: new Set(['id', 'userId', 'nis', 'nisn', 'name', 'className', 'department', 'phone', 'parentName', 'parentRelation', 'parentPhone', 'bpjsStatus', 'bpjsUrl', 'cvStatus', 'cvUrl', 'isAllowedPkl', 'teacherId', 'createdAt', 'updatedAt']),
+    InternshipPlacement: new Set(['id', 'studentId', 'industryId', 'status', 'stage', 'notes', 'letterNumber', 'suratTugasUrl', 'letterUploadedBy', 'letterUploadedAt', 'suratBalasanUrl', 'suratBalasanStatus', 'startDate', 'endDate', 'appliedAt', 'createdAt', 'updatedAt']),
+    TeacherHourAllocation: new Set(['id', 'className', 'teacherId', 'totalHours', 'academicYear', 'createdAt', 'updatedAt']),
+    MonitoringAssignment: new Set(['id', 'industryId', 'targetIndustries', 'teacherId', 'companionTeachers', 'periodId', 'monitoringDate', 'returnDate', 'letterNumber', 'sppdNumber', 'purpose', 'transportType', 'departurePlace', 'destinationPlace', 'budgetSource', 'budgetAccount', 'status', 'notes', 'createdAt', 'updatedAt']),
+    Notification: new Set(['id', 'userId', 'title', 'message', 'type', 'link', 'isRead', 'createdAt']),
+    ErrorLog: new Set(['id', 'level', 'message', 'stack', 'path', 'method', 'userId', 'ip', 'createdAt']),
+    AuditLog: new Set(['id', 'userId', 'username', 'userRole', 'action', 'module', 'details', 'ipAddress', 'userAgent', 'createdAt']),
+  };
+
+  // Kueri murni tabel tanpa include relasi agar tidak menyisipkan kolom objek/array phantom
   const schoolSettings = prisma.schoolSetting ? await prisma.schoolSetting.findMany() : [];
   const users = prisma.user ? await prisma.user.findMany() : [];
   const academicYears = prisma.academicYear ? await prisma.academicYear.findMany({ orderBy: { createdAt: 'desc' } }) : [];
   const departments = prisma.department ? await prisma.department.findMany() : [];
-  const classRooms = prisma.classRoom ? await prisma.classRoom.findMany({ include: { period: { include: { academicYear: true } } } }) : [];
-  const internshipPeriods = prisma.internshipPeriod ? await prisma.internshipPeriod.findMany({ include: { academicYear: true, classes: true } }) : [];
+  const classRooms = prisma.classRoom ? await prisma.classRoom.findMany() : [];
+  const internshipPeriods = prisma.internshipPeriod ? await prisma.internshipPeriod.findMany() : [];
   const coefficients = prisma.internshipCoefficient ? await prisma.internshipCoefficient.findMany() : [];
   const categories = prisma.industryCategory ? await prisma.industryCategory.findMany() : [];
   const industries = prisma.industry ? await prisma.industry.findMany() : [];
-  const students = prisma.student ? await prisma.student.findMany({ include: { placement: { include: { industry: true } } } }) : [];
-  const placements = prisma.internshipPlacement ? await prisma.internshipPlacement.findMany({ include: { student: true, industry: true } }) : [];
+  const students = prisma.student ? await prisma.student.findMany() : [];
+  const placements = prisma.internshipPlacement ? await prisma.internshipPlacement.findMany() : [];
   const teacherHours = prisma.teacherHourAllocation ? await prisma.teacherHourAllocation.findMany() : [];
+  const monitoringAssignments = prisma.monitoringAssignment ? await prisma.monitoringAssignment.findMany() : [];
+  const notifications = prisma.notification ? await prisma.notification.findMany() : [];
+  const errorLogs = prisma.errorLog ? await prisma.errorLog.findMany() : [];
   const systemSettings = prisma.systemSetting ? await prisma.systemSetting.findMany() : [];
   const auditLogs = prisma.auditLog ? await prisma.auditLog.findMany() : [];
 
   function generateInsert(tableName: string, records: any[], conflictKey = 'id') {
     if (!records || records.length === 0) return '';
+    const validCols = VALID_TABLE_COLUMNS[tableName];
     let sql = `-- TABLE "${tableName}" (${records.length} RECORDS)\n`;
     records.forEach(item => {
-      const keys = Object.keys(item).map(k => `"${k}"`).join(', ');
-      const vals = Object.values(item).map(v => escapeSqlVal(v)).join(', ');
+      // Filter hanya kunci kolom yang terdaftar secara sah di skema database
+      const filteredEntries = Object.entries(item).filter(([k, v]) => {
+        if (validCols && !validCols.has(k)) return false;
+        // Abaikan objek relasi prisma yang bukan Date dan bukan JSON field
+        if (v !== null && typeof v === 'object' && !(v instanceof Date) && k !== 'activeIndustries' && k !== 'companionTeachers') {
+          return false;
+        }
+        return true;
+      });
+
+      if (filteredEntries.length === 0) return;
+
+      const keys = filteredEntries.map(([k]) => `"${k}"`).join(', ');
+      const vals = filteredEntries.map(([, v]) => escapeSqlVal(v)).join(', ');
+
       if (conflictKey === 'DO NOTHING') {
         sql += `INSERT INTO "${tableName}" (${keys}) VALUES (${vals}) ON CONFLICT DO NOTHING;\n`;
       } else {
-        const updates = Object.keys(item)
-          .filter(k => k !== conflictKey)
-          .map(k => `"${k}"=EXCLUDED."${k}"`)
+        const updates = filteredEntries
+          .filter(([k]) => k !== conflictKey)
+          .map(([k]) => `"${k}"=EXCLUDED."${k}"`)
           .join(', ');
         sql += `INSERT INTO "${tableName}" (${keys}) VALUES (${vals}) ON CONFLICT ("${conflictKey}") DO UPDATE SET ${updates};\n`;
       }
@@ -358,6 +397,9 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   sqlDumpContent += `-- TIMESTAMP: ${new Date().toISOString()}\n`;
   sqlDumpContent += `-- SYSTEM: SI-ERIN v2.0 Enterprise Architecture\n`;
   sqlDumpContent += `-- ==================================================\n\n`;
+
+  // Matikan constraint sementara agar tidak terbentur foreign key
+  sqlDumpContent += `SET session_replication_role = 'replica';\n\n`;
 
   sqlDumpContent += generateInsert('SchoolSetting', schoolSettings, 'id');
   sqlDumpContent += generateInsert('SystemSetting', systemSettings, 'key');
@@ -372,7 +414,13 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   sqlDumpContent += generateInsert('Student', students, 'DO NOTHING');
   sqlDumpContent += generateInsert('InternshipPlacement', placements, 'DO NOTHING');
   sqlDumpContent += generateInsert('TeacherHourAllocation', teacherHours, 'DO NOTHING');
+  sqlDumpContent += generateInsert('MonitoringAssignment', monitoringAssignments, 'DO NOTHING');
+  sqlDumpContent += generateInsert('Notification', notifications, 'DO NOTHING');
+  sqlDumpContent += generateInsert('ErrorLog', errorLogs, 'DO NOTHING');
   sqlDumpContent += generateInsert('AuditLog', auditLogs, 'DO NOTHING');
+
+  // Hidupkan kembali constraint
+  sqlDumpContent += `\nSET session_replication_role = 'origin';\n`;
 
   fs.writeFileSync(sqlFilePath, sqlDumpContent);
 
