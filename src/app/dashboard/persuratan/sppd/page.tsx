@@ -17,6 +17,7 @@ import {
   ExternalLink,
   X,
   CheckSquare,
+  Calendar,
   Layers,
   Building,
   Users,
@@ -27,6 +28,8 @@ import {
 import {
   generateSuratTugasHtml,
   generateSppdHtml,
+  formatIndonesianDateRange,
+  calculateDurationDays,
 } from '@/lib/monitoring-templates';
 
 function getAssignmentType(purpose?: string | null) {
@@ -688,6 +691,21 @@ export default function PersuratanSppdPage() {
                     >
                       {task.status === 'SELESAI_TTE' ? 'TERBIT TTE' : 'PROSES TTE'}
                     </span>
+                  </div>
+
+                  
+                  {/* 📅 Tanggal Rencana Perjalanan Dinas */}
+                  <div className="flex items-center space-x-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 px-3 py-1.5 rounded-xl mb-3">
+                    <Calendar className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-slate-500 dark:text-slate-400">Rencana Perjalanan:</span>
+                      <strong className="text-indigo-600 dark:text-indigo-400">
+                        {formatIndonesianDateRange(task.monitoringDate, task.returnDate)}
+                      </strong>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        ({calculateDurationDays(task.monitoringDate, task.returnDate)} Hari Kunjungan)
+                      </span>
+                    </div>
                   </div>
 
                   {/* Purpose Box */}
