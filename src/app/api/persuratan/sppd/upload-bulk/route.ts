@@ -11,6 +11,9 @@ import {
   DocumentSegment,
 } from '@/lib/pdf-splitter';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -117,7 +120,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 6. Jika COMMIT: Ekstrak PDF per segment dan simpan ke database
-    const sourcePdfDoc = await PDFDocument.load(pdfBuffer);
+    const sourcePdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
     const updatedAssignments: any[] = [];
 
     for (const item of matchedResults) {

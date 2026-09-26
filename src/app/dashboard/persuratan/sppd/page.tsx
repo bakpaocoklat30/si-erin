@@ -614,14 +614,23 @@ export default function PersuratanSppdPage() {
         method: 'POST',
         body: fd,
       });
-      const json = await res.json();
-      if (res.ok && json.success) {
+
+      let json: any = null;
+      const text = await res.text();
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error(`Respon server (${res.status} ${res.statusText}): ${text.substring(0, 150) || 'Bukan format JSON'}`);
+      }
+
+      if (res.ok && json?.success) {
         setBulkUploadModal((prev) => ({ ...prev, analysisResult: json }));
       } else {
-        alert(json.error || 'Gagal menganalisis berkas PDF');
+        alert(json?.error || `Gagal menganalisis berkas PDF (Status ${res.status})`);
       }
     } catch (e: any) {
-      alert('Terjadi kesalahan jaringan saat menganalisis berkas PDF.');
+      console.error('Bulk upload analyze error:', e);
+      alert(`Gagal menganalisis berkas: ${e.message || 'Terjadi kesalahan sistem'}`);
     } finally {
       setBulkUploadModal((prev) => ({ ...prev, analyzing: false }));
     }
@@ -643,8 +652,16 @@ export default function PersuratanSppdPage() {
         method: 'POST',
         body: fd,
       });
-      const json = await res.json();
-      if (res.ok && json.success) {
+
+      let json: any = null;
+      const text = await res.text();
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error(`Respon server (${res.status} ${res.statusText}): ${text.substring(0, 150) || 'Bukan format JSON'}`);
+      }
+
+      if (res.ok && json?.success) {
         setBulkUploadModal((prev) => ({
           ...prev,
           commitResult: json,
@@ -652,10 +669,11 @@ export default function PersuratanSppdPage() {
         }));
         await fetchTasks();
       } else {
-        alert(json.error || 'Gagal memisahkan dan menyimpan dokumen hasil TTE');
+        alert(json?.error || `Gagal memisahkan dan menyimpan dokumen (Status ${res.status})`);
       }
     } catch (e: any) {
-      alert('Terjadi kesalahan jaringan saat menyimpan dokumen.');
+      console.error('Bulk upload commit error:', e);
+      alert(`Gagal menyimpan dokumen: ${e.message || 'Terjadi kesalahan sistem'}`);
     } finally {
       setBulkUploadModal((prev) => ({ ...prev, committing: false }));
     }

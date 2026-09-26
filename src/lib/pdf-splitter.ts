@@ -1,7 +1,136 @@
 import { PDFDocument } from 'pdf-lib';
-import { PDFParse } from 'pdf-parse';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as zlib from 'zlib';
+
+/**
+ * Ekstraksi teks langsung dari stream PDF via zlib (Fallback murni Node.js tanpa worker)
+ */
+function extractTextFromPdfStreamBuffer(buffer: Buffer): string {
+  const str = buffer.toString('latin1');
+  const streamRegex = /stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g;
+  let match: RegExpExecArray | null;
+  let text = '';
+
+  while ((match = streamRegex.exec(str)) !== null) {
+    try {
+      const raw = Buffer.from(match[1], 'latin1');
+      let decomp: string;
+      try {
+        decomp = zlib.inflateSync(raw).toString('latin1');
+      } catch {
+        decomp = raw.toString('latin1');
+      }
+
+      // 1. Ekstrak string format (teks) Tj
+      const tjRegex = /\(([^)]*)\)\s*Tj/g;
+      let tjMatch: RegExpExecArray | null;
+      while ((tjMatch = tjRegex.exec(decomp)) !== null) {
+        text += ' ' + tjMatch[1];
+      }
+
+      // 2. Ekstrak string hex format <48656C6C6F> Tj
+      const hexTjRegex = /<([0-9a-fA-F]+)>\s*Tj/g;
+      let hexMatch: RegExpExecArray | null;
+      while ((hexMatch = hexTjRegex.exec(decomp)) !== null) {
+        try {
+          text += ' ' + Buffer.from(hexMatch[1], 'hex').toString('latin1');
+        } catch {
+          // ignore
+        }
+      }
+
+      // 3. Ekstrak array format [(teks) 10 (lanjutan)] TJ
+      const arrayTjRegex = /\[([^\]]*)\]\s*TJ/g;
+      let arrMatch: RegExpExecArray | null;
+      while ((arrMatch = arrayTjRegex.exec(decomp)) !== null) {
+        const innerRegex = /\(([^)]*)\)/g;
+        let inner: RegExpExecArray | null;
+        while ((inner = innerRegex.exec(arrMatch[1])) !== null) {
+          text += ' ' + inner[1];
+        }
+      }
+    } catch {
+      // lanjut ke stream berikutnya
+    }
+  }
+
+  return text.replace(/\\([()\\])/g, '$1').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Ekstraksi teks dari setiap halaman PDF dengan dukungan PDF terenkripsi/TTE dan dual-engine fallback
+ */
+export async function parsePdfPages(buffer: Buffer): Promise<Array<{ pageNum: number; text: string }>> {
+  // 1. Dapatkan jumlah halaman yang akurat via pdf-lib (dengan ignoreEncryption: true untuk berkas TTE)
+  let totalPages = 1;
+  let pdfLibDoc: PDFDocument | null = null;
+  try {
+    pdfLibDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+    totalPages = pdfLibDoc.getPageCount();
+  } catch (err) {
+    console.warn('pdf-lib failed to get page count directly:', err);
+  }
+
+  // 2. Coba engine PDFParse terlebih dahulu
+  try {
+    const { PDFParse } = await import('pdf-parse');
+    const parser = new PDFParse({ data: buffer });
+    try {
+      const res = await parser.getText();
+      if (res && res.pages && res.pages.length > 0) {
+        const pages = res.pages.map((p: any) => ({
+          pageNum: p.num,
+          text: (p.text || '').replace(/\s+/g, ' ').trim(),
+        }));
+
+        // Pastikan teks berhasil diekstrak (tidak kosong melompong)
+        const hasText = pages.some((p: any) => p.text.length > 10);
+        if (hasText) {
+          return pages;
+        }
+      }
+    } finally {
+      try {
+        await parser.destroy();
+      } catch {
+        // ignore
+      }
+    }
+  } catch (parseErr) {
+    console.warn('PDFParse failed, falling back to stream extraction:', parseErr);
+  }
+
+  // 3. Fallback: Ekstraksi halaman per halaman dengan pdf-lib stream decompressor
+  if (pdfLibDoc) {
+    try {
+      const pages: Array<{ pageNum: number; text: string }> = [];
+      for (let i = 0; i < totalPages; i++) {
+        try {
+          const singleDoc = await PDFDocument.create();
+          const [copiedPage] = await singleDoc.copyPages(pdfLibDoc, [i]);
+          singleDoc.addPage(copiedPage);
+          const singleBytes = await singleDoc.save();
+          const pageText = extractTextFromPdfStreamBuffer(Buffer.from(singleBytes));
+          pages.push({
+            pageNum: i + 1,
+            text: pageText,
+          });
+        } catch (pageErr) {
+          console.warn(`Error extracting text on page ${i + 1}:`, pageErr);
+          pages.push({ pageNum: i + 1, text: '' });
+        }
+      }
+      return pages;
+    } catch (streamErr) {
+      console.error('Stream fallback extraction failed:', streamErr);
+    }
+  }
+
+  // Fallback terakhir: ekstraksi seluruh buffer
+  const globalText = extractTextFromPdfStreamBuffer(buffer);
+  return [{ pageNum: 1, text: globalText }];
+}
 
 export interface DocumentSegment {
   docType: 'TUGAS' | 'SPPD';
