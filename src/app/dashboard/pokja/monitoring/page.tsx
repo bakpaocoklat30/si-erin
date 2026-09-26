@@ -33,6 +33,7 @@ import {
   ExternalLink,
   X,
   AlertCircle,
+  AlertTriangle,
   RefreshCw,
   Sparkles,
   Download,
@@ -444,6 +445,16 @@ export default function PokjaMonitoringPage() {
     if (!formIndustryId || !formTeacherId || !formMonitoringDate) {
       alert('Industri, Guru Utama, dan Tanggal Monitoring wajib diisi!');
       return;
+    }
+
+    if (!formIndustryAddress || formIndustryAddress.trim() === '') {
+      const confirmEmpty = confirm(
+        '⚠️ PERINGATAN: Alamat Industri Tujuan masih kosong!\n\n' +
+        'Jika disimpan tanpa alamat, kolom alamat di Surat Tugas dan SPPD akan tercetak tanda strip (-).\n\n' +
+        '• Klik [Cancel / Batal] untuk mengisi alamat terlebih dahulu (bisa ketik langsung di form ini atau via menu Industri Mitra).\n' +
+        '• Klik [OK] jika tetap ingin menyimpan tanpa alamat.'
+      );
+      if (!confirmEmpty) return;
     }
 
     setSubmitting(true);
@@ -1090,10 +1101,12 @@ export default function PokjaMonitoringPage() {
                       placeholder="Masukkan / perbaiki alamat industri lengkap..."
                       value={formIndustryAddress}
                       onChange={(e) => handleIndustryAddressChange(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        theme === 'dark'
-                          ? 'bg-slate-800/90 border-slate-700 text-white placeholder-slate-500'
-                          : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+                      className={`w-full px-4 py-3 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 ${
+                        formIndustryId && (!formIndustryAddress || formIndustryAddress.trim() === '')
+                          ? 'border-amber-500/80 bg-amber-500/10 text-amber-500 focus:ring-amber-500 placeholder-amber-400/70'
+                          : theme === 'dark'
+                          ? 'bg-slate-800/90 border-slate-700 text-white placeholder-slate-500 focus:ring-indigo-500'
+                          : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:ring-indigo-500'
                       }`}
                     />
                   </div>
@@ -1223,11 +1236,16 @@ export default function PokjaMonitoringPage() {
                     />
                   </div>
                 </div>
-                {formTeacherRank && (
+                {formTeacherRank ? (
                   <p className="text-[11px] text-slate-400 italic">
                     Pangkat / Golongan: &quot;<span className="text-indigo-400 font-semibold">{formTeacherRank}</span>&quot; akan tercetak pada Poin 3 Lembar 1 SPPD.
                   </p>
-                )}
+                ) : formTeacherId ? (
+                  <p className="text-[11px] text-amber-400 font-medium flex items-center gap-1.5 mt-1">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Pangkat / Golongan guru ini belum terisi di profil. Silakan ketik langsung di kotak atas agar otomatis tersimpan dan tidak kosong di SPPD.</span>
+                  </p>
+                ) : null}
               </div>
 
               {/* BARIS 3: GURU PENDAMPING (OPSIONAL) */}

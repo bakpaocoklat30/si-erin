@@ -61,7 +61,8 @@ export default function AdminManageUsersPage() {
   
   // Form State
   const [formData, setFormData] = useState({
-    id: '', name: '', username: '', role: 'SISWA', phone: '', department: '', className: '', password: ''
+    id: '', name: '', username: '', role: 'SISWA', phone: '', department: '', className: '', password: '',
+    nip: '', rank: '', jobTitle: ''
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -156,7 +157,10 @@ export default function AdminManageUsersPage() {
         role: formData.role,
         phone: formData.phone,
         className: formData.className || null,
-        department: formData.role === 'POKJA' ? formData.department : (formData.department || null)
+        department: formData.role === 'POKJA' ? formData.department : (formData.department || null),
+        nip: formData.nip || null,
+        rank: formData.rank || null,
+        jobTitle: formData.jobTitle || null
       };
 
       if (formData.password && formData.password.trim() !== '') {
@@ -195,7 +199,10 @@ export default function AdminManageUsersPage() {
       phone: user.phone || '',
       department: user.department || '',
       className: user.className || '',
-      password: ''
+      password: '',
+      nip: user.nip || '',
+      rank: user.rank || '',
+      jobTitle: user.jobTitle || ''
     });
     setShowEditModal(true);
   };
@@ -256,7 +263,7 @@ export default function AdminManageUsersPage() {
           </Link>
           <button 
             onClick={() => {
-              setFormData({ id: '', name: '', username: '', role: 'SISWA', phone: '', department: '', className: '', password: '' });
+              setFormData({ id: '', name: '', username: '', role: 'SISWA', phone: '', department: '', className: '', password: '', nip: '', rank: '', jobTitle: '' });
               setShowAddModal(true);
             }}
             className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-indigo-600/30 flex items-center space-x-2 transition-all cursor-pointer"
@@ -407,15 +414,25 @@ export default function AdminManageUsersPage() {
                       </td>
                       <td className="px-6 py-4 font-mono text-xs">{user.username}</td>
                       <td className="px-6 py-4 space-y-1">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-block ${
-                          user.role === 'ADMIN' ? 'bg-purple-500/10 text-purple-500 border border-purple-500/20' : 
-                          user.role === 'POKJA' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 
-                          user.role === 'TATA_USAHA' || user.role === 'TU' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' :
-                          user.role === 'GURU' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 
-                          'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                        }`}>
-                          {user.role === 'TATA_USAHA' ? 'TATA USAHA' : user.role}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-block ${
+                            user.role === 'ADMIN' ? 'bg-purple-500/10 text-purple-500 border border-purple-500/20' : 
+                            user.role === 'POKJA' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 
+                            user.role === 'TATA_USAHA' || user.role === 'TU' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' :
+                            user.role === 'GURU' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 
+                            'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                          }`}>
+                            {user.role === 'TATA_USAHA' ? 'TATA USAHA' : user.role}
+                          </span>
+                          {user.rank && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" title="Pangkat / Golongan">
+                              {user.rank}
+                            </span>
+                          )}
+                        </div>
+                        {user.nip && (
+                          <p className="text-[10px] text-slate-400 font-mono">NIP: {user.nip}</p>
+                        )}
                         {user.role === 'POKJA' && user.department && (
                           <p className="text-[10px] text-emerald-400 font-medium">Jurusan: {user.department}</p>
                         )}
@@ -655,6 +672,49 @@ export default function AdminManageUsersPage() {
                   </select>
                 </div>
               </div>
+
+              {formData.role !== 'SISWA' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 animate-in fade-in">
+                  <div>
+                    <label className="block text-xs font-bold text-indigo-400 mb-1">NIP (Nomor Induk Pegawai)</label>
+                    <input
+                      type="text"
+                      placeholder="Cth: 19800101 200501 1 001"
+                      value={formData.nip}
+                      onChange={(e) => setFormData({ ...formData, nip: e.target.value })}
+                      className={`w-full p-2.5 rounded-xl border text-xs outline-none ${
+                        theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-indigo-400 mb-1">Pangkat / Golongan (SPPD)</label>
+                    <input
+                      type="text"
+                      placeholder="Cth: Penata Muda / III a"
+                      value={formData.rank}
+                      onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
+                      className={`w-full p-2.5 rounded-xl border text-xs outline-none ${
+                        theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+                      }`}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-indigo-400 mb-1">Jabatan Resmi</label>
+                    <input
+                      type="text"
+                      placeholder="Cth: Guru Pertama / Guru Pembimbing / Staf"
+                      value={formData.jobTitle}
+                      onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                      className={`w-full p-2.5 rounded-xl border text-xs outline-none ${
+                        theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+                      }`}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Data NIP dan Pangkat/Golongan ini akan otomatis dicetak pada lembar SPPD monitoring PKL.</p>
+                  </div>
+                </div>
+              )}
+
 
               {formData.role === 'POKJA' && (
                 <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-1 animate-in fade-in">

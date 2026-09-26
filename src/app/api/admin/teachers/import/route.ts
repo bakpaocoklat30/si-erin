@@ -41,6 +41,8 @@ export async function POST(request: Request) {
         const gender = item.gender?.trim() || 'L'; // L / P
         const subject = item.subject?.trim() || 'Umum';
         const role = item.role?.toUpperCase() || 'GURU'; // GURU, POKJA, PEMBIMBING
+        const rank = item.rank || item.pangkat || null;
+        const jobTitle = item.jobTitle || item.jabatan || 'Guru';
 
         if (!name) {
           failedCount++;
@@ -57,6 +59,9 @@ export async function POST(request: Request) {
               where: { id: existing.id },
               data: {
                 name,
+                nip: (nip && nip !== '-' && nip !== '') ? nip : existing.nip,
+                rank: rank || existing.rank,
+                jobTitle: jobTitle || existing.jobTitle,
                 department: subject,
                 role: role === 'POKJA' ? 'POKJA' : existing.role,
               },
@@ -74,6 +79,9 @@ export async function POST(request: Request) {
           data: {
             username: username,
             name: name,
+            nip: (nip && nip !== '-' && nip !== '') ? nip : null,
+            rank: rank || null,
+            jobTitle: jobTitle || 'Guru',
             password: defaultPassword,
             role: role === 'POKJA' ? 'POKJA' : 'GURU',
             department: subject,

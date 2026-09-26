@@ -31,6 +31,9 @@ export async function GET(request: Request) {
         role: true,
         department: true,
         phone: true,
+        nip: true,
+        rank: true,
+        jobTitle: true,
         createdAt: true,
         updatedAt: true
       }
@@ -87,7 +90,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { username, name, password, role, className, department, phone } = body;
+    const { username, name, password, role, className, department, phone, nip, rank, jobTitle } = body;
 
     if (!username || !name || !role) {
       return NextResponse.json({ error: 'Username, Nama, dan Role wajib diisi' }, { status: 400 });
@@ -99,6 +102,9 @@ export async function POST(request: Request) {
     const cleanDept = department && department.trim() !== '' ? department.trim() : null;
     const cleanPhone = phone && phone.trim() !== '' ? phone.trim() : null;
     const cleanClass = className && className.trim() !== '' ? className.trim() : 'Belum Diatur';
+    const cleanNip = nip && nip.trim() !== '' ? nip.trim() : null;
+    const cleanRank = rank && rank.trim() !== '' ? rank.trim() : null;
+    const cleanJobTitle = jobTitle && jobTitle.trim() !== '' ? jobTitle.trim() : null;
 
     const existing = await db.user.findUnique({ where: { username: cleanUsername } });
     if (existing) {
@@ -115,7 +121,10 @@ export async function POST(request: Request) {
         password: hashedPassword,
         role: upperRole,
         department: cleanDept,
-        phone: cleanPhone
+        phone: cleanPhone,
+        nip: cleanNip,
+        rank: cleanRank,
+        jobTitle: cleanJobTitle
       },
       select: {
         id: true,
@@ -124,6 +133,9 @@ export async function POST(request: Request) {
         role: true,
         department: true,
         phone: true,
+        nip: true,
+        rank: true,
+        jobTitle: true,
         createdAt: true
       }
     });
@@ -163,7 +175,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, name, username, role, password, newPassword, className, department, phone } = body;
+    const { id, name, username, role, password, newPassword, className, department, phone, nip, rank, jobTitle } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'ID user tidak valid' }, { status: 400 });
@@ -180,6 +192,9 @@ export async function PUT(request: Request) {
     if (role !== undefined) updateData.role = role.toUpperCase().trim();
     if (department !== undefined) updateData.department = department ? department.trim() : null;
     if (phone !== undefined) updateData.phone = phone ? phone.trim() : null;
+    if (nip !== undefined) updateData.nip = nip ? nip.trim() : null;
+    if (rank !== undefined) updateData.rank = rank ? rank.trim() : null;
+    if (jobTitle !== undefined) updateData.jobTitle = jobTitle ? jobTitle.trim() : null;
 
     const rawPassword = password || newPassword;
     if (rawPassword && typeof rawPassword === 'string' && rawPassword.trim() !== '') {
@@ -197,6 +212,9 @@ export async function PUT(request: Request) {
         role: true,
         department: true,
         phone: true,
+        nip: true,
+        rank: true,
+        jobTitle: true,
         updatedAt: true
       }
     });

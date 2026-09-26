@@ -69,6 +69,7 @@ Budi Santoso,199003212015021003,L,Otomotif,GURU`;
           gender: cols[2] || 'L',
           subject: cols[3] || 'Umum',
           role: cols[4] || 'GURU',
+          rank: cols[5] || '',
         });
       }
     }
@@ -225,7 +226,7 @@ Budi Santoso,199003212015021003,L,Otomotif,GURU`;
               rows={5}
               value={csvText}
               onChange={(e) => handleParseCsv(e.target.value)}
-              placeholder="Contoh: Budi Santoso, 199003..., L, TKJ, GURU"
+              placeholder="Contoh: Budi Santoso, 199003..., L, TKJ, GURU, Penata Muda / III a"
               className="w-full p-3 text-xs font-mono rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
             ></textarea>
           </div>
@@ -286,6 +287,7 @@ Budi Santoso,199003212015021003,L,Otomotif,GURU`;
                   <th className="p-4">NIP</th>
                   <th className="p-4">Jenis Kelamin</th>
                   <th className="p-4">Mata Pelajaran / Kompetensi</th>
+                  <th className="p-4">Pangkat / Golongan</th>
                   <th className="p-4">Role Sistem</th>
                 </tr>
               </thead>
@@ -297,6 +299,7 @@ Budi Santoso,199003212015021003,L,Otomotif,GURU`;
                     <td className="p-4 font-mono text-slate-500 dark:text-slate-400">{item.nip || <span className="text-amber-500 italic">Tanpa NIP</span>}</td>
                     <td className="p-4 text-slate-600 dark:text-slate-300">{item.gender === 'P' ? 'Perempuan' : 'Laki-laki'}</td>
                     <td className="p-4 text-slate-600 dark:text-slate-300">{item.subject}</td>
+                    <td className="p-4 text-xs font-semibold text-indigo-500">{item.rank || '-'}</td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                         item.role === 'POKJA' 

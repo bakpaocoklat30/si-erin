@@ -31,17 +31,21 @@ export async function GET(request: Request) {
           { role: { equals: 'GURU', mode: 'insensitive' } },
           { role: { equals: 'PEMBIMBING', mode: 'insensitive' } },
           { role: { equals: 'TEACHER', mode: 'insensitive' } },
-          { role: { equals: 'GURUPMB', mode: 'insensitive' } }
+          { role: { equals: 'GURUPMB', mode: 'insensitive' } },
+          { role: { equals: 'POKJA', mode: 'insensitive' } },
+          { role: { equals: 'ADMIN', mode: 'insensitive' } }
         ]
       },
       select: {
         id: true,
         name: true,
-        email: true,
         username: true,
         role: true,
         department: true,
-        createdAt: true
+        nip: true,
+        rank: true,
+        jobTitle: true,
+createdAt: true
       },
       orderBy: {
         name: 'asc'

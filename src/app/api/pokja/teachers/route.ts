@@ -34,10 +34,12 @@ export async function GET(request: Request) {
         id: true,
         name: true,
         username: true,
-        email: true,
         role: true,
-        department: true
-      },
+        department: true,
+        nip: true,
+        rank: true,
+        jobTitle: true
+},
       orderBy: {
         name: 'asc'
       }
