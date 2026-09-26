@@ -158,17 +158,13 @@ export async function generateSuratTugasDocx(
 
   // 6. Klausul Penugasan ("Untuk : ...")
   
-  const purposeStr = assignment.purpose || '';
-  let activityName = 'Monitoring';
-  if (purposeStr.toLowerCase().includes('penerjunan') || purposeStr.toLowerCase().includes('pengantaran')) {
-    activityName = 'Penerjunan/Pengantaran';
-  } else if (purposeStr.toLowerCase().includes('penarikan') || purposeStr.toLowerCase().includes('penjemputan')) {
-    activityName = 'Penarikan/Penjemputan';
-  }
+  
+  const purposeStr = assignment.purpose || 'Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)';
+
 
   let replacementP = '';
   if (allIndustries.length === 1) {
-    const singleClause = `Melaksanakan kegiatan ${activityName} murid Praktik Kerja Lapangan ${dayAndDateStr} di ${allIndustries[0].name} yang beralamat di ${allIndustries[0].address || '-'}.`;
+    const singleClause = `${purposeStr} ${dayAndDateStr} di ${allIndustries[0].name} yang beralamat di ${allIndustries[0].address || '-'}.`;
     replacementP = `<w:p w14:paraId="40DDC871" w:rsidR="00012339" w:rsidRPr="00F63D45" w:rsidRDefault="003A3B6A" w:rsidP="0034658A"><w:pPr><w:spacing w:after="0" w:line="276" w:lineRule="auto"/><w:ind w:left="1560" w:hanging="1560"/><w:jc w:val="both"/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Untuk</w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:tab/><w:t xml:space="preserve">:  </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(
       singleClause
     )}</w:t></w:r></w:p>`;
@@ -176,9 +172,7 @@ export async function generateSuratTugasDocx(
     // MULTI-INDUSTRI: Sesuai contoh dokumen resmi, dibuat baris pembuka "di :" lalu daftar bernomor
     const fontSize = isCompact ? '23' : '24';
     const lineSpacing = isCompact ? '240' : '276';
-    const headerP = `<w:p w14:paraId="40DDC871" w:rsidR="00012339" w:rsidRPr="00F63D45" w:rsidRDefault="003A3B6A" w:rsidP="0034658A"><w:pPr><w:spacing w:after="${isCompact ? '30' : '60'}" w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="1560" w:hanging="1560"/><w:jc w:val="both"/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t>Untuk</w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:tab/><w:t xml:space="preserve">:  </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t>Melaksanakan kegiatan ${activityName} murid Praktik Kerja Lapangan ${escapeXml(
-      dayAndDateStr
-    )} di :</w:t></w:r></w:p>`;
+    const headerP = `<w:p w14:paraId="40DDC871" w:rsidR="00012339" w:rsidRPr="00F63D45" w:rsidRDefault="003A3B6A" w:rsidP="0034658A"><w:pPr><w:spacing w:after="${isCompact ? '30' : '60'}" w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="1560" w:hanging="1560"/><w:jc w:val="both"/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t>Untuk</w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:tab/><w:t xml:space="preserve">:  </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t>${escapeXml(purposeStr)} ${escapeXml(dayAndDateStr)} di :</w:t></w:r></w:p>`;
 
     const industriesXml = allIndustries
       .map(
