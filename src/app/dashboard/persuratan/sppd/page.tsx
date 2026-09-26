@@ -24,6 +24,7 @@ import {
   Save,
   AlertCircle,
   Check,
+  UploadCloud,
 } from 'lucide-react';
 import {
   generateSuratTugasHtml,
@@ -123,6 +124,25 @@ export default function PersuratanSppdPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // 🌟 State Unggah Massal Hasil TTE
+  const [bulkUploadModal, setBulkUploadModal] = useState<{
+    isOpen: boolean;
+    file: File | null;
+    mode: 'AUTO' | 'TUGAS' | 'SPPD';
+    analyzing: boolean;
+    committing: boolean;
+    analysisResult: any | null;
+    commitResult: any | null;
+  }>({
+    isOpen: false,
+    file: null,
+    mode: 'AUTO',
+    analyzing: false,
+    committing: false,
+    analysisResult: null,
+    commitResult: null,
+  });
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -566,6 +586,81 @@ export default function PersuratanSppdPage() {
     }
   };
 
+  // 🌟 Bulk Upload Handlers
+  const handleBulkUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setBulkUploadModal((prev) => ({
+        ...prev,
+        file: e.target.files![0],
+        analysisResult: null,
+        commitResult: null,
+      }));
+    }
+  };
+
+  const handleBulkUploadAnalyze = async () => {
+    if (!bulkUploadModal.file) {
+      alert('Pilih berkas PDF terlebih dahulu.');
+      return;
+    }
+    setBulkUploadModal((prev) => ({ ...prev, analyzing: true, analysisResult: null }));
+    try {
+      const fd = new FormData();
+      fd.append('file', bulkUploadModal.file);
+      fd.append('mode', bulkUploadModal.mode);
+      fd.append('action', 'analyze');
+
+      const res = await fetch('/api/persuratan/sppd/upload-bulk', {
+        method: 'POST',
+        body: fd,
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setBulkUploadModal((prev) => ({ ...prev, analysisResult: json }));
+      } else {
+        alert(json.error || 'Gagal menganalisis berkas PDF');
+      }
+    } catch (e: any) {
+      alert('Terjadi kesalahan jaringan saat menganalisis berkas PDF.');
+    } finally {
+      setBulkUploadModal((prev) => ({ ...prev, analyzing: false }));
+    }
+  };
+
+  const handleBulkUploadCommit = async () => {
+    if (!bulkUploadModal.file) {
+      alert('Pilih berkas PDF terlebih dahulu.');
+      return;
+    }
+    setBulkUploadModal((prev) => ({ ...prev, committing: true }));
+    try {
+      const fd = new FormData();
+      fd.append('file', bulkUploadModal.file);
+      fd.append('mode', bulkUploadModal.mode);
+      fd.append('action', 'commit');
+
+      const res = await fetch('/api/persuratan/sppd/upload-bulk', {
+        method: 'POST',
+        body: fd,
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setBulkUploadModal((prev) => ({
+          ...prev,
+          commitResult: json,
+          analysisResult: null,
+        }));
+        await fetchTasks();
+      } else {
+        alert(json.error || 'Gagal memisahkan dan menyimpan dokumen hasil TTE');
+      }
+    } catch (e: any) {
+      alert('Terjadi kesalahan jaringan saat menyimpan dokumen.');
+    } finally {
+      setBulkUploadModal((prev) => ({ ...prev, committing: false }));
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4">
       {/* HEADER SECTION */}
@@ -582,15 +677,38 @@ export default function PersuratanSppdPage() {
           </div>
         </div>
 
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Cari guru atau industri..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2.5 rounded-xl border outline-none text-sm font-semibold w-full md:w-64 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:border-blue-500 transition-colors"
-          />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Tombol Unggah Massal Hasil TTE */}
+          <button
+            type="button"
+            onClick={() =>
+              setBulkUploadModal({
+                isOpen: true,
+                file: null,
+                mode: 'AUTO',
+                analyzing: false,
+                committing: false,
+                analysisResult: null,
+                commitResult: null,
+              })
+            }
+            className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all shrink-0"
+            title="Unggah satu file PDF gabungan hasil TTE untuk dipisahkan dan dicocokkan otomatis ke masing-masing guru & tujuan"
+          >
+            <UploadCloud className="w-4 h-4" />
+            <span>Unggah Massal Hasil TTE</span>
+          </button>
+
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Cari guru atau industri..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2.5 rounded-xl border outline-none text-sm font-semibold w-full md:w-64 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:border-blue-500 transition-colors"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+          </div>
         </div>
       </div>
 
@@ -1256,6 +1374,368 @@ export default function PersuratanSppdPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 MODAL UNGGAH MASSAL HASIL TTE (AUTO-SPLIT & MATCHING) */}
+      {bulkUploadModal.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-500">
+                  <UploadCloud className="w-7 h-7" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white">Unggah Massal Hasil TTE</h2>
+                  <p className="text-xs text-slate-500">
+                    Pemisahan otomatis berkas PDF gabungan hasil TTE (Surat Tugas / SPPD 2 lembar) dan pencocokan ke penugasan.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setBulkUploadModal({
+                    isOpen: false,
+                    file: null,
+                    mode: 'AUTO',
+                    analyzing: false,
+                    committing: false,
+                    analysisResult: null,
+                    commitResult: null,
+                  })
+                }
+                className="text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content: Saat belum commit berhasil */}
+            {!bulkUploadModal.commitResult ? (
+              <div className="space-y-5">
+                {/* 1. Pemilihan Mode Pemilahan */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                    Mode Pemilahan Halaman
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBulkUploadModal((prev) => ({ ...prev, mode: 'AUTO', analysisResult: null }))}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        bulkUploadModal.mode === 'AUTO'
+                          ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-500/10 ring-2 ring-emerald-500/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white mb-1">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Deteksi Otomatis</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 line-clamp-2">
+                        Mengenali otomatis apakah lembar merupakan Surat Tugas (1 hal) atau SPPD (2 hal).
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBulkUploadModal((prev) => ({ ...prev, mode: 'TUGAS', analysisResult: null }))}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        bulkUploadModal.mode === 'TUGAS'
+                          ? 'border-blue-500 bg-blue-50/20 dark:bg-blue-500/10 ring-2 ring-blue-500/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white mb-1">
+                        <FileText className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Surat Tugas Saja</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 line-clamp-2">
+                        Setiap 1 halaman dipecah sebagai satu berkas Surat Tugas.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBulkUploadModal((prev) => ({ ...prev, mode: 'SPPD', analysisResult: null }))}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        bulkUploadModal.mode === 'SPPD'
+                          ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-500/10 ring-2 ring-indigo-500/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white mb-1">
+                        <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>SPPD Saja</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 line-clamp-2">
+                        Setiap 2 halaman (Lembar 1 & 2) dipecah sebagai satu berkas SPPD.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. File Picker */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                    Berkas PDF Gabungan Hasil TTE
+                  </label>
+                  <div className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-6 text-center hover:border-emerald-500/50 transition-colors bg-slate-50/50 dark:bg-slate-800/20">
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      id="bulk-pdf-input"
+                      onChange={handleBulkUploadFileChange}
+                      className="hidden"
+                    />
+                    {bulkUploadModal.file ? (
+                      <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 max-w-md mx-auto">
+                        <div className="flex items-center space-x-3 truncate">
+                          <FileText className="w-8 h-8 text-emerald-500 shrink-0" />
+                          <div className="text-left truncate">
+                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {bulkUploadModal.file.name}
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              {(bulkUploadModal.file.size / (1024 * 1024)).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <label
+                          htmlFor="bulk-pdf-input"
+                          className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg cursor-pointer transition-colors shrink-0"
+                        >
+                          Ganti
+                        </label>
+                      </div>
+                    ) : (
+                      <label htmlFor="bulk-pdf-input" className="cursor-pointer block space-y-2">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+                          <UploadCloud className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                            Klik untuk memilih berkas PDF hasil TTE
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Mendukung file PDF gabungan berisi beberapa Surat Tugas dan/atau SPPD
+                          </p>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Tombol Aksi Analisis & Simpan */}
+                <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleBulkUploadAnalyze}
+                    disabled={!bulkUploadModal.file || bulkUploadModal.analyzing || bulkUploadModal.committing}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {bulkUploadModal.analyzing ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-emerald-500" />
+                    )}
+                    <span>Pratinjau Pemilahan</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleBulkUploadCommit}
+                    disabled={!bulkUploadModal.file || bulkUploadModal.analyzing || bulkUploadModal.committing}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {bulkUploadModal.committing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    <span>Pisahkan & Simpan Langsung</span>
+                  </button>
+                </div>
+
+                {/* 4. Hasil Analisis / Pratinjau Pemilahan */}
+                {bulkUploadModal.analysisResult && (
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          Hasil Deteksi:
+                        </span>
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                          {bulkUploadModal.analysisResult.matchedCount} Dokumen Cocok
+                        </span>
+                        {bulkUploadModal.analysisResult.unmatchedCount > 0 && (
+                          <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">
+                            {bulkUploadModal.analysisResult.unmatchedCount} Tidak Cocok
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        Total {bulkUploadModal.analysisResult.totalPages} Halaman ({bulkUploadModal.analysisResult.totalSegments} Berkas)
+                      </span>
+                    </div>
+
+                    {/* Daftar Dokumen Cocok */}
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      {bulkUploadModal.analysisResult.matched.map((item: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-start justify-between gap-3 text-xs"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-black text-slate-900 dark:text-white">
+                                {item.teacherName}
+                              </span>
+                              <span
+                                className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                  item.docType === 'TUGAS'
+                                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                    : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                                }`}
+                              >
+                                {item.docType === 'TUGAS' ? 'Surat Tugas' : 'SPPD (2 Lembar)'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-semibold">
+                                (Hal. {item.pageNumbers.join(', ')})
+                              </span>
+                            </div>
+                            <p className="text-slate-600 dark:text-slate-400 text-[11px]">
+                              Tujuan: <strong className="text-slate-700 dark:text-slate-300">{item.industryName}</strong>
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              {item.matchReasons.map((r: string, rIdx: number) => (
+                                <span
+                                  key={rIdx}
+                                  className="text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 rounded"
+                                >
+                                  ✓ {r}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Terdeteksi
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Peringatan jika ada yang tidak cocok */}
+                    {bulkUploadModal.analysisResult.unmatchedCount > 0 && (
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-700 dark:text-amber-400 text-xs space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          <span>
+                            Terdapat {bulkUploadModal.analysisResult.unmatchedCount} dokumen yang belum cocok dengan database
+                          </span>
+                        </div>
+                        <p className="text-[11px] opacity-90">
+                          Pastikan nama guru dan industri pada penugasan di sistem telah diisi sesuai naskah.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Tombol Konfirmasi Simpan Hasil Analisis */}
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleBulkUploadCommit}
+                        disabled={bulkUploadModal.committing}
+                        className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {bulkUploadModal.committing ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Check className="w-4 h-4" />
+                        )}
+                        <span>
+                          Konfirmasi & Simpan {bulkUploadModal.analysisResult.matchedCount} Dokumen ke Sistem
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Content: Laporan Hasil Commit Berhasil */
+              <div className="space-y-4 py-4 text-center animate-in zoom-in-95">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-9 h-9" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    Berhasil Memisahkan & Mengunggah Dokumen TTE!
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                    {bulkUploadModal.commitResult.message}
+                  </p>
+                </div>
+
+                {/* List of updated assignments */}
+                {bulkUploadModal.commitResult.updatedAssignments && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 text-left max-h-60 overflow-y-auto space-y-2">
+                    {bulkUploadModal.commitResult.updatedAssignments.map((item: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white">
+                            <span>{item.teacherName}</span>
+                            <span className="text-[10px] text-slate-400 font-normal">
+                              ke {item.industryName}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            ✓ {item.docType === 'TUGAS' ? 'Surat Tugas' : 'SPPD'} berhasil disimpan (Hal {item.pageNumbers.join(', ')})
+                          </p>
+                        </div>
+                        <a
+                          href={item.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 text-xs font-bold rounded-lg flex items-center gap-1 shrink-0"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Lihat PDF
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="pt-2 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBulkUploadModal({
+                        isOpen: false,
+                        file: null,
+                        mode: 'AUTO',
+                        analyzing: false,
+                        committing: false,
+                        analysisResult: null,
+                        commitResult: null,
+                      })
+                    }
+                    className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-xs font-black rounded-xl transition-all cursor-pointer"
+                  >
+                    Selesai & Tutup
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
