@@ -43,8 +43,27 @@ export async function POST(req: NextRequest) {
     // 2. Deteksi segmentasi berkas
     const segments = detectDocumentSegments(pages, mode);
 
-    // 3. Ambil seluruh penugasan relevan dari database
+    // 3. Ambil seluruh penugasan relevan dari database (terfilter jika user mencentang baris tertentu)
+    const taskIdsRaw = formData.get('taskIds') as string | null;
+    let filterTaskIds: string[] | null = null;
+    if (taskIdsRaw) {
+      try {
+        const parsed = JSON.parse(taskIdsRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          filterTaskIds = parsed;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const assignmentsWhere: any = {};
+    if (filterTaskIds && filterTaskIds.length > 0) {
+      assignmentsWhere.id = { in: filterTaskIds };
+    }
+
     const assignments = await db.monitoringAssignment.findMany({
+      where: assignmentsWhere,
       include: {
         teacher: {
           select: { id: true, name: true, nip: true, username: true, department: true }
