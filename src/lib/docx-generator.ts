@@ -188,7 +188,7 @@ export async function generateSuratTugasDocx(
   }
 
   xml = xml.replace(
-    /<w:p w14:paraId="40DDC871"[\s\S]*?<\/w:p>\s*<w:p w14:paraId="269D67DC"[\s\S]*?<\/w:p>\s*<w:p w14:paraId="262E2542"[\s\S]*?<\/w:p>\s*<w:p w14:paraId="74D1F132"[\s\S]*?<\/w:p>/,
+    /<w:p\b[^>]*>(?:(?!<w:p\b)[\s\S])*?<w:t>Untuk<\/w:t>[\s\S]*?<\/w:p>\s*<w:p\b[\s\S]*?<\/w:p>\s*<w:p\b[\s\S]*?<\/w:p>\s*<w:p\b[\s\S]*?<\/w:p>/,
     replacementP
   );
 
