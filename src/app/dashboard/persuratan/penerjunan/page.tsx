@@ -123,7 +123,7 @@ export default function SuratPenerjunanPage() {
 
                 <button
                   onClick={() => {
-                    const printUrl = `/cetak/penerjunan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}`;
+                    const printUrl = `/api/letters/penerjunan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}`;
                     window.open(printUrl, '_blank');
                   }}
                   className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm flex justify-center items-center gap-2 shadow-sm shadow-emerald-500/20 transition-all active:scale-95"
