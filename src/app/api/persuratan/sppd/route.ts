@@ -6,7 +6,7 @@ import { db } from '@/lib/db';
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'TATA_USAHA'].includes((session.user as any)?.role)) {
+    if (!session || !['ADMIN', 'SUPER_ADMIN', 'TATA_USAHA', 'POKJA'].includes((session.user as any)?.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       db.monitoringAssignment.findMany({
         where: {
           OR: [
-            { status: { in: ['MENUNGGU_TTE', 'PROSES_TTE', 'SELESAI_TTE', 'TERBIT_TTE'] } },
+            { status: { in: ['TERJADWAL', 'MENUNGGU_TTE', 'PROSES_TTE', 'SELESAI_TTE', 'TERBIT_TTE'] } },
             { suratTugasUrl: { not: null } },
             { sppdUrl: { not: null } },
           ],

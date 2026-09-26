@@ -8,7 +8,7 @@ import * as path from 'path';
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'TATA_USAHA'].includes((session.user as any).role)) {
+    if (!session || !['ADMIN', 'SUPER_ADMIN', 'TATA_USAHA', 'POKJA'].includes((session.user as any)?.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
