@@ -29,10 +29,6 @@ import {
   getOrCreateFolder, 
   uploadOrUpdateFileInDrive 
 } from '@/lib/gdrive';
-import { 
-  generateMergedSuratTugasDocx, 
-  generateMergedSppdDocx 
-} from '@/lib/docx-generator';
 
 const execPromise = util.promisify(exec);
 
@@ -793,14 +789,13 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       const fileAsliFolderId = await getOrCreateFolder(drive, 'File Asli', tujuanFolderId, folderCache);
       const hasilKegiatanFolderId = await getOrCreateFolder(drive, 'Hasil Kegiatan', tujuanFolderId, folderCache);
 
-      // 1. FILE ASLI - Surat Tugas
+      // 1. FILE ASLI - Surat Tugas Ber-TTE (hanya berkas resmi yang telah diunggah di aplikasi)
       if (assign.suratTugasUrl && String(assign.suratTugasUrl).trim() !== '') {
         try {
           const resolved = await resolveFileBuffer(assign.suratTugasUrl);
           if (resolved) {
-            const ext = resolved.mimeType.includes('word') ? 'docx' : 'pdf';
-            const fileName = `Surat_Tugas_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.${ext}`;
-            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, resolved.mimeType, resolved.buffer, fileAsliFolderId);
+            const fileName = `Surat_Tugas_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.pdf`;
+            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, 'application/pdf', resolved.buffer, fileAsliFolderId);
             if (uploadRes.action === 'created') totalSynced++;
             else totalUpdated++;
 
@@ -822,46 +817,15 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           });
           console.error(`[BACKUP SERVICE] Gagal mengunggah Surat Tugas ${safeTeacherName}:`, err?.message || err);
         }
-      } else {
-        // Fallback: Generate template resmi DOCX jika belum ada berkas TTE yang diunggah
-        try {
-          const schoolSetting = schoolSettings[0] || null;
-          const docxBuf = await generateMergedSuratTugasDocx([assign as any], {
-            schoolSetting: schoolSetting || undefined,
-            useTteTags: true,
-          });
-          if (docxBuf && docxBuf.length > 0) {
-            const fileName = `Surat_Tugas_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.docx`;
-            const uploadRes = await uploadOrUpdateFileInDrive(
-              drive,
-              fileName,
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              docxBuf,
-              fileAsliFolderId
-            );
-            if (uploadRes.action === 'created') totalSynced++;
-            else totalUpdated++;
-
-            syncDetails.push({
-              type: 'PENUGASAN_TUGAS',
-              path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
-              fileName: fileName,
-              action: uploadRes.action,
-            });
-          }
-        } catch (genErr) {
-          // Abaikan jika template tidak dapat di-generate saat itu
-        }
       }
 
-      // 2. FILE ASLI - SPPD
+      // 2. FILE ASLI - SPPD Ber-TTE (hanya berkas resmi yang telah diunggah di aplikasi)
       if (assign.sppdUrl && String(assign.sppdUrl).trim() !== '') {
         try {
           const resolved = await resolveFileBuffer(assign.sppdUrl);
           if (resolved) {
-            const ext = resolved.mimeType.includes('word') ? 'docx' : 'pdf';
-            const fileName = `SPPD_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.${ext}`;
-            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, resolved.mimeType, resolved.buffer, fileAsliFolderId);
+            const fileName = `SPPD_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.pdf`;
+            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, 'application/pdf', resolved.buffer, fileAsliFolderId);
             if (uploadRes.action === 'created') totalSynced++;
             else totalUpdated++;
 
@@ -883,36 +847,6 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           });
           console.error(`[BACKUP SERVICE] Gagal mengunggah SPPD ${safeTeacherName}:`, err?.message || err);
         }
-      } else {
-        // Fallback: Generate template resmi DOCX SPPD jika belum ada berkas TTE
-        try {
-          const schoolSetting = schoolSettings[0] || null;
-          const docxBuf = await generateMergedSppdDocx([assign as any], {
-            schoolSetting: schoolSetting || undefined,
-            useTteTags: true,
-          });
-          if (docxBuf && docxBuf.length > 0) {
-            const fileName = `SPPD_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.docx`;
-            const uploadRes = await uploadOrUpdateFileInDrive(
-              drive,
-              fileName,
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              docxBuf,
-              fileAsliFolderId
-            );
-            if (uploadRes.action === 'created') totalSynced++;
-            else totalUpdated++;
-
-            syncDetails.push({
-              type: 'PENUGASAN_SPPD',
-              path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
-              fileName: fileName,
-              action: uploadRes.action,
-            });
-          }
-        } catch (genErr) {
-          // Abaikan jika template tidak dapat di-generate saat itu
-        }
       }
 
       // 3. HASIL KEGIATAN - Scan yang sudah diisi & dicap setelah perjalanan dinas (laporanUrl)
@@ -920,9 +854,8 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
         try {
           const resolved = await resolveFileBuffer(assign.laporanUrl);
           if (resolved) {
-            const ext = resolved.mimeType.includes('word') ? 'docx' : 'pdf';
-            const fileName = `Hasil_Kegiatan_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.${ext}`;
-            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, resolved.mimeType, resolved.buffer, hasilKegiatanFolderId);
+            const fileName = `Hasil_Kegiatan_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.pdf`;
+            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, 'application/pdf', resolved.buffer, hasilKegiatanFolderId);
             if (uploadRes.action === 'created') totalSynced++;
             else totalUpdated++;
 
