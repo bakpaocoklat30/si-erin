@@ -192,7 +192,9 @@ model InternshipPlacement {
   suratBalasanUrl    String?   @db.Text
   suratBalasanStatus String?   @default("BELUM_UPLOAD")
   
-  startDate          DateTime?
+  // FIELD PENGANTARAN
+    suratPengantaranUrl String?   @db.Text
+    startDate          DateTime?
   endDate            DateTime?
   appliedAt          DateTime  @default(now())
   createdAt          DateTime  @default(now())

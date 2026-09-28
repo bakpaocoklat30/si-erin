@@ -236,19 +236,22 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { placementIds, suratTugasUrl, letterNumber, letterDate, status } = body;
+    const { placementIds, suratTugasUrl, letterNumber, letterDate, status, suratPengantaranUrl } = body;
 
     if (!Array.isArray(placementIds) || placementIds.length === 0) {
       return NextResponse.json({ error: 'Pilih kelompok siswa yang akan dikirimkan suratnya' }, { status: 400 });
     }
 
-    if (!status && (!letterNumber || !letterNumber.trim()) && !suratTugasUrl) {
+    if (!status && (!letterNumber || !letterNumber.trim()) && !suratTugasUrl && !suratPengantaranUrl) {
         return NextResponse.json({ error: 'Harus mengisi Nomor Surat, mengunggah File, atau update status!' }, { status: 400 });
       }
 
     let updateData: any = {};
       if (status) {
         updateData.status = status;
+      }
+      if (suratPengantaranUrl) {
+        updateData.suratPengantaranUrl = suratPengantaranUrl;
       }
     if (letterNumber && letterNumber.trim()) {
       updateData.letterNumber = letterNumber.trim();
