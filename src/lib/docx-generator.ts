@@ -43,7 +43,7 @@ function extractBodyContent(xml: string): string {
   if (sectPrIdx !== -1) {
     return xml.substring(bodyStartIdx, sectPrIdx);
   }
-  const bodyEndIdx = xml.lastIndexOf('</w:body>');
+  const bodyEndIdx = xml.lastIndexOf('<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body>');
   return xml.substring(bodyStartIdx, bodyEndIdx);
 }
 
@@ -308,7 +308,7 @@ export async function generateMergedSuratTugasDocx(
     baseXml.substring(0, bodyStartIdx) +
     bodyContents.join(pageBreak) +
     sectPr +
-    '</w:body></w:document>';
+    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>';
 
   zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();
@@ -781,7 +781,7 @@ export async function generateMergedSppdDocx(
     baseXml.substring(0, bodyStartIdx) +
     bodyContents.join(pageBreak) +
     sectPr +
-    '</w:body></w:document>';
+    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>';
 
   zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();
@@ -1150,7 +1150,7 @@ export function buildLaporanXml(
     `;
   });
 
-  const sectPr = `<w:sectPr><w:pgSz w:w="11906" w:h="16838" w:code="9"/><w:pgMar w:top="500" w:right="1000" w:bottom="700" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
+  const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
   const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
   const mergedContent = sheets.join(pageBreak);
 
@@ -1158,7 +1158,7 @@ export function buildLaporanXml(
     baseXml.substring(0, bodyStartIdx) +
     mergedContent +
     sectPr +
-    '</w:body></w:document>'
+    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>'
   );
 }
 
@@ -1203,13 +1203,13 @@ export async function generateMergedLaporanDocx(
     bodyContents.push(extractBodyContent(xml));
   }
 
-  const sectPr = `<w:sectPr><w:pgSz w:w="11906" w:h="16838" w:code="9"/><w:pgMar w:top="500" w:right="1000" w:bottom="700" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
+  const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
   const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
   const mergedXml =
     baseXml.substring(0, bodyStartIdx) +
     bodyContents.join(pageBreak) +
     sectPr +
-    '</w:body></w:document>';
+    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>';
 
   zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();
@@ -1344,20 +1344,26 @@ export function buildSuratPermohonanXml(
 
   // 8. TTE Signature Block
   const tteSignatureBlock = useTte
-    ? `
-          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>\${jabatan_pengirim}</w:t></w:r></w:p>
-          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>\${ttd_pengirim}</w:t></w:r></w:p>
-          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>\${nama_pengirim}</w:t></w:r></w:p>
-          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Pembina Utama Muda. IV/c</w:t></w:r></w:p>
-          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>NIP \${nip_pengirim}</w:t></w:r></w:p>
-    `
-    : `
-          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Kepala SMK Negeri 1 Adiwerna</w:t></w:r></w:p>
-          <w:p><w:pPr><w:spacing w:before="800" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:p>
-          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(headmasterName)}</w:t></w:r></w:p>
-          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(headmasterRank)}</w:t></w:r></w:p>
-          <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>NIP ${escapeXml(headmasterNip)}</w:t></w:r></w:p>
-    `;
+      ? `
+            <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>\${jabatan_pengirim}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>\${ttd_pengirim}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>\${nama_pengirim}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Pembina Utama Muda. IV/c</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>NIP \${nip_pengirim}</w:t></w:r></w:p>
+      `
+      : `
+            <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Kepala SMK Negeri 1 Adiwerna</w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="800" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:p>
+            <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(headmasterName)}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${escapeXml(headmasterRank)}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>NIP ${escapeXml(headmasterNip)}</w:t></w:r></w:p>
+      `;
 
 
   // Siswa rows XML
@@ -1520,14 +1526,14 @@ export function buildSuratPermohonanXml(
     </w:tbl>
   `;
 
-  const sectPr = `<w:sectPr><w:pgSz w:w="11906" w:h="16838" w:code="9"/><w:pgMar w:top="500" w:right="1000" w:bottom="700" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
+  const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
   const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
 
   return (
     baseXml.substring(0, bodyStartIdx) +
     bodyXml +
     sectPr +
-    '</w:body></w:document>'
+    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>'
   );
 }
 
@@ -1626,13 +1632,13 @@ export async function generateMergedSuratPermohonanDocx(
     bodyContents.push(extractBodyContent(xml));
   }
 
-  const sectPr = `<w:sectPr><w:pgSz w:w="11906" w:h="16838" w:code="9"/><w:pgMar w:top="500" w:right="1000" w:bottom="700" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
+  const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
   const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
   const mergedXml =
     baseXml.substring(0, bodyStartIdx) +
     bodyContents.join(pageBreak) +
     sectPr +
-    '</w:body></w:document>';
+    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>';
 
   zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();

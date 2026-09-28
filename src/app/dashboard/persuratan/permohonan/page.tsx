@@ -393,7 +393,13 @@ export default function PermohonanSuratKelompokPage() {
 
     const tteSignatureHtml = useTte ? `
       <div style="margin-top: 0;">\${jabatan_pengirim}</div>
+      <div style="height: 20px;"></div>
+      <div style="height: 20px;"></div>
+      <div style="height: 20px;"></div>
       <div style="height: 60px; line-height: 60px;">\${ttd_pengirim}</div>
+      <div style="height: 20px;"></div>
+      <div style="height: 20px;"></div>
+      <div style="height: 20px;"></div>
       <div style="font-weight: bold; margin-top: 2px;">\${nama_pengirim}</div>
       <div>Pembina Utama Muda. IV/c</div>
       <div>NIP \${nip_pengirim}</div>
@@ -412,7 +418,7 @@ export default function PermohonanSuratKelompokPage() {
   <title>Surat Permohonan PKL - ${indName}</title>
   <style>
     @page {
-      size: A4 portrait;
+      size: 215.9mm 330.2mm;
       margin: 10mm 15mm 10mm 15mm;
     }
     * { box-sizing: border-box; }
