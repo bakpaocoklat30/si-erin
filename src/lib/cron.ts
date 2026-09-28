@@ -9,6 +9,10 @@ const globalForCron = global as unknown as {
 };
 
 export function startAutoBackupCron() {
+  if (typeof window !== 'undefined') return;
+  if (process.env.NEXT_PHASE === 'phase-production-build' || process.env.DATABASE_URL?.includes('dummy')) {
+    return;
+  }
   if (globalForCron.isCronStarted) return;
   globalForCron.isCronStarted = true;
   globalForCron.lastBackupDate = null;

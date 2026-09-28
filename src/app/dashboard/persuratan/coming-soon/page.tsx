@@ -11,9 +11,11 @@
 
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useTheme } from '@/app/theme-provider';
+
+export const dynamic = 'force-dynamic';
 
 import {
   Sparkles,
@@ -25,7 +27,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
-export default function ComingSoonPersuratanPage() {
+function ComingSoonContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { theme } = useTheme();
@@ -113,5 +115,13 @@ export default function ComingSoonPersuratanPage() {
       </div>
 
     </div>
+  );
+}
+
+export default function ComingSoonPersuratanPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center font-bold">Memuat...</div>}>
+      <ComingSoonContent />
+    </Suspense>
   );
 }
