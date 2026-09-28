@@ -405,10 +405,10 @@ export function buildSppdXml(
   // LEMBAR 1: TABEL UTAMA SPPD
   // ==========================================================================
 
-  // 0. Pengaturan Kertas A4 (210mm x 297mm = 11906 x 16838 dxa) & Margin
+  // 0. Pengaturan Kertas F4 (215mm x 330mm = 12240 x 18708 dxa) & Margin
   xml = xml.replace(
     /<w:pgSz\b[^>]*\/>/g,
-    '<w:pgSz w:w="11906" w:h="16838" w:code="9"/>'
+    '<w:pgSz w:w="12240" w:h="18708" w:code="9"/>'
   );
   xml = xml.replace(
     /<w:pgMar\b[^>]*\/>/g,
@@ -534,7 +534,7 @@ export function buildSppdXml(
           r0DestListXml = `
             <w:p w:rsidR="0004024E" w:rsidRPr="00BF6521" w:rsidRDefault="0004024E" w:rsidP="000C6043">
               <w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="286"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr></w:pPr>
-              <w:r w:rsidRPr="00BF6521"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t xml:space="preserve">Ke : ${escapeXml(allIndustries[0].name)}${allIndustries[0].address ? ' ' + escapeXml(allIndustries[0].address) : ''}</w:t></w:r>
+              <w:r w:rsidRPr="00BF6521"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t xml:space="preserve">Ke : ${escapeXml(allIndustries[0].name)}</w:t></w:r>
             </w:p>
           `.trim();
         } else {
@@ -549,7 +549,7 @@ export function buildSppdXml(
               (ind, idx) => `
             <w:p w:rsidR="0004024E" w:rsidRPr="00BF6521" w:rsidRDefault="0004024E" w:rsidP="000C6043">
               <w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="400"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr></w:pPr>
-              <w:r w:rsidRPr="00BF6521"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t>${idx + 1}. ${escapeXml(ind.name)}${ind.address ? ' ' + escapeXml(ind.address) : ''}</w:t></w:r>
+              <w:r w:rsidRPr="00BF6521"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t>${idx + 1}. ${escapeXml(ind.name)}</w:t></w:r>
             </w:p>
           `.trim()
             )
@@ -563,6 +563,9 @@ export function buildSppdXml(
               <w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="400" w:hanging="141"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr></w:pPr>
               <w:r w:rsidRPr="0004024E"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t>\${jabatan_pengirim}</w:t></w:r>
             </w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/></w:pPr></w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/></w:pPr></w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/></w:pPr></w:p>
             <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E">
               <w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="400" w:hanging="141"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="000000"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr></w:pPr>
               <w:r w:rsidRPr="0004024E"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="000000"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t xml:space="preserve">        \${ttd_pengirim}</w:t></w:r>
@@ -590,6 +593,9 @@ export function buildSppdXml(
               <w:pPr><w:spacing w:line="254" w:lineRule="auto"/><w:ind w:left="400" w:hanging="141"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:pPr>
               <w:r w:rsidRPr="0004024E"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r>
             </w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="254" w:lineRule="auto"/></w:pPr></w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="254" w:lineRule="auto"/></w:pPr></w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="254" w:lineRule="auto"/></w:pPr></w:p>
             <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E">
               <w:pPr><w:spacing w:line="254" w:lineRule="auto"/><w:ind w:left="400" w:hanging="141"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:pPr>
               <w:r w:rsidRPr="0004024E"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">        \${ttd_pengirim}</w:t></w:r>
