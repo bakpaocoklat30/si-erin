@@ -321,52 +321,193 @@ export default function PermohonanSuratKelompokPage() {
   // Submit Upload Surat & SIMPAN `letterNumber` KE PRISMA DATABASE
   
 
-  const generateSuratPermohonanHtml = (placements: any[], industryName: string, letterNumber: string, date: any, useTte: boolean, user: string): string => {
-    return `<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <title>Surat Permohonan PKL - ${industryName}</title>
-</head>
-<body style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; padding: 20px;">
-  <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-    <strong>KOP SURAT SMK NEGERI 1 ADIWERNA</strong>
-  </div>
-  <p style="text-align: right;">Adiwerna, ${new Date().toLocaleDateString('id-ID')}</p>
-  <p>Nomor: ${letterNumber || (useTte ? '${nomor_naskah}' : '400.14.5.4 / 1068 / 2026')}</p>
-  <p>Perihal: <strong>Permohonan Tempat Praktik Kerja Lapangan (PKL)</strong></p>
-  <br>
-  <p>Yth. Pimpinan <strong>${industryName}</strong></p>
-  <p>Di Tempat</p>
-  <br>
-  <p style="text-align: justify;">Dengan hormat, dalam rangka pelaksanaan Praktik Kerja Lapangan (PKL) siswa SMK Negeri 1 Adiwerna...</p>
-  <br>
-  <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-    <thead>
+  const calculateDurationMonths = (startDateStr?: string, endDateStr?: string): { months: number; text: string } => {
+    if (!startDateStr || !endDateStr) return { months: 4, text: 'Empat' };
+    try {
+      const s = new Date(startDateStr);
+      const e = new Date(endDateStr);
+      if (isNaN(s.getTime()) || isNaN(e.getTime())) return { months: 4, text: 'Empat' };
+      
+      let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+      if (e.getDate() >= 25 || e.getDate() - s.getDate() >= 20) {
+        months += 1;
+      }
+      if (months <= 0) months = 1;
+      
+      const words = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas', 'Dua Belas'];
+      const text = words[months] || String(months);
+      return { months, text };
+    } catch {
+      return { months: 4, text: 'Empat' };
+    }
+  };
+
+  const formatIndustryAddress = (group: any): string => {
+    const parts = [];
+    if (group.desaKelurahan && group.desaKelurahan !== '-') parts.push(`Kel. ${group.desaKelurahan}`);
+    if (group.subDistrict && group.subDistrict !== '-') parts.push(`Kec. ${group.subDistrict}`);
+    if (group.regency && group.regency !== '-') parts.push(group.regency.toUpperCase());
+    if (group.postalCode && group.postalCode !== '-') parts.push(`Kode Pos ${group.postalCode}`);
+    if (parts.length > 0) return parts.join(', ');
+    return group.fullAddress || group.industryAddress || '-';
+  };
+
+  const generateSuratPermohonanHtml = (group: any, useTte: boolean): string => {
+    const letterNo = group.letterNumber && group.letterNumber.trim() !== ''
+      ? group.letterNumber.trim()
+      : (useTte ? '\${nomor_naskah}' : '400.14.5.4 / 1068 / 2026');
+    
+    const letterDate = group.letterUploadedAt 
+      ? formatDateIndonesia(group.letterUploadedAt) 
+      : formatDateIndonesia(new Date().toISOString());
+    const dateStr = useTte ? '\${tanggal_naskah}' : letterDate;
+
+    const indName = group.industryName || 'Pimpinan DUDI Mitra';
+    const indAddress = formatIndustryAddress(group);
+
+    const startStr = group.startDate ? formatDateIndonesia(group.startDate) : '1 Desember 2026';
+    const endStr = group.endDate ? formatDateIndonesia(group.endDate) : '31 Maret 2027';
+    const dateRangeStr = `${startStr} - ${endStr}`;
+    const duration = calculateDurationMonths(group.startDate, group.endDate);
+
+    const rawStudents = group.students || group.placements || [];
+    const students = rawStudents.map((item: any) => {
+      const s = item.student || item;
+      return {
+        name: (s.name || s.studentName || '-').toUpperCase(),
+        nis: s.nis || '-',
+        className: s.className || '-',
+        phone: s.phone || s.parentPhone || '-'
+      };
+    });
+
+    const studentRows = students.map((std: any, idx: number) => `
       <tr>
-        <th style="border: 1px solid #000; padding: 8px;">No</th>
-        <th style="border: 1px solid #000; padding: 8px;">Nama Siswa</th>
+        <td style="border: 1px solid #000; padding: 4px 6px; text-align: center;">${idx + 1}.</td>
+        <td style="border: 1px solid #000; padding: 4px 8px; text-align: left;">${std.name}</td>
+        <td style="border: 1px solid #000; padding: 4px 6px; text-align: center;">${std.nis}</td>
+        <td style="border: 1px solid #000; padding: 4px 6px; text-align: center;">${std.className}</td>
+        <td style="border: 1px solid #000; padding: 4px 6px; text-align: center;">${std.phone}</td>
       </tr>
-    </thead>
-    <tbody>
-      ${placements.map((p, idx) => {
-        const student = p.student || p;
-        return '<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">' + (idx + 1) + '</td><td style="border: 1px solid #000; padding: 8px;">' + (student.name || '-') + '</td></tr>';
-      }).join('')}
-    </tbody>
-  </table>
-  <br>
-  <div style="float: right; text-align: center; width: 250px;">
-    ${useTte ? `
+    `).join('');
+
+    const tteSignatureHtml = useTte ? `
       <div style="margin-top: 0;">\${jabatan_pengirim}</div>
       <div style="height: 60px; line-height: 60px;">\${ttd_pengirim}</div>
       <div style="font-weight: bold; margin-top: 2px;">\${nama_pengirim}</div>
+      <div>Pembina Utama Muda. IV/c</div>
+      <div>NIP \${nip_pengirim}</div>
     ` : `
       <div>Kepala SMK Negeri 1 Adiwerna</div>
       <div style="height: 65px;"></div>
       <div style="font-weight: bold; margin-top: 2px;">Joko Pramono, S.Pd., M.Ds.</div>
-    `}
+      <div>Pembina Utama Muda. IV/c</div>
+      <div>NIP 196903171998021004</div>
+    `;
+
+    return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Surat Permohonan PKL - ${indName}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm 15mm 10mm 15mm;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 12pt;
+      line-height: 1.35;
+      color: #000;
+      background: #fff;
+      margin: 0 auto;
+      padding: 10mm 15mm;
+      max-width: 210mm;
+    }
+    .text-center { text-align: center; }
+    .text-justify { text-align: justify; text-justify: inter-word; }
+    .font-bold { font-weight: bold; }
+    table { border-collapse: collapse; width: 100%; }
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 0;
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- KOP SURAT RESMI -->
+  <div style="text-align: center; margin-bottom: 8px;">
+    <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
   </div>
+
+  <!-- NOMOR & TANGGAL SURAT -->
+  <table style="width: 100%; margin-bottom: 12px; border: none; font-size: 12pt;">
+    <tr>
+      <td style="width: 60%; vertical-align: top; border: none; padding: 0;">
+        <div>Nomor : ${letterNo}</div>
+        <div>Hal.    : <strong><em>Permohonan Praktek Kerja Lapangan (PKL)</em></strong></div>
+      </td>
+      <td style="width: 40%; vertical-align: top; text-align: right; border: none; padding: 0;">
+        Adiwerna, ${dateStr}
+      </td>
+    </tr>
+  </table>
+
+  <!-- KEPADA INDUSTRI -->
+  <div style="margin-bottom: 12px; font-size: 12pt; line-height: 1.3;">
+    <div style="font-weight: bold;">Kepada</div>
+    <div style="font-weight: bold;">Yth.Pimpinan ${indName}</div>
+    <div>${indAddress}</div>
+  </div>
+
+  <!-- ISI SURAT -->
+  <div style="margin-bottom: 6px; font-size: 12pt;">Dengan hormat,</div>
+  <p class="text-justify" style="margin: 0 0 8px 0; font-size: 12pt; text-indent: 0; line-height: 1.38;">
+    Sebagai upaya peningkatan mutu lulusan Sekolah Menengah Kejuruan (SMK) yang relevan dengan kebutuhan industri, serta merujuk pada Kurikulum Merdeka yang mewajibkan siswa terjun langsung ke dunia kerja melalui Praktik Kerja Lapangan (PKL), maka dengan ini kami bermaksud mengajukan permohonan untuk menempatkan siswa/siswi kami guna melaksanakan PKL di perusahaan yang Bapak/Ibu pimpin.
+  </p>
+  <p class="text-justify" style="margin: 0 0 8px 0; font-size: 12pt; text-indent: 0; line-height: 1.38;">
+    Sehubungan dengan hal tersebut, kami memohon kesediaan Bapak/Ibu untuk menerima siswa kami melaksanakan PKL yang dijadwalkan akan dimulai pada tanggal <strong><em>${dateRangeStr}</em></strong>, atau Selama <strong>${duration.months} ( ${duration.text} )</strong> bulan.
+  </p>
+  <div style="margin-bottom: 8px; font-size: 12pt;">
+    Adapun daftar siswa kami sebagai berikut :
+  </div>
+
+  <!-- TABEL SISWA -->
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 12pt;">
+    <thead>
+      <tr style="background-color: #f8fafc;">
+        <th style="border: 1px solid #000; padding: 5px 6px; width: 6%; text-align: center; font-weight: bold;">No.</th>
+        <th style="border: 1px solid #000; padding: 5px 8px; width: 38%; text-align: center; font-weight: bold;">Nama Siswa</th>
+        <th style="border: 1px solid #000; padding: 5px 6px; width: 16%; text-align: center; font-weight: bold;">NIS</th>
+        <th style="border: 1px solid #000; padding: 5px 6px; width: 18%; text-align: center; font-weight: bold;">Kelas</th>
+        <th style="border: 1px solid #000; padding: 5px 6px; width: 22%; text-align: center; font-weight: bold;">No Hp</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${studentRows}
+    </tbody>
+  </table>
+
+  <!-- PENUTUP -->
+  <p style="margin: 0 0 14px 0; font-size: 12pt; line-height: 1.35;">
+    Demikian permohonan kami, atas perhatian dan kerjasamanya kami sampaikan terimakasih.
+  </p>
+
+  <!-- TANDA TANGAN -->
+  <table style="width: 100%; border: none; margin-top: 10px; font-size: 12pt;">
+    <tr>
+      <td style="width: 52%; border: none;"></td>
+      <td style="width: 48%; border: none; vertical-align: top; text-align: left;">
+        ${tteSignatureHtml}
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
   };
@@ -1477,7 +1618,7 @@ export default function PermohonanSuratKelompokPage() {
                 className="bg-white text-black shadow-xl w-[21cm] min-h-[29.7cm] p-[2cm] docx-preview-content"
                 style={{ fontSize: '12pt', fontFamily: '"Times New Roman", Times, serif', lineHeight: '1.5' }}
                 dangerouslySetInnerHTML={{
-                  __html: generateSuratPermohonanHtml(docxPreviewGroup.placements || docxPreviewGroup.students || [], docxPreviewGroup.industryName || '', docxPreviewGroup.letterNumber || '', new Date(), docxPreviewUseTte, (session?.user as any)?.name || 'Admin')
+                  __html: generateSuratPermohonanHtml(docxPreviewGroup, docxPreviewUseTte), docxPreviewUseTte, (session?.user as any)?.name || 'Admin')
                 }}
               />
             </div>
