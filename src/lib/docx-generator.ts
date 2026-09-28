@@ -229,9 +229,10 @@ export function buildSuratTugasXml(
   }
 
   // 7. Tanggal Surat pada Tanda Tangan
+  const signatureDateStr = useTte ? '${tanggal_naskah}' : escapeXml(signatureDate);
   xml = xml.replace(
     /<w:t>Adiwerna, 14 September 2026<\/w:t>/,
-    `<w:t>Adiwerna, ${escapeXml(signatureDate)}</w:t>`
+    `<w:t>Adiwerna, ${signatureDateStr}</w:t>`
   );
 
   // 8. Penanganan TTE Tags vs Mode Langsung

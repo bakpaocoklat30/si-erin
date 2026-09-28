@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const [assignments, departments, schoolSetting] = await Promise.all([
       db.monitoringAssignment.findMany({
         where: {
-          status: { not: 'DIBATALKAN' }
+          status: { notIn: ['TERJADWAL', 'DIBATALKAN'] }
         },
         include: {
           industry: {
