@@ -1061,6 +1061,24 @@ export default function PermohonanSuratKelompokPage() {
                       <Upload className="w-4 h-4" />
                       <span>{hasSurat ? 'Ganti Surat & Nomor' : 'Upload Surat Permohonan'}</span>
                     </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDocxPreview(group)}
+                        className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-fuchsia-600 hover:bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-600/30 border-fuchsia-500"
+                        title="Lihat Pratinjau Surat Permohonan PKL (Format Resmi A4 DOCX & TTE)"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>Preview Surat (DOCX)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadSingleDocx(group)}
+                        className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 border-blue-500"
+                        title="Generate & Unduh Surat Permohonan PKL Format Resmi (DOCX)"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>Surat Permohonan (DOCX)</span>
+                      </button>
 
                     {hasSurat && (
                       <button
