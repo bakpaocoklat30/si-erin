@@ -1,9 +1,11 @@
+// ----------------------------------------------------------------------
 // 📋 CHANGELOG:
-// ✅ Perubahan: Pembuatan halaman antarmuka Admin Import Guru dengan CSV/Text parser interaktif.
-// ✨ Fitur Baru: Drag-and-Drop CSV Parser, Data Preview Table, & Template Downloader.
+// ✅ Perubahan: Pembaruan halaman antarmuka Admin Import Guru dengan dukungan Pangkat, Golongan, & Nomor WhatsApp.
+// ✨ Fitur Baru: Drag-and-Drop CSV Parser, Data Preview Table, & Template Downloader lengkap.
 // 🎨 UI/UX Update: Glassmorphic cards, responsive table preview, loading states, & instant toast feedback.
-// 🔧 Bug Fix: Sanitasi baris kosong pada parser CSV.
+// 🔧 Bug Fix: Sanitasi baris kosong dan penyesuaian kolom dengan format Surat Tugas / SPPD.
 // 🚀 Inovasi: Client-side CSV Preview & Server Batch Sync Pipeline.
+// ----------------------------------------------------------------------
 
 'use client';
 
@@ -16,7 +18,6 @@ import {
   ArrowLeft, 
   Download, 
   UserPlus,
-  ShieldCheck,
   RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
@@ -27,18 +28,21 @@ export default function AdminImportTeacherPage() {
   const [loading, setLoading] = useState(false);
   const [resultMessage, setResultMessage] = useState<{ type: 'success' | 'error'; text: string; details?: any } | null>(null);
 
-  // Contoh format CSV template
-  const csvTemplate = `Nama Lengkap,NIP,Jenis Kelamin (L/P),Mata Pelajaran / Kompetensi,Role (GURU/POKJA)
-Ahmad Fauzi,198505122010011001,L,Teknik Komputer dan Jaringan,GURU
-Siti Aminah,,P,Matematika,POKJA
-Budi Santoso,199003212015021003,L,Otomotif,GURU`;
+  // Format CSV template resmi SI-ERIN v2.0
+  const csvTemplate = `Nama Lengkap,NIP,Jenis Kepegawaian,Jabatan Fungsional,Pangkat,Golongan,Nomor WhatsApp,Jurusan / Mapel,Role
+Mohammad Rahmad Rifa'i, S.Pd.,199510302022211002,PNS,Guru,Penata Muda,III/a,081234567890,Teknik Komputer dan Jaringan,GURU
+Harits Rusli, S.Kom,199304072022211004,PPPK,Guru,Ahli Pertama,IX,085678901234,Teknik Komputer dan Jaringan,GURU
+Salman Alfarizi, S.Kom,199107302025211019,PNS,Guru,Pembina,IV/a,089876543210,Teknik Komputer dan Jaringan,POKJA
+Dra. Hj. Siti Aminah,196805121994032005,PNS,Guru,Pembina Tk. I,IV/b,087712345678,Bimbingan Konseling,GURU
+Budi Santoso, S.T.,-,HONORER,Staff,Guru Honorer,-,081398765432,Teknik Otomotif,GURU
+Siti Nurjanah, A.Md.,-,HONORER,Tata Usaha,Staf Administrasi,-,081299887766,Administrasi Perkantoran,GURU`;
 
   const handleDownloadTemplate = () => {
     const blob = new Blob([csvTemplate], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'template_import_guru_sierin.csv');
+    link.setAttribute('download', 'template_master_guru_sierin.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -51,7 +55,14 @@ Budi Santoso,199003212015021003,L,Otomotif,GURU`;
       return;
     }
 
-    const lines = text.split('\n');
+    const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+    if (lines.length < 2) {
+      setParsedData([]);
+      return;
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^["'](.*)["']$/, '$1'));
+    const hasNewFormat = headers.some(h => h.includes('kepegawaian') || h.includes('jabatan'));
     const result = [];
     
     // Mulai dari baris ke-1 (lewati header index 0)
@@ -59,17 +70,47 @@ Budi Santoso,199003212015021003,L,Otomotif,GURU`;
       const line = lines[i].trim();
       if (!line) continue;
 
-      // Handle koma sederhana dalam CSV
+      // Handle CSV splitting
       const cols = line.split(',').map(c => c.trim().replace(/^["'](.*)["']$/, '$1'));
       
       if (cols.length >= 1 && cols[0]) {
+        let name = cols[0] || '';
+        let nip = cols[1] || '';
+        let employeeType = 'HONORER';
+        let jobTitle = 'Guru';
+        let rank = '';
+        let golongan = '';
+        let phone = '';
+        let subject = 'Umum';
+        let role = 'GURU';
+
+        if (hasNewFormat || cols.length >= 9) {
+          employeeType = cols[2] || (nip && nip !== '-' ? 'PNS' : 'HONORER');
+          jobTitle = cols[3] || 'Guru';
+          rank = cols[4] || '';
+          golongan = cols[5] || '';
+          phone = cols[6] || '';
+          subject = cols[7] || 'Umum';
+          role = (cols[8] || 'GURU').toUpperCase();
+        } else {
+          rank = cols[2] || '';
+          golongan = cols[3] || '';
+          phone = cols[4] || '';
+          subject = cols[5] || 'Umum';
+          role = (cols[6] || 'GURU').toUpperCase();
+          employeeType = golongan.toUpperCase().includes('IX') ? 'PPPK' : (nip && nip !== '-' ? 'PNS' : 'HONORER');
+        }
+
         result.push({
-          name: cols[0] || '',
-          nip: cols[1] || '',
-          gender: cols[2] || 'L',
-          subject: cols[3] || 'Umum',
-          role: cols[4] || 'GURU',
-          rank: cols[5] || '',
+          name,
+          nip,
+          employeeType,
+          jobTitle,
+          rank,
+          golongan,
+          phone,
+          subject,
+          role,
         });
       }
     }
@@ -131,112 +172,117 @@ Budi Santoso,199003212015021003,L,Otomotif,GURU`;
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">
-            <Link href="/dashboard/admin/users" className="inline-flex items-center space-x-2 text-xs font-bold text-blue-300 hover:text-white transition-colors mb-2">
+            <Link href="/dashboard/admin/teachers" className="inline-flex items-center space-x-2 text-xs font-bold text-blue-300 hover:text-white transition-colors mb-2">
               <ArrowLeft className="w-4 h-4" />
-              <span>Kembali ke Manajemen Pengguna</span>
+              <span>Kembali ke Manajemen Guru</span>
             </Link>
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold uppercase tracking-wider">
               <UserPlus className="w-3.5 h-3.5" />
-              <span>Dapodik Integration</span>
+              <span>Dapodik & Kepegawaian Integration</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Import Data Guru & Pokja Massal
+              Import Data Guru & Pembimbing Massal
             </h1>
             <p className="text-blue-200 text-xs sm:text-sm max-w-xl leading-relaxed">
-              Unggah file CSV atau salin data dari Dapodik. NIP boleh dikosongkan, dan guru dapat ditugaskan sebagai Pembimbing atau Pokja.
+              Unggah file CSV atau salin data dari Dapodik. Lengkap dengan NIP, Pangkat, Golongan ruang, dan Nomor WhatsApp resmi sebagai dasar penerbitan Surat Tugas & SPPD.
             </p>
           </div>
 
           <button
             onClick={handleDownloadTemplate}
-            className="px-5 py-3.5 rounded-2xl font-extrabold text-xs uppercase tracking-wider bg-white/10 hover:bg-white/20 border border-white/20 text-white shadow-lg flex items-center justify-center space-x-2 transition-all cursor-pointer backdrop-blur-sm"
+            className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center space-x-2 transition-all cursor-pointer hover:scale-105 active:scale-95 self-start md:self-auto"
           >
-            <Download className="w-4 h-4" />
-            <span>Download Template CSV</span>
+            <Download className="w-4 h-4 text-emerald-400" />
+            <span>Unduh Template CSV</span>
           </button>
         </div>
       </div>
 
-      {/* RESULT MESSAGE */}
+      {/* FEEDBACK MESSAGE */}
       {resultMessage && (
-        <div className={`p-5 rounded-2xl text-xs font-bold border flex flex-col space-y-2 ${
+        <div className={`p-5 rounded-2xl border flex items-start space-x-3 animate-fade-in ${
           resultMessage.type === 'success' 
-            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' 
-            : 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400'
+            ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' 
+            : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'
         }`}>
-          <div className="flex items-center space-x-3">
-            {resultMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertTriangle className="w-5 h-5 shrink-0" />}
-            <span className="text-sm font-black">{resultMessage.text}</span>
-          </div>
-          {resultMessage.details?.errors?.length > 0 && (
-            <ul className="list-disc list-inside pl-5 space-y-1 text-[11px] opacity-90">
-              {resultMessage.details.errors.map((err: string, idx: number) => (
-                <li key={idx}>{err}</li>
-              ))}
-            </ul>
+          {resultMessage.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
           )}
+          <div className="space-y-1">
+            <h4 className="text-sm font-black">{resultMessage.text}</h4>
+            {resultMessage.details?.errors?.length > 0 && (
+              <ul className="text-xs list-disc list-inside space-y-0.5 text-rose-600 dark:text-rose-400 pt-2">
+                {resultMessage.details.errors.map((err: string, i: number) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
-      {/* UPLOAD & PASTE SECTION */}
+      {/* INPUT CONTAINER */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Opsi 1: Upload File CSV */}
+        {/* DRAG AND DROP FILE */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-4">
           <div>
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl">
-                <FileSpreadsheet className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">1. Unggah Berkas CSV</h3>
-                <p className="text-[11px] text-slate-400">Pilih berkas .csv dari komputer Anda</p>
-              </div>
+            <div className="flex items-center space-x-2 mb-2">
+              <FileSpreadsheet className="w-5 h-5 text-indigo-500" />
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Metode 1: Unggah Berkas .CSV</h3>
             </div>
-            
-            <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 rounded-2xl p-8 flex flex-col items-center justify-center space-y-3 cursor-pointer bg-slate-50/50 dark:bg-slate-950/50 transition-all group">
-              <UploadCloud className="w-8 h-8 text-slate-400 group-hover:text-blue-500 transition-colors" />
-              <div className="text-center">
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Klik untuk unggah atau seret file ke sini</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Format yang didukung: .csv (Comma Separated Values)</p>
-              </div>
-              <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-            </label>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Pilih file format CSV yang berisi kolom: <span className="font-semibold text-slate-700 dark:text-slate-300">Nama Lengkap, NIP, Jenis Kepegawaian (PNS/PPPK/HONORER), Jabatan Fungsional (Guru/Tata Usaha/Staff), Pangkat, Golongan, Nomor WhatsApp, Jurusan / Mapel, Role</span>.
+            </p>
           </div>
-          
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/50 text-[11px] text-blue-700 dark:text-blue-300">
-            💡 <b>Catatan:</b> NIP bersifat opsional (bisa dikosongkan jika guru honorer atau belum memiliki NIP). Password default akun guru adalah <code className="bg-blue-200/50 dark:bg-blue-900/50 px-1.5 py-0.5 rounded font-mono">guru12345</code>.
+
+          <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-slate-950/50 group">
+            <UploadCloud className="w-10 h-10 text-slate-400 group-hover:text-indigo-500 mb-2 transition-colors" />
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Klik untuk jelajahi file CSV</span>
+            <span className="text-[10px] text-slate-400 mt-1">Maksimal 5MB (Format: .csv)</span>
+            <input 
+              type="file" 
+              accept=".csv" 
+              className="hidden" 
+              onChange={handleFileUpload} 
+            />
+          </label>
+
+          <div className="text-[11px] text-slate-400 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+            💡 <span className="font-bold">Tips:</span> Jika NIP diisi, password akun otomatis menggunakan format standar <code className="text-indigo-400 font-bold">guru12345</code> dan dapat diubah kemudian.
           </div>
         </div>
 
-        {/* Opsi 2: Paste Langsung Teks CSV */}
+        {/* PASTE RAW TEXT */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-4">
           <div>
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-xl">
-                <UploadCloud className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">2. Salin & Tempel Data CSV</h3>
-                <p className="text-[11px] text-slate-400">Atau tempel teks tabel langsung di bawah ini</p>
-              </div>
+            <div className="flex items-center space-x-2 mb-2">
+              <UploadCloud className="w-5 h-5 text-emerald-500" />
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Metode 2: Tempel Teks CSV</h3>
             </div>
-
-            <textarea
-              rows={5}
-              value={csvText}
-              onChange={(e) => handleParseCsv(e.target.value)}
-              placeholder="Contoh: Budi Santoso, 199003..., L, TKJ, GURU, Penata Muda / III a"
-              className="w-full p-3 text-xs font-mono rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            ></textarea>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Buka berkas di Excel / Google Sheets, salin teks (Ctrl+C), lalu tempel (Ctrl+V) langsung ke kolom di bawah ini.
+            </p>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>Baris terdeteksi: <strong className="text-blue-600 dark:text-blue-400">{parsedData.length}</strong> guru</span>
-            {parsedData.length > 0 && (
+          <textarea
+            rows={7}
+            placeholder={csvTemplate}
+            value={csvText}
+            onChange={(e) => handleParseCsv(e.target.value)}
+            className="w-full text-xs font-mono p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-800 dark:text-slate-200"
+          ></textarea>
+
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500">
+              {parsedData.length > 0 ? `✅ ${parsedData.length} baris guru terdeteksi` : 'Belum ada data diuraikan'}
+            </span>
+            {csvText && (
               <button
-                onClick={() => { setCsvText(''); setParsedData([]); }}
-                className="text-red-500 hover:underline cursor-pointer text-[11px]"
+                onClick={() => handleParseCsv('')}
+                className="text-xs text-rose-500 hover:underline font-bold cursor-pointer"
               >
                 Reset Data
               </button>
@@ -285,10 +331,13 @@ Budi Santoso,199003212015021003,L,Otomotif,GURU`;
                   <th className="p-4">No</th>
                   <th className="p-4">Nama Lengkap</th>
                   <th className="p-4">NIP</th>
-                  <th className="p-4">Jenis Kelamin</th>
-                  <th className="p-4">Mata Pelajaran / Kompetensi</th>
-                  <th className="p-4">Pangkat / Golongan</th>
-                  <th className="p-4">Role Sistem</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Jabatan</th>
+                  <th className="p-4">Pangkat</th>
+                  <th className="p-4 text-center">Golongan</th>
+                  <th className="p-4">No. WhatsApp</th>
+                  <th className="p-4">Jurusan / Mapel</th>
+                  <th className="p-4 text-center">Role</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-inherit font-medium">
@@ -296,11 +345,22 @@ Budi Santoso,199003212015021003,L,Otomotif,GURU`;
                   <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                     <td className="p-4 text-slate-400 font-bold">{idx + 1}</td>
                     <td className="p-4 font-bold text-slate-800 dark:text-slate-100">{item.name}</td>
-                    <td className="p-4 font-mono text-slate-500 dark:text-slate-400">{item.nip || <span className="text-amber-500 italic">Tanpa NIP</span>}</td>
-                    <td className="p-4 text-slate-600 dark:text-slate-300">{item.gender === 'P' ? 'Perempuan' : 'Laki-laki'}</td>
-                    <td className="p-4 text-slate-600 dark:text-slate-300">{item.subject}</td>
-                    <td className="p-4 text-xs font-semibold text-indigo-500">{item.rank || '-'}</td>
+                    <td className="p-4 font-mono text-slate-500 dark:text-slate-400">{item.nip || <span className="text-amber-500 italic">Non-NIP</span>}</td>
                     <td className="p-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                        item.employeeType === 'PNS' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' :
+                        item.employeeType === 'PPPK' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30' :
+                        'bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/30'
+                      }`}>
+                        {item.employeeType}
+                      </span>
+                    </td>
+                    <td className="p-4 font-semibold text-indigo-500 dark:text-indigo-400">{item.jobTitle}</td>
+                    <td className="p-4 text-amber-500 font-semibold">{item.rank || '-'}</td>
+                    <td className="p-4 text-center text-indigo-400 font-bold">{item.golongan || '-'}</td>
+                    <td className="p-4 font-mono text-emerald-500">{item.phone || '-'}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-300">{item.subject}</td>
+                    <td className="p-4 text-center">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                         item.role === 'POKJA' 
                           ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30' 

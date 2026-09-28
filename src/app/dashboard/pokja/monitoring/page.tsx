@@ -411,7 +411,8 @@ export default function PokjaMonitoringPage() {
   const handleTeacherChange = (teacherId: string) => {
     setFormTeacherId(teacherId);
     const selected = teachers.find((t) => t.id === teacherId);
-    setFormTeacherRank(selected?.rank || '');
+    const pGol = [selected?.rank, (selected as any)?.golongan].filter(Boolean).join(' / ') || selected?.rank || (selected as any)?.golongan || '';
+    setFormTeacherRank(pGol);
   };
 
   // Handler: Tambah Guru Pendamping Cepat dari Dropdown
@@ -435,7 +436,7 @@ export default function PokjaMonitoringPage() {
         {
           name: found.name,
           nip: found.nip || found.username || '-',
-          rank: found.rank || '',
+          rank: [found.rank, (found as any)?.golongan].filter(Boolean).join(' / ') || found.rank || (found as any)?.golongan || '',
           role: 'Guru',
         },
       ];

@@ -57,3 +57,4 @@ schema_foundation.sql
 template_sidebar_enterprise.html
 gdrive-service-account.json.json
 *.json
+scratch/

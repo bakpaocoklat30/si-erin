@@ -32,7 +32,9 @@ model User {
   phone              String?
   nip                String?
   rank               String?
+  golongan           String?
   jobTitle           String?
+  employeeType       String?
   student            Student?                @relation("StudentAccount")
   supervisedStudents Student[]               @relation("TeacherStudents")
   teacherHours       TeacherHourAllocation[]

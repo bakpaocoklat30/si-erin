@@ -31,7 +31,7 @@ const execPromise = util.promisify(exec);
 const VALID_TABLE_COLUMNS: Record<string, Set<string>> = {
   SchoolSetting: new Set(['id', 'name', 'shortName', 'logoUrl', 'address', 'phone', 'email', 'headmaster', 'headmasterNip', 'accreditation', 'createdAt', 'updatedAt']),
   SystemSetting: new Set(['id', 'key', 'value', 'createdAt', 'updatedAt']),
-  User: new Set(['id', 'username', 'name', 'password', 'role', 'department', 'phone', 'nip', 'rank', 'jobTitle', 'createdAt', 'updatedAt']),
+  User: new Set(['id', 'username', 'name', 'password', 'role', 'department', 'phone', 'nip', 'rank', 'golongan', 'jobTitle', 'employeeType', 'createdAt', 'updatedAt']),
   AcademicYear: new Set(['id', 'year', 'isActive', 'createdAt', 'updatedAt']),
   Department: new Set(['id', 'code', 'name', 'createdAt', 'updatedAt']),
   InternshipPeriod: new Set(['id', 'name', 'startDate', 'endDate', 'department', 'isActive', 'academicYearId', 'activeIndustries', 'createdAt', 'updatedAt']),

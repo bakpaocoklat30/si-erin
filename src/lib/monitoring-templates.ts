@@ -12,6 +12,7 @@ export interface CompanionTeacher {
   name: string;
   nip?: string;
   rank?: string;
+  golongan?: string;
   role?: string;
 }
 
@@ -79,6 +80,7 @@ export interface MonitoringAssignmentData {
     username?: string;
     nip?: string | null;
     rank?: string | null;
+    golongan?: string | null;
     jobTitle?: string | null;
     phone?: string | null;
   };

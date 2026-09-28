@@ -252,6 +252,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
     {
       groupLabel: 'Manajemen User & Industri',
       items: [
+        { name: 'Manajemen Guru', href: '/dashboard/admin/teachers', icon: GraduationCap },
         { name: 'Kelola Pengguna', href: '/dashboard/admin/users', icon: Users },
         { name: 'Import CSV Siswa', href: '/dashboard/admin/students/import', icon: FileSpreadsheet },
         { name: 'Industri Mitra (Read-Only)', href: '/dashboard/admin/industries', icon: Building2 },

@@ -137,6 +137,27 @@ Jika menggunakan Docker di PC baru:
 docker-compose up -d
 ```
 
+### F. Manajemen Data Guru & Tenaga Kependidikan (Admin)
+- **Halaman**: `/dashboard/admin/teachers` & `/dashboard/admin/teachers/import`
+- **Field Baru pada Model `User`**:
+  - `employeeType String?`: Menyimpan jenis kepegawaian resmi: `PNS`, `PPPK`, `HONORER`.
+  - `jobTitle String?`: Menyimpan jabatan fungsional: `Guru`, `Tata Usaha`, `Staff`.
+- **Fitur Lengkap**:
+  - **Tabel Pendidik & Tendik**: Menampilkan Nama Lengkap, NIP, Status Kepegawaian (PNS / PPPK / Honorer), Jabatan Fungsional (Guru / TU / Staff), Pangkat, Golongan Ruang, Nomor WhatsApp resmi (Click-to-Chat `wa.me`), Jurusan/Mapel, dan Role.
+  - **Filter Ganda**:
+    - Filter Status Kepegawaian: `Semua`, `PNS`, `PPPK`, `HONORER`.
+    - Filter Jabatan Fungsional: `Semua`, `Guru`, `Tata Usaha`, `Staff`.
+    - Filter Role: `Semua`, `GURU`, `POKJA`, `PEMBIMBING`.
+  - **Kartu Statistik Real-time**: Total Pegawai, Pegawai PNS (Ber-NIP), Pegawai PPPK (Gol. IX), dan Honorer / Non-PNS.
+  - **Modal Tambah & Edit Guru**: Form lengkap dengan dropdown jenis kepegawaian (`PNS`, `PPPK`, `HONORER`), jabatan fungsional (`Guru`, `Tata Usaha`, `Staff`), datalist pangkat & golongan kepegawaian standar.
+  - **Import CSV Massal**:
+    - Parser fleksibel mendeteksi berbagai variasi nama header (`jenis kepegawaian`, `kepegawaian`, `status`, `jabatan fungsional`, `jabatan`, `pangkat`, `golongan`, `wa`).
+    - Template CSV resmi yang diperbarui dengan kolom `Jenis Kepegawaian` dan `Jabatan Fungsional`.
+    - Auto-upsert pintar: memperbarui guru jika NIP sudah ada atau membuat akun baru jika belum terdaftar.
+  - **Ekspor CSV**: Menghasilkan file CSV lengkap dengan status kepegawaian dan jabatan fungsional untuk sinkronisasi Dapodik dan arsip sekolah.
+
+---
+
 ### Langkah 4: Pasang Dependensi Node.js
 Jalankan perintah berikut di folder proyek untuk mengunduh pustaka (termasuk `adm-zip`):
 ```bash
@@ -146,7 +167,7 @@ npm install
 ### Langkah 5: Sinkronisasi Skema Prisma ke Database
 Proyek ini menggunakan Prisma dengan `db push` (bukan migrate baseline):
 ```bash
-# 1. Generate Prisma Client agar mengenal model MonitoringAssignment & User.rank
+# 1. Generate Prisma Client agar mengenal model MonitoringAssignment & User.employeeType
 npx prisma generate
 
 # 2. Sinkronkan tabel ke database PostgreSQL
@@ -159,6 +180,8 @@ npm run dev
 ```
 Buka browser dan akses:
 - URL Utama: `http://localhost:3000`
+- Manajemen Guru: `http://localhost:3000/dashboard/admin/teachers`
+- Import Guru: `http://localhost:3000/dashboard/admin/teachers/import`
 - Menu Monitoring Pokja: `http://localhost:3000/dashboard/pokja/monitoring`
 
 ---
@@ -169,11 +192,12 @@ Buka browser dan akses:
 |---|---|
 | Cek status git & file untracked | `git status` |
 | Tambah semua file perubahan | `git add .` |
-| Commit perubahan | `git commit -m "feat: penugasan monitoring, pangkat guru sppd, dan generator docx"` |
+| Commit perubahan | `git commit -m "feat: jenis kepegawaian pns/pppk/honorer dan jabatan guru/tu/staff"` |
 | Update prisma client | `npx prisma generate` |
 | Sinkronkan skema database | `npx prisma db push` |
 | Jalankan dev server | `npm run dev` |
 | Build produksi | `npm run build` |
 
 ---
-*Catatan dibuat otomatis pada 26 September 2026 sebagai dokumentasi resmi pembaruan SI-ERIN v2.0.*
+*Catatan diperbarui pada 28 September 2026 sebagai dokumentasi resmi fitur SI-ERIN v2.0.*
+

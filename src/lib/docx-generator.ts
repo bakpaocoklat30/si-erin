@@ -452,7 +452,8 @@ export function buildSppdXml(
   xml = xml.replace(teacherCellRegex, teacherXmlReplacement);
 
   // 3. Poin 3: Pangkat & Jabatan (Jabatan selalu 'Guru')
-  xml = xml.replace(/<w:t xml:space="preserve"> II\/D<\/w:t>/, `<w:t xml:space="preserve"> ${escapeXml(mainTeacher.rank || '-')}</w:t>`);
+  const teacherPangkatGol = [mainTeacher.rank, (mainTeacher as any).golongan].filter(Boolean).join(' / ') || mainTeacher.rank || (mainTeacher as any).golongan || '-';
+  xml = xml.replace(/<w:t xml:space="preserve"> II\/D<\/w:t>/, `<w:t xml:space="preserve"> ${escapeXml(teacherPangkatGol)}</w:t>`);
   xml = xml.replace(/<w:t xml:space="preserve">Staf <\/w:t>/, `<w:t xml:space="preserve">Guru <\/w:t>`);
 
   // 4. Poin 4: Maksud Perjalanan Dinas

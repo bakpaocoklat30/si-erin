@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
             username: true,
             nip: true,
             rank: true,
+            golongan: true,
             jobTitle: true,
             phone: true,
           }
@@ -112,6 +113,7 @@ export async function GET(req: NextRequest) {
         username: true,
         nip: true,
         rank: true,
+        golongan: true,
         jobTitle: true,
         phone: true,
         department: true,
