@@ -412,7 +412,7 @@ export function buildSppdXml(
   );
   xml = xml.replace(
     /<w:pgMar\b[^>]*\/>/g,
-    '<w:pgMar w:top="400" w:right="800" w:bottom="400" w:left="800" w:header="400" w:footer="400" w:gutter="0"/>'
+    '<w:pgMar w:top="400" w:right="1500" w:bottom="400" w:left="1500" w:header="400" w:footer="400" w:gutter="0"/>'
   );
 
   const isMany = true; // Selalu gunakan pengaturan tinggi dan spasi kompak agar 4 slot tujuan muat presisi di kertas F4
@@ -570,6 +570,9 @@ export function buildSppdXml(
               <w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="400" w:hanging="141"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="000000"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr></w:pPr>
               <w:r w:rsidRPr="0004024E"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="000000"/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t xml:space="preserve">        \${ttd_pengirim}</w:t></w:r>
             </w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/></w:pPr></w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/></w:pPr></w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/></w:pPr></w:p>
             <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E">
               <w:pPr><w:spacing w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="400" w:hanging="141"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:bCs/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr></w:pPr>
               <w:r w:rsidRPr="0004024E"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:bCs/><w:sz w:val="${fontSize}"/><w:szCs w:val="${fontSize}"/></w:rPr><w:t>\${nama_pengirim}</w:t></w:r>
@@ -600,6 +603,9 @@ export function buildSppdXml(
               <w:pPr><w:spacing w:line="254" w:lineRule="auto"/><w:ind w:left="400" w:hanging="141"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:pPr>
               <w:r w:rsidRPr="0004024E"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">        \${ttd_pengirim}</w:t></w:r>
             </w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="254" w:lineRule="auto"/></w:pPr></w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="254" w:lineRule="auto"/></w:pPr></w:p>
+            <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E"><w:pPr><w:spacing w:line="254" w:lineRule="auto"/></w:pPr></w:p>
             <w:p w:rsidR="0004024E" w:rsidRPr="0004024E" w:rsidRDefault="0004024E" w:rsidP="0004024E">
               <w:pPr><w:spacing w:line="254" w:lineRule="auto"/><w:ind w:left="400" w:hanging="141"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:bCs/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:pPr>
               <w:r w:rsidRPr="0004024E"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:bCs/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>\${nama_pengirim}</w:t></w:r>
