@@ -236,17 +236,20 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { placementIds, suratTugasUrl, letterNumber, letterDate } = body;
+    const { placementIds, suratTugasUrl, letterNumber, letterDate, status } = body;
 
     if (!Array.isArray(placementIds) || placementIds.length === 0) {
       return NextResponse.json({ error: 'Pilih kelompok siswa yang akan dikirimkan suratnya' }, { status: 400 });
     }
 
-    if ((!letterNumber || !letterNumber.trim()) && !suratTugasUrl) {
-      return NextResponse.json({ error: 'Harus mengisi Nomor Surat atau mengunggah File!' }, { status: 400 });
-    }
+    if (!status && (!letterNumber || !letterNumber.trim()) && !suratTugasUrl) {
+        return NextResponse.json({ error: 'Harus mengisi Nomor Surat, mengunggah File, atau update status!' }, { status: 400 });
+      }
 
     let updateData: any = {};
+      if (status) {
+        updateData.status = status;
+      }
     if (letterNumber && letterNumber.trim()) {
       updateData.letterNumber = letterNumber.trim();
     }

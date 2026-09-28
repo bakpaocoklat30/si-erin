@@ -82,6 +82,8 @@ export default function StudentPengajuanPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showBalasanModal, setShowBalasanModal] = useState(false);
   const [pendingBalasanBase64, setPendingBalasanBase64] = useState<string | null>(null);
+  const [inputStartDate, setInputStartDate] = useState<string>('');
+  const [inputEndDate, setInputEndDate] = useState<string>('');
   const [memberAcceptanceMap, setMemberAcceptanceMap] = useState<Record<string, boolean>>({});
 
   const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
@@ -267,7 +269,10 @@ export default function StudentPengajuanPage() {
 
   const handleBalasanSubmit = async () => {
     if (!pendingBalasanBase64) return;
-
+    if (!inputStartDate || !inputEndDate) {
+      setErrorMsg('Tanggal Mulai dan Selesai PKL wajib diisi sesuai surat balasan!');
+      return;
+    }
     setUploadingBalasan(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -283,8 +288,10 @@ export default function StudentPengajuanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suratBalasanUrl: pendingBalasanBase64,
-          memberStatuses: memberStatuses
-        })
+            memberStatuses: memberStatuses,
+            startDate: inputStartDate || undefined,
+            endDate: inputEndDate || undefined
+          })
       });
 
       const json = await res.json();
@@ -1442,8 +1449,33 @@ export default function StudentPengajuanPage() {
                 </h4>
                 <p className="text-slate-600 dark:text-slate-400 text-xs font-medium leading-relaxed">
                   Berdasarkan surat balasan dari <strong>{activePlacement.industry?.name}</strong>, tandai status penerimaan masing-masing siswa di bawah ini:
-                </p>
-              </div>
+                  </p>
+                </div>
+
+                <div className="px-6 pb-2 space-y-4">
+                  <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl border border-amber-200 dark:border-amber-800">
+                    <h5 className="font-bold text-xs text-amber-800 dark:text-amber-400 mb-2">Konfirmasi Periode PKL (Sesuai Persetujuan Industri)</h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">Mulai PKL</label>
+                        <input type="date" 
+                          value={inputStartDate}
+                          onChange={(e) => setInputStartDate(e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">Selesai PKL</label>
+                        <input type="date" 
+                          value={inputEndDate}
+                          onChange={(e) => setInputEndDate(e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-amber-700 dark:text-amber-500 mt-2 opacity-80">* Wajib diisi jika industri menghendaki tanggal yang spesifik / berbeda dengan pengajuan awal.</p>
+                  </div>
+                </div>
 
               <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                 {groupMembers.length > 0 ? (

@@ -24,7 +24,7 @@ import {
   Calendar,
   CheckCircle2,
   FileText,
-  Upload,
+  Upload, Send,
   Eye,
   Search,
   X,
@@ -747,6 +747,32 @@ export default function PokjaKelompokPrakerinPage() {
   };
 
   // Submit Upload Surat & SIMPAN NOMOR SURAT (`letterNumber`) & TANGGAL KE PRISMA DB
+  const handleRequestPenerjunan = async (group: GroupItem) => {
+    if (!confirm('Apakah Anda yakin ingin request penerjunan untuk kelompok ini ke Tata Usaha?')) return;
+    
+    const rawList = group.placements || group.students || [];
+    const placementIds = rawList.map((p: any) => p.id || p.placementId).filter(Boolean);
+
+    try {
+      const res = await fetch('/api/pokja/groups', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placementIds: placementIds,
+          status: 'REQUEST_PENGANTARAN'
+        })
+      });
+      if (res.ok) {
+        alert('Berhasil mengirim request penerjunan ke Tata Usaha!');
+        fetchGroupsData(selectedPeriodId, selectedStatus);
+      } else {
+        alert('Gagal request penerjunan');
+      }
+    } catch (e) {
+      alert('Terjadi kesalahan jaringan');
+    }
+  };
+
   const handleUploadSuratGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetGroup) return;
@@ -1665,8 +1691,27 @@ export default function PokjaKelompokPrakerinPage() {
                         >
                           <FileCheck2 className="w-4 h-4 text-sky-600 dark:text-sky-500" />
                         </button>
-                      );
-                    })()}
+                        );
+                      })()}
+                      
+                      {/* TOMBOL REQUEST PENERJUNAN */}
+                      {group.placements?.some(p => ['DISETUJUI_INDUSTRI', 'MENUNGGU_PENERJUNAN'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
+                        <button
+                          type="button"
+                          onClick={() => handleRequestPenerjunan(group)}
+                          className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-teal-600 hover:bg-teal-500 text-white shadow-lg shadow-teal-600/30 border-teal-500 ml-2"
+                          title="Request Pembuatan Surat Pengantaran/Penerjunan ke Tata Usaha"
+                        >
+                          <Send className="w-4 h-4" />
+                          <span>Request Penerjunan</span>
+                        </button>
+                      )}
+                      {group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
+                        <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center space-x-1 ml-2">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Penerjunan Direquest</span>
+                        </span>
+                      )}
                   </div>
                 </div>
 

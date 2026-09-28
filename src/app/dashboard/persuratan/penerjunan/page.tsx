@@ -20,7 +20,7 @@ export default function SuratPenerjunanPage() {
       const json = await res.json();
       if (json.success) {
         // Filter out groups that do not have accepted students
-        const acceptedStatuses = ['DITERIMA', 'DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'COMPLETED'];
+        const acceptedStatuses = ['REQUEST_PENGANTARAN', 'PENGANTARAN_DITERBITKAN', 'COMPLETED'];
         const acceptedGroups = json.data.filter((group: any) => 
           group.students.some((s: any) => acceptedStatuses.includes(s.status))
         ).map((group: any) => {
