@@ -18,57 +18,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { db } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
-function parseCsvLines(csvText: string): Record<string, string>[] {
-  const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
-  if (lines.length < 2) return [];
-
-  // Parse header
-  const headers = splitCsvRow(lines[0]).map(h => h.trim().toLowerCase());
-
-  const records: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = splitCsvRow(lines[i]);
-    if (values.every(v => v.trim() === '')) continue;
-
-    const row: Record<string, string> = {};
-    headers.forEach((header, idx) => {
-      row[header] = values[idx] ? values[idx].trim() : '';
-    });
-    records.push(row);
-  }
-  return records;
-}
-
-function splitCsvRow(rowStr: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < rowStr.length; i++) {
-    const char = rowStr[i];
-    if (char === '"' || char === "'") {
-      inQuotes = !inQuotes;
-    } else if ((char === ',' || char === ';') && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
-}
-
-function sanitizePhone(rawPhone?: string): string | null {
-  if (!rawPhone) return null;
-  let p = rawPhone.replace(/[^0-9+]/g, '').trim();
-  if (p.startsWith('0')) {
-    p = '62' + p.substring(1);
-  } else if (p.startsWith('+62')) {
-    p = p.substring(1);
-  }
-  return p && p.length >= 8 ? p : (rawPhone.trim() || null);
-}
+import { parseTeachersCsv, sanitizePhone } from '@/lib/csv-parser';
 
 export async function POST(request: Request) {
   try {
@@ -82,21 +32,7 @@ export async function POST(request: Request) {
 
     // Jika dikirim sebagai raw CSV text
     if (typeof body.csvText === 'string' && body.csvText.trim() !== '') {
-      const parsedRecords = parseCsvLines(body.csvText);
-      teachersToProcess = parsedRecords.map(r => {
-        // Pemetaan fleksibel berbagai nama header kolom
-        const name = r['nama'] || r['nama lengkap'] || r['name'] || r['nama guru'] || '';
-        const nip = r['nip'] || r['nomor induk'] || '';
-        const rank = r['pangkat'] || r['rank'] || '';
-        const golongan = r['golongan'] || r['gol'] || r['ruang'] || '';
-        const phone = r['nomor whatsapp'] || r['no whatsapp'] || r['whatsapp'] || r['no wa'] || r['wa'] || r['telepon'] || r['no telp'] || r['phone'] || '';
-        const department = r['mata pelajaran / jurusan'] || r['mata pelajaran'] || r['jurusan'] || r['mapel'] || r['department'] || r['kompetensi'] || '';
-        const role = r['role'] || r['peran'] || 'GURU';
-        const jobTitle = r['jabatan fungsional'] || r['jabatan'] || r['jobtitle'] || r['fungsional'] || 'Guru';
-        const employeeType = r['jenis kepegawaian'] || r['kepegawaian'] || r['status kepegawaian'] || r['status'] || r['employeetype'] || '';
-
-        return { name, nip, rank, golongan, phone, department, role, jobTitle, employeeType };
-      });
+      teachersToProcess = parseTeachersCsv(body.csvText);
     } else if (Array.isArray(body.teachers)) {
       teachersToProcess = body.teachers;
     } else {

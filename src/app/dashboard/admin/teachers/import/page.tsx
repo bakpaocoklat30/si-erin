@@ -21,21 +21,23 @@ import {
   RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
+import { parseTeachersCsv, ParsedTeacherRow } from '@/lib/csv-parser';
 
 export default function AdminImportTeacherPage() {
   const [csvText, setCsvText] = useState('');
-  const [parsedData, setParsedData] = useState<any[]>([]);
+  const [parsedData, setParsedData] = useState<ParsedTeacherRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [resultMessage, setResultMessage] = useState<{ type: 'success' | 'error'; text: string; details?: any } | null>(null);
 
   // Format CSV template resmi SI-ERIN v2.0
   const csvTemplate = `Nama Lengkap,NIP,Jenis Kepegawaian,Jabatan Fungsional,Pangkat,Golongan,Nomor WhatsApp,Jurusan / Mapel,Role
-Mohammad Rahmad Rifa'i, S.Pd.,199510302022211002,PNS,Guru,Penata Muda,III/a,081234567890,Teknik Komputer dan Jaringan,GURU
-Harits Rusli, S.Kom,199304072022211004,PPPK,Guru,Ahli Pertama,IX,085678901234,Teknik Komputer dan Jaringan,GURU
-Salman Alfarizi, S.Kom,199107302025211019,PNS,Guru,Pembina,IV/a,089876543210,Teknik Komputer dan Jaringan,POKJA
-Dra. Hj. Siti Aminah,196805121994032005,PNS,Guru,Pembina Tk. I,IV/b,087712345678,Bimbingan Konseling,GURU
-Budi Santoso, S.T.,-,HONORER,Staff,Guru Honorer,-,081398765432,Teknik Otomotif,GURU
-Siti Nurjanah, A.Md.,-,HONORER,Tata Usaha,Staf Administrasi,-,081299887766,Administrasi Perkantoran,GURU`;
+"Erva Agus Tiyarini, M.Pd",198005122005012003,PNS,Guru,Pembina,IV/a,081234567890,Teknik Komputer dan Jaringan,GURU
+"Mohammad Rahmad Rifa'i, S.Pd.",199510302022211002,PNS,Guru,Penata Muda,III/a,081234567891,Teknik Komputer dan Jaringan,GURU
+"Harits Rusli, S.Kom",199304072022211004,PPPK,Guru,Ahli Pertama,IX,085678901234,Teknik Komputer dan Jaringan,GURU
+"Salman Alfarizi, S.Kom",199107302025211019,PNS,Guru,Pembina,IV/a,089876543210,Teknik Komputer dan Jaringan,POKJA
+"Dra. Hj. Siti Aminah",196805121994032005,PNS,Guru,Pembina Tk. I,IV/b,087712345678,Bimbingan Konseling,GURU
+"Budi Santoso, S.T.",-,HONORER,Staff,Guru Honorer,-,081398765432,Teknik Otomotif,GURU
+"Siti Nurjanah, A.Md.",-,HONORER,Tata Usaha,Staf Administrasi,-,081299887766,Administrasi Perkantoran,GURU`;
 
   const handleDownloadTemplate = () => {
     const blob = new Blob([csvTemplate], { type: 'text/csv;charset=utf-8;' });
@@ -54,68 +56,8 @@ Siti Nurjanah, A.Md.,-,HONORER,Tata Usaha,Staf Administrasi,-,081299887766,Admin
       setParsedData([]);
       return;
     }
-
-    const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-    if (lines.length < 2) {
-      setParsedData([]);
-      return;
-    }
-
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^["'](.*)["']$/, '$1'));
-    const hasNewFormat = headers.some(h => h.includes('kepegawaian') || h.includes('jabatan'));
-    const result = [];
-    
-    // Mulai dari baris ke-1 (lewati header index 0)
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      // Handle CSV splitting
-      const cols = line.split(',').map(c => c.trim().replace(/^["'](.*)["']$/, '$1'));
-      
-      if (cols.length >= 1 && cols[0]) {
-        let name = cols[0] || '';
-        let nip = cols[1] || '';
-        let employeeType = 'HONORER';
-        let jobTitle = 'Guru';
-        let rank = '';
-        let golongan = '';
-        let phone = '';
-        let subject = 'Umum';
-        let role = 'GURU';
-
-        if (hasNewFormat || cols.length >= 9) {
-          employeeType = cols[2] || (nip && nip !== '-' ? 'PNS' : 'HONORER');
-          jobTitle = cols[3] || 'Guru';
-          rank = cols[4] || '';
-          golongan = cols[5] || '';
-          phone = cols[6] || '';
-          subject = cols[7] || 'Umum';
-          role = (cols[8] || 'GURU').toUpperCase();
-        } else {
-          rank = cols[2] || '';
-          golongan = cols[3] || '';
-          phone = cols[4] || '';
-          subject = cols[5] || 'Umum';
-          role = (cols[6] || 'GURU').toUpperCase();
-          employeeType = golongan.toUpperCase().includes('IX') ? 'PPPK' : (nip && nip !== '-' ? 'PNS' : 'HONORER');
-        }
-
-        result.push({
-          name,
-          nip,
-          employeeType,
-          jobTitle,
-          rank,
-          golongan,
-          phone,
-          subject,
-          role,
-        });
-      }
-    }
-
-    setParsedData(result);
+    const results = parseTeachersCsv(text);
+    setParsedData(results);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
