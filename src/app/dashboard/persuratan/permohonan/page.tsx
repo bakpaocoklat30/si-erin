@@ -661,11 +661,19 @@ export default function PermohonanSuratKelompokPage() {
            const [copiedPage] = await newPdf.copyPages(sourcePdf, [mappedPage - 1]);
            newPdf.addPage(copiedPage);
            const newBytes = await newPdf.save();
-           finalBase64 = 'data:application/pdf;base64,' + Buffer.from(newBytes).toString('base64');
-        } else {
-           const mime = selectedFileName.toLowerCase().endsWith('pdf') ? 'application/pdf' : 'image/jpeg';
-           finalBase64 = 'data:' + mime + ';base64,' + Buffer.from(bulkPdfBytes).toString('base64');
-        }
+           const toBase64 = (arr: Uint8Array) => {
+              let binary = '';
+              for (let i = 0; i < arr.byteLength; i++) {
+                binary += String.fromCharCode(arr[i]);
+              }
+              return window.btoa(binary);
+            };
+
+            finalBase64 = 'data:application/pdf;base64,' + toBase64(newBytes);
+          } else {
+             const mime = selectedFileName.toLowerCase().endsWith('pdf') ? 'application/pdf' : 'image/jpeg';
+             finalBase64 = 'data:' + mime + ';base64,' + toBase64(bulkPdfBytes);
+          }
 
         const rawList = group.placements || group.students || [];
         const placementIds = rawList.map((p: any) => p.id || p.placementId).filter(Boolean);
