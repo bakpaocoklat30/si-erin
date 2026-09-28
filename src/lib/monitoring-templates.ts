@@ -367,7 +367,7 @@ export function generateSuratTugasHtml(
       <div style="width: 270px; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.35; text-align: left;">
         <p style="margin: 0;">Adiwerna, ${signatureDate}</p>
         <p style="margin: 2px 0 0 0;">\${jabatan_pengirim}</p>
-        <div style="height: 55px; display: flex; align-items: center;">
+        <div style="height: 120px; display: flex; align-items: center;">
           <span style="font-family: monospace; font-size: 9.5pt; color: #334155; background: #f8fafc; padding: 2px 8px; border: 1px dashed #cbd5e1; border-radius: 4px;">
             \${ttd_pengirim}
           </span>
@@ -381,7 +381,7 @@ export function generateSuratTugasHtml(
       <div style="width: 270px; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.35; text-align: left;">
         <p style="margin: 0;">Adiwerna, ${signatureDate}</p>
         <p style="margin: 2px 0 0 0;">Kepala SMK Negeri 1 Adiwerna,</p>
-        <div style="height: 55px;"></div>
+        <div style="height: 110px;"></div>
         <p style="margin: 0; font-weight: bold; text-decoration: underline;">${options?.schoolSetting?.headmaster || 'Joko Pramono, S.Pd., M.Ds'}</p>
         <p style="margin: 0;">Pembina Utama Muda. IV/c</p>
         <p style="margin: 0;">NIP ${options?.schoolSetting?.headmasterNip || '19690316 199802 1 004'}</p>
@@ -639,7 +639,7 @@ export function generateSppdHtml(
         <p style="margin: 0;">Dikeluarkan di Adiwerna</p>
         <p style="margin: 0;">Tanggal \${tanggal_naskah}</p>
         <p style="margin: 2px 0 0 0;">\${jabatan_pengirim}</p>
-        <div style="height: 35px; display: flex; align-items: center;">
+        <div style="height: 100px; display: flex; align-items: center;">
           <span style="color: #64748b; font-family: monospace; font-size: 8.5pt; background: #f8fafc; padding: 2px 6px; border: 1px dashed #cbd5e1; border-radius: 4px;">
             \${ttd_pengirim}
           </span>
@@ -653,7 +653,7 @@ export function generateSppdHtml(
         <p style="margin: 0;">Dikeluarkan di Adiwerna</p>
         <p style="margin: 0;">Tanggal ${formattedDate}</p>
         <p style="margin: 2px 0 0 0;">Kepala SMK Negeri 1 Adiwerna,</p>
-        <div style="height: 35px;"></div>
+        <div style="height: 95px;"></div>
         <p style="margin: 0; font-weight: bold; text-decoration: underline;">${options?.schoolSetting?.headmaster || 'Joko Pramono, S.Pd., M.Ds'}</p>
         <p style="margin: 0;">NIP ${options?.schoolSetting?.headmasterNip || '19690316 199802 1 004'}</p>
       </div>
@@ -879,10 +879,8 @@ export function generateSppdHtml(
                 <td style="border: none; padding: 2px 0; vertical-align: top;">
                   ${
                     allIndustries.length === 1
-                      ? `${allIndustries[0].name}${allIndustries[0].address ? ' ' + allIndustries[0].address : ''}`
-                      : allIndustries
-                          .map((ind, i) => `${i + 1}. ${ind.name}${ind.address ? ' ' + ind.address : ''}`)
-                          .join('<br/>')
+                        ? `${allIndustries[0].name}`
+                        : allIndustries.map((ind, i) => `${i + 1}. ${ind.name}`).join('<br/>')
                   }
                 </td>
               </tr>
@@ -1034,7 +1032,7 @@ export function generateLaporanHasilKegiatanHtml(
       <div>NIP. \${nip_pengirim}</div>
     `
     : `
-      <div style="height: 55px;"></div>
+      <div style="height: 110px;"></div>
       <div style="font-weight: bold; text-decoration: underline;">${headmasterName}</div>
       <div>Pembina Utama Muda, IV/c</div>
       <div>NIP. ${headmasterNip}</div>
@@ -1157,7 +1155,7 @@ export function generateLaporanHasilKegiatanHtml(
     <div style="width: 44%; font-size: 11pt; line-height: 1.4;">
       <div>Adiwerna, &nbsp;${signatureDate}</div>
       <div>Penyusun,</div>
-      <div style="height: 55px;"></div>
+      <div style="height: 110px;"></div>
       <div style="font-weight: bold;">${teacher.name}</div>
       <div>NIP. ${teacher.nip || teacher.username || '-'}</div>
     </div>
