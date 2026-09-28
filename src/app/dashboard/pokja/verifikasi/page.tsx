@@ -214,6 +214,77 @@ export default function PokjaVerifikasiPage() {
       }`}>
         <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
         <p className="text-sm font-semibold text-slate-400">Memuat Ajuan Masuk Pokja...</p>
+      {/* MODAL VERIFIKASI & ATUR WAKTU PKL */}
+      {verifyModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <div className="p-5 border-b border-inherit flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20">
+              <h3 className="font-bold text-sm text-indigo-700 dark:text-indigo-400 flex items-center space-x-2">
+                <Calendar className="w-4 h-4" />
+                <span>Atur Waktu Fix PKL</span>
+              </h3>
+              <button onClick={() => setVerifyModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4 text-sm text-slate-700 dark:text-slate-300 overflow-y-auto">
+              <p className="font-medium text-xs mb-4">
+                Verifikasi {selectedPlacementIds.length} pengajuan siswa. <br/>
+                Tentukan waktu <strong>fix pelaksanaan PKL</strong> untuk {selectedPlacementIds.length > 1 ? 'kelompok' : 'siswa'} ini (meng-override jadwal kelas secara otomatis):
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200">Tanggal Mulai (Start)</label>
+                  <input
+                    type="date"
+                    value={verifyStartDate}
+                    onChange={(e) => setVerifyStartDate(e.target.value)}
+                    className={`w-full p-2.5 rounded-xl border text-sm ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-300'}`}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200">Tanggal Selesai (End)</label>
+                  <input
+                    type="date"
+                    value={verifyEndDate}
+                    onChange={(e) => setVerifyEndDate(e.target.value)}
+                    className={`w-full p-2.5 rounded-xl border text-sm ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-300'}`}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl flex items-start space-x-2 mt-4 text-amber-900 dark:text-amber-300">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <p className="text-xs leading-relaxed">Data tanggal ini akan tersimpan dan muncul di seluruh berkas persuratan (Surat Tugas, SPPD, dll). Kosongkan jika ingin mengikuti pengaturan jadwal bawaan kelas.</p>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-inherit flex justify-end space-x-3 bg-slate-50 dark:bg-slate-900/60">
+              <button
+                type="button"
+                onClick={() => setVerifyModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={async () => {
+                  await handleBulkAction('PEMBUATAN_SURAT', verifyStartDate, verifyEndDate);
+                  if (!errorMsg) setVerifyModalOpen(false);
+                }}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md flex items-center space-x-2"
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                <span>Konfirmasi & Verifikasi</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     );
   }
@@ -573,77 +644,7 @@ export default function PokjaVerifikasiPage() {
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Verifikasi Ajuan, Proses Pembuatan Surat</span>
                   
-      {/* MODAL VERIFIKASI & ATUR WAKTU PKL */}
-      {verifyModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className={`w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <div className="p-5 border-b border-inherit flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20">
-              <h3 className="font-bold text-sm text-indigo-700 dark:text-indigo-400 flex items-center space-x-2">
-                <Calendar className="w-4 h-4" />
-                <span>Atur Waktu Fix PKL</span>
-              </h3>
-              <button onClick={() => setVerifyModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="p-5 space-y-4 text-sm text-slate-700 dark:text-slate-300 overflow-y-auto">
-              <p className="font-medium text-xs mb-4">
-                Verifikasi {selectedPlacementIds.length} pengajuan siswa. <br/>
-                Tentukan waktu <strong>fix pelaksanaan PKL</strong> untuk {selectedPlacementIds.length > 1 ? 'kelompok' : 'siswa'} ini (meng-override jadwal kelas secara otomatis):
-              </p>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200">Tanggal Mulai (Start)</label>
-                  <input
-                    type="date"
-                    value={verifyStartDate}
-                    onChange={(e) => setVerifyStartDate(e.target.value)}
-                    className={`w-full p-2.5 rounded-xl border text-sm ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-300'}`}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200">Tanggal Selesai (End)</label>
-                  <input
-                    type="date"
-                    value={verifyEndDate}
-                    onChange={(e) => setVerifyEndDate(e.target.value)}
-                    className={`w-full p-2.5 rounded-xl border text-sm ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-300'}`}
-                  />
-                </div>
-              </div>
-
-              <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl flex items-start space-x-2 mt-4 text-amber-900 dark:text-amber-300">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <p className="text-xs leading-relaxed">Data tanggal ini akan tersimpan dan muncul di seluruh berkas persuratan (Surat Tugas, SPPD, dll). Kosongkan jika ingin mengikuti pengaturan jadwal bawaan kelas.</p>
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-inherit flex justify-end space-x-3 bg-slate-50 dark:bg-slate-900/60">
-              <button
-                type="button"
-                onClick={() => setVerifyModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={async () => {
-                  await handleBulkAction('PEMBUATAN_SURAT', verifyStartDate, verifyEndDate);
-                  if (!errorMsg) setVerifyModalOpen(false);
-                }}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md flex items-center space-x-2"
-              >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                <span>Konfirmasi & Verifikasi</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      
 </>
                 )}
               </button>
