@@ -1618,7 +1618,7 @@ export default function PermohonanSuratKelompokPage() {
                 className="bg-white text-black shadow-xl w-[21cm] min-h-[29.7cm] p-[2cm] docx-preview-content"
                 style={{ fontSize: '12pt', fontFamily: '"Times New Roman", Times, serif', lineHeight: '1.5' }}
                 dangerouslySetInnerHTML={{
-                  __html: generateSuratPermohonanHtml(docxPreviewGroup, docxPreviewUseTte), docxPreviewUseTte, (session?.user as any)?.name || 'Admin')
+                  __html: generateSuratPermohonanHtml(docxPreviewGroup, docxPreviewUseTte)
                 }}
               />
             </div>
