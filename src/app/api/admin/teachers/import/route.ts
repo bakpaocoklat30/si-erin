@@ -23,8 +23,8 @@ import { parseTeachersCsv, sanitizePhone } from '@/lib/csv-parser';
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'SUPER_ADMIN'].includes((session.user as any)?.role)) {
-      return NextResponse.json({ error: 'Unauthorized - Akses khusus Administrator' }, { status: 403 });
+    if (!session || !['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TATA_USAHA'].includes((session.user as any)?.role)) {
+      return NextResponse.json({ error: 'Unauthorized - Akses khusus Administrator / Tim Pokja' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -60,8 +60,6 @@ export async function POST(request: Request) {
         const rawPhone = item.phone || item.no_wa || item.whatsapp || item['Nomor WhatsApp'] || '';
         const phone = sanitizePhone(rawPhone);
         const department = (item.department || item.subject || item.mapel || item['Jurusan / Mapel'] || item['Mata Pelajaran'] || '').trim() || null;
-        const rawRole = (item.role || item.Role || 'GURU').toUpperCase().trim();
-        const role = ['POKJA', 'PEMBIMBING', 'ADMIN', 'TATA_USAHA'].includes(rawRole) ? rawRole : 'GURU';
 
         let jobTitle = (item.jobTitle || item.jabatan || item['Jabatan Fungsional'] || 'Guru').trim();
         if (jobTitle.toLowerCase().includes('tata usaha') || jobTitle.toLowerCase() === 'tu') {
@@ -70,6 +68,14 @@ export async function POST(request: Request) {
           jobTitle = 'Staff';
         } else {
           jobTitle = 'Guru';
+        }
+
+        const rawRole = (item.role || item.Role || '').toUpperCase().trim();
+        let role = 'GURU';
+        if (['POKJA', 'PEMBIMBING', 'ADMIN', 'TATA_USAHA'].includes(rawRole)) {
+          role = rawRole;
+        } else if (jobTitle === 'Tata Usaha') {
+          role = 'TATA_USAHA';
         }
 
         let employeeType = String(item.employeeType || item.kepegawaian || item['Jenis Kepegawaian'] || '').toUpperCase().trim();
@@ -112,7 +118,7 @@ export async function POST(request: Request) {
                 department: department || existing.department,
                 jobTitle: jobTitle || existing.jobTitle,
                 employeeType: employeeType || existing.employeeType,
-                role: role === 'POKJA' ? 'POKJA' : existing.role,
+                role: (role === 'POKJA' || role === 'TATA_USAHA') ? role : existing.role,
               }
             });
             updatedCount++;

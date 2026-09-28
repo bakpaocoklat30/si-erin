@@ -43,6 +43,8 @@ export async function GET(request: Request) {
             { role: { equals: 'POKJA', mode: 'insensitive' as const } },
             { role: { equals: 'TEACHER', mode: 'insensitive' as const } },
             { role: { equals: 'GURUPMB', mode: 'insensitive' as const } },
+            { role: { equals: 'TATA_USAHA', mode: 'insensitive' as const } },
+            { role: { equals: 'TU', mode: 'insensitive' as const } },
             { role: { equals: 'ADMIN', mode: 'insensitive' as const } }
           ]
         };

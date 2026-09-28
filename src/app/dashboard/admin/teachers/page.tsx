@@ -19,6 +19,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
 import Link from 'next/link';
+import { parseTeachersCsv, ParsedTeacherRow } from '@/lib/csv-parser';
 import {
   GraduationCap,
   Users,
@@ -155,7 +156,7 @@ export default function AdminTeachersManagementPage() {
 
   // Quick Import State
   const [importCsvText, setImportCsvText] = useState('');
-  const [importParsedPreview, setImportParsedPreview] = useState<any[]>([]);
+  const [importParsedPreview, setImportParsedPreview] = useState<ParsedTeacherRow[]>([]);
 
   // Fetch Teachers
   const fetchTeachers = async () => {
@@ -388,12 +389,13 @@ export default function AdminTeachersManagementPage() {
   // Download Sample CSV Template
   const handleDownloadTemplateCsv = () => {
     const sampleCsv = `Nama Lengkap,NIP,Jenis Kepegawaian,Jabatan Fungsional,Pangkat,Golongan,Nomor WhatsApp,Jurusan / Mapel,Role
-Mohammad Rahmad Rifa'i, S.Pd.,199510302022211002,PNS,Guru,Penata Muda,III/a,081234567890,Teknik Komputer dan Jaringan,GURU
-Harits Rusli, S.Kom,199304072022211004,PPPK,Guru,Ahli Pertama,IX,085678901234,Teknik Komputer dan Jaringan,GURU
-Salman Alfarizi, S.Kom,199107302025211019,PNS,Guru,Pembina,IV/a,089876543210,Teknik Komputer dan Jaringan,POKJA
-Dra. Hj. Siti Aminah,196805121994032005,PNS,Guru,Pembina Tk. I,IV/b,087712345678,Bimbingan Konseling,GURU
-Budi Santoso, S.T.,-,HONORER,Staff,Guru Honorer,-,081398765432,Teknik Otomotif,GURU
-Siti Nurjanah, A.Md.,-,HONORER,Tata Usaha,Staf Administrasi,-,081299887766,Administrasi Perkantoran,GURU`;
+"Erva Agus Tiyarini, M.Pd.",197908102008012014,PNS,Guru,Pembina Tk. I,IV/b,,Bahasa Inggris,GURU
+"Mohammad Rahmad Rifa'i, S.Pd.",199510302022211002,PNS,Guru,Penata Muda,III/a,081234567890,Teknik Komputer dan Jaringan,GURU
+"Harits Rusli, S.Kom",199304072022211004,PPPK,Guru,Ahli Pertama,IX,085678901234,Teknik Komputer dan Jaringan,GURU
+"Salman Alfarizi, S.Kom",199107302025211019,PNS,Guru,Pembina,IV/a,089876543210,Teknik Komputer dan Jaringan,POKJA
+"Dra. Hj. Siti Aminah",196805121994032005,PNS,Guru,Pembina Tk. I,IV/b,087712345678,Bimbingan Konseling,GURU
+"Budi Santoso, S.T.",-,HONORER,Staff,Guru Honorer,-,081398765432,Teknik Otomotif,GURU
+"MUKH. MUZAENI, S.PD.",199410012025211073,PPPK,Tata Usaha,IX,IX,,,TATA_USAHA`;
 
     const blob = new Blob([sampleCsv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -438,7 +440,7 @@ Siti Nurjanah, A.Md.,-,HONORER,Tata Usaha,Staf Administrasi,-,081299887766,Admin
     document.body.removeChild(link);
   };
 
-  // Parse CSV text for quick modal
+  // Parse CSV text for quick modal using unified robust CSV parser
   const handleParseQuickCsv = (text: string) => {
     setImportCsvText(text);
     if (!text.trim()) {
@@ -446,57 +448,18 @@ Siti Nurjanah, A.Md.,-,HONORER,Tata Usaha,Staf Administrasi,-,081299887766,Admin
       return;
     }
 
-    const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-    if (lines.length < 2) {
-      setImportParsedPreview([]);
-      return;
-    }
-
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^["'](.*)["']$/, '$1'));
-    const previewItems: any[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(',').map(p => p.trim().replace(/^["'](.*)["']$/, '$1'));
-      if (parts[0]) {
-        const hasNewFormat = headers.some(h => h.includes('kepegawaian') || h.includes('jabatan'));
-        let name = parts[0] || '';
-        let nip = parts[1] || '-';
-        let employeeType = 'HONORER';
-        let jobTitle = 'Guru';
-        let rank = '-';
-        let golongan = '-';
-        let phone = '-';
-
-        if (hasNewFormat || parts.length >= 9) {
-          employeeType = parts[2] || (nip !== '-' ? 'PNS' : 'HONORER');
-          jobTitle = parts[3] || 'Guru';
-          rank = parts[4] || '-';
-          golongan = parts[5] || '-';
-          phone = parts[6] || '-';
-        } else {
-          rank = parts[2] || '-';
-          golongan = parts[3] || '-';
-          phone = parts[4] || '-';
-          employeeType = (golongan.toUpperCase().includes('IX') ? 'PPPK' : (nip !== '-' ? 'PNS' : 'HONORER'));
-        }
-
-        previewItems.push({
-          name,
-          nip,
-          employeeType,
-          jobTitle,
-          rank,
-          golongan,
-          phone,
-        });
-      }
-    }
+    const previewItems = parseTeachersCsv(text);
     setImportParsedPreview(previewItems);
   };
 
   // Execute Quick Import
   const handleExecuteQuickImport = async () => {
-    if (!importCsvText.trim()) {
-      alert('Pilih file CSV atau tempelkan data CSV terlebih dahulu.');
+    const dataToSend = importParsedPreview.length > 0 
+      ? importParsedPreview 
+      : (importCsvText.trim() ? parseTeachersCsv(importCsvText) : []);
+
+    if (dataToSend.length === 0) {
+      alert('Pilih file CSV atau tempelkan data CSV yang valid terlebih dahulu.');
       return;
     }
 
@@ -505,12 +468,16 @@ Siti Nurjanah, A.Md.,-,HONORER,Tata Usaha,Staf Administrasi,-,081299887766,Admin
       const res = await fetch('/api/admin/teachers/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csvText: importCsvText }),
+        body: JSON.stringify({ teachers: dataToSend }),
       });
 
       const data = await res.json();
       if (data.success) {
-        setMessage({ type: 'success', text: data.message });
+        let msg = data.message;
+        if (data.details?.errors?.length > 0) {
+          msg += '\n\nCatatan:\n' + data.details.errors.slice(0, 5).join('\n');
+        }
+        setMessage({ type: 'success', text: msg });
         setShowImportModal(false);
         setImportCsvText('');
         setImportParsedPreview([]);
@@ -1764,7 +1731,7 @@ Siti Nurjanah, A.Md.,-,HONORER,Tata Usaha,Staf Administrasi,-,081299887766,Admin
                             <td className={`py-1.5 px-2.5 font-medium ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-700'}`}>{item.jobTitle}</td>
                             <td className={`py-1.5 px-3 font-medium ${theme === 'dark' ? 'text-amber-400' : 'text-amber-700'}`}>{item.rank}</td>
                             <td className={`py-1.5 px-2.5 text-center font-medium ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-700'}`}>{item.golongan}</td>
-                            <td className={`py-1.5 px-3 font-mono ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}>{item.phone}</td>
+                            <td className={`py-1.5 px-3 font-mono ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}>{item.phone || '-'}</td>
                           </tr>
                         ))}
                       </tbody>
