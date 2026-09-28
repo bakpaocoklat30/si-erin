@@ -42,7 +42,7 @@ const VALID_TABLE_COLUMNS: Record<string, Set<string>> = {
   Student: new Set(['id', 'userId', 'nis', 'nisn', 'name', 'className', 'department', 'phone', 'parentName', 'parentRelation', 'parentPhone', 'bpjsStatus', 'bpjsUrl', 'cvStatus', 'cvUrl', 'isAllowedPkl', 'teacherId', 'createdAt', 'updatedAt']),
   InternshipPlacement: new Set(['id', 'studentId', 'industryId', 'status', 'stage', 'notes', 'letterNumber', 'suratTugasUrl', 'letterUploadedBy', 'letterUploadedAt', 'suratBalasanUrl', 'suratBalasanStatus', 'startDate', 'endDate', 'appliedAt', 'createdAt', 'updatedAt']),
   TeacherHourAllocation: new Set(['id', 'className', 'teacherId', 'totalHours', 'academicYear', 'createdAt', 'updatedAt']),
-  MonitoringAssignment: new Set(['id', 'industryId', 'targetIndustries', 'teacherId', 'companionTeachers', 'periodId', 'monitoringDate', 'returnDate', 'letterNumber', 'sppdNumber', 'purpose', 'transportType', 'departurePlace', 'destinationPlace', 'budgetSource', 'budgetAccount', 'status', 'notes', 'createdAt', 'updatedAt']),
+  MonitoringAssignment: new Set(['id', 'industryId', 'targetIndustries', 'teacherId', 'companionTeachers', 'periodId', 'monitoringDate', 'returnDate', 'letterNumber', 'sppdNumber', 'purpose', 'transportType', 'departurePlace', 'destinationPlace', 'budgetSource', 'budgetAccount', 'suratTugasUrl', 'sppdUrl', 'laporanUrl', 'status', 'notes', 'createdAt', 'updatedAt']),
   Notification: new Set(['id', 'userId', 'title', 'message', 'type', 'link', 'isRead', 'createdAt']),
   ErrorLog: new Set(['id', 'level', 'message', 'stack', 'path', 'method', 'userId', 'ip', 'createdAt']),
   AuditLog: new Set(['id', 'userId', 'username', 'userRole', 'action', 'module', 'details', 'ipAddress', 'userAgent', 'createdAt']),

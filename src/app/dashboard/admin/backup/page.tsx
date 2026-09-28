@@ -159,7 +159,7 @@ export default function AdminBackupPage() {
       return;
     }
 
-    if (!confirm('Apakah Anda yakin ingin memulai proses Backup Seluruh Database (SQL) dan Sinkronisasi Dokumen Terstruktur (Surat Pengajuan, Jawaban Industri, CV Siswa, & Kartu BPJS) ke Google Drive sekarang?')) return;
+    if (!confirm('Apakah Anda yakin ingin memulai proses Backup Seluruh Database (SQL) dan Sinkronisasi Dokumen Terstruktur (Surat Pengajuan, Jawaban Industri, CV Siswa, Kartu BPJS, & Dokumen Penugasan / Hasil Dinas) ke Google Drive sekarang?')) return;
 
     setIsBackingUp(true);
     setMessage(null);
@@ -408,23 +408,23 @@ export default function AdminBackupPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
             <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Surat Pengajuan Resmi</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Surat Pengajuan</span>
               <span className="text-lg font-black text-white mt-1 block">
                 {lastBackupResult.stats?.placementsWithSuratTugas || 0}
                 <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalPlacements || 0} DUDI</span>
               </span>
-              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Tersimpan di database</span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Tersimpan di DB</span>
             </div>
 
             <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Surat Balasan Industri</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Surat Balasan</span>
               <span className="text-lg font-black text-white mt-1 block">
                 {lastBackupResult.stats?.placementsWithSuratBalasan || 0}
                 <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalPlacements || 0} DUDI</span>
               </span>
-              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Diunggah siswa/DUDI</span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Diunggah DUDI</span>
             </div>
 
             <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
@@ -433,7 +433,7 @@ export default function AdminBackupPage() {
                 {lastBackupResult.stats?.studentsWithCv || 0}
                 <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalStudents || 0} Siswa</span>
               </span>
-              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Diunggah di profil</span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Diunggah Siswa</span>
             </div>
 
             <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
@@ -442,7 +442,25 @@ export default function AdminBackupPage() {
                 {lastBackupResult.stats?.studentsWithBpjs || 0}
                 <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalStudents || 0} Siswa</span>
               </span>
-              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Diunggah di profil</span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Diunggah Siswa</span>
+            </div>
+
+            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Surat Tugas & SPPD</span>
+              <span className="text-lg font-black text-white mt-1 block">
+                {(lastBackupResult.stats?.assignmentsWithTugas || 0) + (lastBackupResult.stats?.assignmentsWithSppd || 0)}
+                <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalAssignments || 0} Tugas</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">File Asli Penugasan</span>
+            </div>
+
+            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Scan Lap. Hasil</span>
+              <span className="text-lg font-black text-white mt-1 block">
+                {lastBackupResult.stats?.assignmentsWithLaporan || 0}
+                <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalAssignments || 0} Tugas</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Hasil Perjalanan Dinas</span>
             </div>
           </div>
 
@@ -453,10 +471,10 @@ export default function AdminBackupPage() {
                 <span>Belum Ada Dokumen yang Masuk ke Folder Google Drive</span>
               </p>
               <p className="text-amber-200/90 text-[11px]">
-                Arsip Full Backup ZIP telah terunggah dengan aman. Folder tujuan telah siap di Google Drive. Namun dokumen individual (CV, BPJS, Surat Pengajuan, & Jawaban) belum terisi karena belum ada berkas yang diunggah di database SI-ERIN saat ini.
+                Arsip Full Backup ZIP telah terunggah dengan aman. Folder tujuan telah siap di Google Drive. Namun dokumen individual (CV, BPJS, Surat Pengajuan, Jawaban, & Penugasan/Hasil Kegiatan) belum terisi karena belum ada berkas yang diunggah di database SI-ERIN saat ini.
               </p>
               <p className="text-amber-200/90 text-[11px]">
-                👉 <strong>Langkah untuk mengisi dokumen:</strong> Siswa dapat mengunggah CV & BPJS di menu <em>Profil Siswa</em>, atau Tim Pokja/Tata Usaha dapat mengunggah berkas Surat Permohonan & Surat Balasan di menu <em>Persuratan</em>. Setelah diunggah, jalankan Backup kembali untuk menyinkronkannya langsung ke Google Drive.
+                👉 <strong>Langkah untuk mengisi dokumen:</strong> Siswa dapat mengunggah CV & BPJS di menu <em>Profil Siswa</em>, Tim Pokja/Tata Usaha dapat mengunggah berkas Surat Permohonan & Surat Balasan di menu <em>Persuratan</em>, serta mengunggah Surat Tugas, SPPD TTE, dan Scan Hasil Kegiatan di menu <em>SPPD & Penugasan</em>. Setelah berkas ada, jalankan Backup kembali untuk menyinkronkannya langsung ke Google Drive.
               </p>
             </div>
           )}

@@ -29,6 +29,10 @@ import {
   getOrCreateFolder, 
   uploadOrUpdateFileInDrive 
 } from '@/lib/gdrive';
+import { 
+  generateMergedSuratTugasDocx, 
+  generateMergedSppdDocx 
+} from '@/lib/docx-generator';
 
 const execPromise = util.promisify(exec);
 
@@ -214,8 +218,9 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
             let mimeType = 'application/pdf';
             if (cleanPath.endsWith('.jpg') || cleanPath.endsWith('.jpeg')) mimeType = 'image/jpeg';
             else if (cleanPath.endsWith('.png')) mimeType = 'image/png';
+            else if (cleanPath.endsWith('.docx')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
             const pdfBuffer = imageBufferToPdf(rawBuffer, mimeType);
-            return { buffer: pdfBuffer, mimeType: 'application/pdf' };
+            return { buffer: pdfBuffer, mimeType: mimeType.includes('word') ? mimeType : 'application/pdf' };
           }
         } catch (err) {
           console.warn(`[BACKUP SERVICE] Gagal membaca berkas lokal ${localPath}:`, err);
@@ -274,9 +279,13 @@ export interface BackupSyncSummary {
     totalPlacements: number;
     placementsWithSuratTugas: number;
     placementsWithSuratBalasan: number;
+    totalAssignments?: number;
+    assignmentsWithTugas?: number;
+    assignmentsWithSppd?: number;
+    assignmentsWithLaporan?: number;
   };
   details: Array<{
-    type: 'PENGAJUAN' | 'JAWABAN' | 'CV' | 'BPJS';
+    type: 'PENGAJUAN' | 'JAWABAN' | 'CV' | 'BPJS' | 'PENUGASAN_TUGAS' | 'PENUGASAN_SPPD' | 'PENUGASAN_HASIL';
     path: string;
     fileName: string;
     action: 'created' | 'updated' | 'failed';
@@ -334,7 +343,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     Student: new Set(['id', 'userId', 'nis', 'nisn', 'name', 'className', 'department', 'phone', 'parentName', 'parentRelation', 'parentPhone', 'bpjsStatus', 'bpjsUrl', 'cvStatus', 'cvUrl', 'isAllowedPkl', 'teacherId', 'createdAt', 'updatedAt']),
     InternshipPlacement: new Set(['id', 'studentId', 'industryId', 'status', 'stage', 'notes', 'letterNumber', 'suratTugasUrl', 'letterUploadedBy', 'letterUploadedAt', 'suratBalasanUrl', 'suratBalasanStatus', 'startDate', 'endDate', 'appliedAt', 'createdAt', 'updatedAt']),
     TeacherHourAllocation: new Set(['id', 'className', 'teacherId', 'totalHours', 'academicYear', 'createdAt', 'updatedAt']),
-    MonitoringAssignment: new Set(['id', 'industryId', 'targetIndustries', 'teacherId', 'companionTeachers', 'periodId', 'monitoringDate', 'returnDate', 'letterNumber', 'sppdNumber', 'purpose', 'transportType', 'departurePlace', 'destinationPlace', 'budgetSource', 'budgetAccount', 'status', 'notes', 'createdAt', 'updatedAt']),
+    MonitoringAssignment: new Set(['id', 'industryId', 'targetIndustries', 'teacherId', 'companionTeachers', 'periodId', 'monitoringDate', 'returnDate', 'letterNumber', 'sppdNumber', 'purpose', 'transportType', 'departurePlace', 'destinationPlace', 'budgetSource', 'budgetAccount', 'suratTugasUrl', 'sppdUrl', 'laporanUrl', 'status', 'notes', 'createdAt', 'updatedAt']),
     Notification: new Set(['id', 'userId', 'title', 'message', 'type', 'link', 'isRead', 'createdAt']),
     ErrorLog: new Set(['id', 'level', 'message', 'stack', 'path', 'method', 'userId', 'ip', 'createdAt']),
     AuditLog: new Set(['id', 'userId', 'username', 'userRole', 'action', 'module', 'details', 'ipAddress', 'userAgent', 'createdAt']),
@@ -368,7 +377,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       const filteredEntries = Object.entries(item).filter(([k, v]) => {
         if (validCols && !validCols.has(k)) return false;
         // Abaikan objek relasi prisma yang bukan Date dan bukan JSON field
-        if (v !== null && typeof v === 'object' && !(v instanceof Date) && k !== 'activeIndustries' && k !== 'companionTeachers') {
+        if (v !== null && typeof v === 'object' && !(v instanceof Date) && k !== 'activeIndustries' && k !== 'companionTeachers' && k !== 'targetIndustries') {
           return false;
         }
         return true;
@@ -519,14 +528,51 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     return { periodName, academicYearName };
   }
 
+  // Dapatkan data penempatan dan penugasan lengkap beserta relasinya untuk sinkronisasi dokumen
+  const detailedPlacements = prisma.internshipPlacement ? await prisma.internshipPlacement.findMany({
+    include: {
+      student: true,
+      industry: true,
+    }
+  }) : [];
+
+  const detailedAssignments = prisma.monitoringAssignment ? await prisma.monitoringAssignment.findMany({
+    include: {
+      teacher: true,
+      industry: {
+        include: {
+          placements: {
+            include: {
+              student: {
+                select: { id: true, name: true, nis: true, className: true, department: true }
+              }
+            }
+          }
+        }
+      },
+      period: {
+        include: {
+          academicYear: true
+        }
+      }
+    },
+    orderBy: {
+      monitoringDate: 'asc',
+    }
+  }) : [];
+
   // Analisis statistik ketersediaan berkas di database SI-ERIN
   const stats = {
     totalStudents: students.length,
     studentsWithCv: students.filter((s: any) => Boolean(s.cvUrl && String(s.cvUrl).trim() !== '')).length,
     studentsWithBpjs: students.filter((s: any) => Boolean(s.bpjsUrl && String(s.bpjsUrl).trim() !== '')).length,
-    totalPlacements: placements.length,
-    placementsWithSuratTugas: placements.filter((p: any) => Boolean((p.suratTugasUrl || p.letterFile) && String(p.suratTugasUrl || p.letterFile).trim() !== '')).length,
-    placementsWithSuratBalasan: placements.filter((p: any) => Boolean(p.suratBalasanUrl && String(p.suratBalasanUrl).trim() !== '')).length,
+    totalPlacements: detailedPlacements.length,
+    placementsWithSuratTugas: detailedPlacements.filter((p: any) => Boolean((p.suratTugasUrl || p.letterFile) && String(p.suratTugasUrl || p.letterFile).trim() !== '')).length,
+    placementsWithSuratBalasan: detailedPlacements.filter((p: any) => Boolean(p.suratBalasanUrl && String(p.suratBalasanUrl).trim() !== '')).length,
+    totalAssignments: detailedAssignments.length,
+    assignmentsWithTugas: detailedAssignments.filter((a: any) => Boolean(a.suratTugasUrl && String(a.suratTugasUrl).trim() !== '')).length,
+    assignmentsWithSppd: detailedAssignments.filter((a: any) => Boolean(a.sppdUrl && String(a.sppdUrl).trim() !== '')).length,
+    assignmentsWithLaporan: detailedAssignments.filter((a: any) => Boolean(a.laporanUrl && String(a.laporanUrl).trim() !== '')).length,
   };
 
   console.log('[BACKUP SERVICE] 📊 Statistik Ketersediaan Berkas di Database SI-ERIN:', JSON.stringify(stats));
@@ -536,11 +582,23 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   let totalUpdated = 0;
   let totalFailed = 0;
 
+  // Helper untuk menentukan kategori tujuan penugasan
+  function getAssignmentCategory(purpose?: string | null): 'Monitoring' | 'Penarikan' | 'Penerjunan' {
+    const p = (purpose || '').toLowerCase();
+    if (p.includes('penerjunan') || p.includes('pengantaran')) {
+      return 'Penerjunan';
+    }
+    if (p.includes('penarikan') || p.includes('penjemputan')) {
+      return 'Penarikan';
+    }
+    return 'Monitoring';
+  }
+
   // Track nama file yang sudah diproses di periode yang sama untuk menghindari duplikasi request
   const processedIndustryLetters = new Set<string>();
 
   // A. PROSES SURAT PENGAJUAN & SURAT BALASAN INDUSTRI
-  for (const placement of placements) {
+  for (const placement of detailedPlacements) {
     const student = placement.student;
     const industry = placement.industry;
     if (!industry) continue;
@@ -711,6 +769,187 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     }
   }
 
+  // C. PROSES DOKUMEN PENUGASAN & HASIL KEGIATAN (MONITORING / PENARIKAN / PENERJUNAN)
+  // 📁 Struktur Folder: [Tahun] / [Periode] / Penugasan / [Monitoring | Penarikan | Penerjunan] / [File Asli | Hasil Kegiatan]
+  for (const assign of detailedAssignments) {
+    const teacher = assign.teacher;
+    const industry = assign.industry;
+    if (!teacher || !industry) continue;
+
+    const academicYearName = sanitizeFolderName(assign.period?.academicYear?.year || defaultYearName);
+    const periodName = sanitizeFolderName(assign.period?.name || defaultPeriodName);
+    const category = getAssignmentCategory(assign.purpose);
+
+    const safeTeacherName = sanitizeFolderName(teacher.name || 'Guru').replace(/\s+/g, '_');
+    const safeIndustryName = sanitizeFolderName(industry.name || 'DUDI').replace(/\s+/g, '_');
+    const dateStr = assign.monitoringDate ? new Date(assign.monitoringDate).toISOString().slice(0, 10) : '';
+
+    try {
+      // Dapatkan / Buat Folder Hierarki di Google Drive
+      const yearFolderId = await getOrCreateFolder(drive, academicYearName, rootDriveFolderId, folderCache);
+      const periodFolderId = await getOrCreateFolder(drive, periodName, yearFolderId, folderCache);
+      const penugasanFolderId = await getOrCreateFolder(drive, 'Penugasan', periodFolderId, folderCache);
+      const tujuanFolderId = await getOrCreateFolder(drive, category, penugasanFolderId, folderCache);
+      const fileAsliFolderId = await getOrCreateFolder(drive, 'File Asli', tujuanFolderId, folderCache);
+      const hasilKegiatanFolderId = await getOrCreateFolder(drive, 'Hasil Kegiatan', tujuanFolderId, folderCache);
+
+      // 1. FILE ASLI - Surat Tugas
+      if (assign.suratTugasUrl && String(assign.suratTugasUrl).trim() !== '') {
+        try {
+          const resolved = await resolveFileBuffer(assign.suratTugasUrl);
+          if (resolved) {
+            const ext = resolved.mimeType.includes('word') ? 'docx' : 'pdf';
+            const fileName = `Surat_Tugas_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.${ext}`;
+            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, resolved.mimeType, resolved.buffer, fileAsliFolderId);
+            if (uploadRes.action === 'created') totalSynced++;
+            else totalUpdated++;
+
+            syncDetails.push({
+              type: 'PENUGASAN_TUGAS',
+              path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+              fileName: fileName,
+              action: uploadRes.action,
+            });
+          }
+        } catch (err: any) {
+          totalFailed++;
+          syncDetails.push({
+            type: 'PENUGASAN_TUGAS',
+            path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+            fileName: `Surat_Tugas_${safeTeacherName}_${safeIndustryName}.pdf`,
+            action: 'failed',
+            error: err?.message || String(err),
+          });
+          console.error(`[BACKUP SERVICE] Gagal mengunggah Surat Tugas ${safeTeacherName}:`, err?.message || err);
+        }
+      } else {
+        // Fallback: Generate template resmi DOCX jika belum ada berkas TTE yang diunggah
+        try {
+          const schoolSetting = schoolSettings[0] || null;
+          const docxBuf = await generateMergedSuratTugasDocx([assign as any], {
+            schoolSetting: schoolSetting || undefined,
+            useTteTags: true,
+          });
+          if (docxBuf && docxBuf.length > 0) {
+            const fileName = `Surat_Tugas_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.docx`;
+            const uploadRes = await uploadOrUpdateFileInDrive(
+              drive,
+              fileName,
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              docxBuf,
+              fileAsliFolderId
+            );
+            if (uploadRes.action === 'created') totalSynced++;
+            else totalUpdated++;
+
+            syncDetails.push({
+              type: 'PENUGASAN_TUGAS',
+              path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+              fileName: fileName,
+              action: uploadRes.action,
+            });
+          }
+        } catch (genErr) {
+          // Abaikan jika template tidak dapat di-generate saat itu
+        }
+      }
+
+      // 2. FILE ASLI - SPPD
+      if (assign.sppdUrl && String(assign.sppdUrl).trim() !== '') {
+        try {
+          const resolved = await resolveFileBuffer(assign.sppdUrl);
+          if (resolved) {
+            const ext = resolved.mimeType.includes('word') ? 'docx' : 'pdf';
+            const fileName = `SPPD_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.${ext}`;
+            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, resolved.mimeType, resolved.buffer, fileAsliFolderId);
+            if (uploadRes.action === 'created') totalSynced++;
+            else totalUpdated++;
+
+            syncDetails.push({
+              type: 'PENUGASAN_SPPD',
+              path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+              fileName: fileName,
+              action: uploadRes.action,
+            });
+          }
+        } catch (err: any) {
+          totalFailed++;
+          syncDetails.push({
+            type: 'PENUGASAN_SPPD',
+            path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+            fileName: `SPPD_${safeTeacherName}_${safeIndustryName}.pdf`,
+            action: 'failed',
+            error: err?.message || String(err),
+          });
+          console.error(`[BACKUP SERVICE] Gagal mengunggah SPPD ${safeTeacherName}:`, err?.message || err);
+        }
+      } else {
+        // Fallback: Generate template resmi DOCX SPPD jika belum ada berkas TTE
+        try {
+          const schoolSetting = schoolSettings[0] || null;
+          const docxBuf = await generateMergedSppdDocx([assign as any], {
+            schoolSetting: schoolSetting || undefined,
+            useTteTags: true,
+          });
+          if (docxBuf && docxBuf.length > 0) {
+            const fileName = `SPPD_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.docx`;
+            const uploadRes = await uploadOrUpdateFileInDrive(
+              drive,
+              fileName,
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              docxBuf,
+              fileAsliFolderId
+            );
+            if (uploadRes.action === 'created') totalSynced++;
+            else totalUpdated++;
+
+            syncDetails.push({
+              type: 'PENUGASAN_SPPD',
+              path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+              fileName: fileName,
+              action: uploadRes.action,
+            });
+          }
+        } catch (genErr) {
+          // Abaikan jika template tidak dapat di-generate saat itu
+        }
+      }
+
+      // 3. HASIL KEGIATAN - Scan yang sudah diisi & dicap setelah perjalanan dinas (laporanUrl)
+      if (assign.laporanUrl && String(assign.laporanUrl).trim() !== '') {
+        try {
+          const resolved = await resolveFileBuffer(assign.laporanUrl);
+          if (resolved) {
+            const ext = resolved.mimeType.includes('word') ? 'docx' : 'pdf';
+            const fileName = `Hasil_Kegiatan_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.${ext}`;
+            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, resolved.mimeType, resolved.buffer, hasilKegiatanFolderId);
+            if (uploadRes.action === 'created') totalSynced++;
+            else totalUpdated++;
+
+            syncDetails.push({
+              type: 'PENUGASAN_HASIL',
+              path: `${academicYearName}/${periodName}/Penugasan/${category}/Hasil Kegiatan`,
+              fileName: fileName,
+              action: uploadRes.action,
+            });
+          }
+        } catch (err: any) {
+          totalFailed++;
+          syncDetails.push({
+            type: 'PENUGASAN_HASIL',
+            path: `${academicYearName}/${periodName}/Penugasan/${category}/Hasil Kegiatan`,
+            fileName: `Hasil_Kegiatan_${safeTeacherName}_${safeIndustryName}.pdf`,
+            action: 'failed',
+            error: err?.message || String(err),
+          });
+          console.error(`[BACKUP SERVICE] Gagal mengunggah Hasil Kegiatan ${safeTeacherName}:`, err?.message || err);
+        }
+      }
+    } catch (assignErr: any) {
+      console.error(`[BACKUP SERVICE] Gagal memproses sinkronisasi penugasan ${assign.id}:`, assignErr?.message || assignErr);
+    }
+  }
+
   const summaryResult: BackupSyncSummary = {
     zipFile: zipUploadResult,
     totalSynced,
@@ -726,9 +965,9 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   if (totalFailed > 0) {
     statusMessage = `Backup Sistem selesai: Arsip ZIP terunggah, ${successCount} dokumen disinkronkan, namun ada ${totalFailed} dokumen yang gagal diunggah ke Google Drive.`;
   } else if (successCount > 0) {
-    statusMessage = `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Surat Pengajuan, Jawaban, CV, & BPJS) telah disinkronkan ke folder Google Drive.`;
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Surat Pengajuan, Jawaban, CV, BPJS, & Penugasan Monitoring/Perjalanan Dinas) telah disinkronkan ke folder Google Drive.`;
   } else {
-    statusMessage = `Backup Sistem berhasil! Arsip ZIP terunggah ke Google Drive. Belum ada dokumen siswa/industri yang disinkronkan karena database SI-ERIN saat ini belum memiliki berkas unggahan (${stats.studentsWithCv} CV, ${stats.studentsWithBpjs} BPJS, ${stats.placementsWithSuratTugas} Surat Pengajuan, ${stats.placementsWithSuratBalasan} Surat Balasan).`;
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP terunggah ke Google Drive. Belum ada berkas unggahan (${stats.studentsWithCv} CV, ${stats.studentsWithBpjs} BPJS, ${stats.placementsWithSuratTugas} Pengajuan, ${stats.placementsWithSuratBalasan} Jawaban, ${stats.assignmentsWithTugas} Surat Tugas, ${stats.assignmentsWithSppd} SPPD, ${stats.assignmentsWithLaporan} Scan Hasil Kegiatan).`;
   }
 
   console.log(`[BACKUP SERVICE] 🏁 ${statusMessage}`);
