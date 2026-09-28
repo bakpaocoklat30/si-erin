@@ -206,7 +206,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { placementIds, targetStatus, notes } = body;
+    const { placementIds, targetStatus, notes, startDate, endDate } = body;
 
     if (!Array.isArray(placementIds) || placementIds.length === 0) {
       return NextResponse.json({ error: 'Pilih minimal satu siswa untuk diverifikasi' }, { status: 400 });
@@ -217,15 +217,20 @@ export async function POST(request: Request) {
     }
 
     const result = await db.$transaction(
-      placementIds.map((id: string) =>
-        db.internshipPlacement.update({
+      placementIds.map((id: string) => {
+        let updateData: any = {
+          status: targetStatus,
+          notes: notes ? notes.trim() : undefined
+        };
+        if (targetStatus === 'PEMBUATAN_SURAT' && startDate && endDate) {
+          updateData.startDate = new Date(startDate);
+          updateData.endDate = new Date(endDate);
+        }
+        return db.internshipPlacement.update({
           where: { id },
-          data: {
-            status: targetStatus,
-            notes: notes ? notes.trim() : undefined
-          }
-        })
-      )
+          data: updateData
+        });
+      })
     );
 
     const message = targetStatus === 'PEMBUATAN_SURAT' 
