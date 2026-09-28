@@ -575,8 +575,8 @@ export default function PokjaVerifikasiPage() {
                   
       {/* MODAL VERIFIKASI & ATUR WAKTU PKL */}
       {verifyModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className={`w-full max-w-lg rounded-3xl border shadow-2xl flex flex-col overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
             <div className="p-5 border-b border-inherit flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20">
               <h3 className="font-bold text-sm text-indigo-700 dark:text-indigo-400 flex items-center space-x-2">
                 <Calendar className="w-4 h-4" />
@@ -587,7 +587,7 @@ export default function PokjaVerifikasiPage() {
               </button>
             </div>
             
-            <div className="p-5 space-y-4 text-sm text-slate-700 dark:text-slate-300">
+            <div className="p-5 space-y-4 text-sm text-slate-700 dark:text-slate-300 overflow-y-auto">
               <p className="font-medium text-xs mb-4">
                 Verifikasi {selectedPlacementIds.length} pengajuan siswa. <br/>
                 Tentukan waktu <strong>fix pelaksanaan PKL</strong> untuk {selectedPlacementIds.length > 1 ? 'kelompok' : 'siswa'} ini (meng-override jadwal kelas secara otomatis):
@@ -665,7 +665,7 @@ export default function PokjaVerifikasiPage() {
 
       {/* MODAL LIVE PREVIEW DOKUMEN */}
       {activePreviewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className={`w-full max-w-4xl max-h-[90vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden ${
             theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
@@ -720,7 +720,7 @@ export default function PokjaVerifikasiPage() {
 
       {/* 🌟 MODAL DAFTAR SISWA YANG SUDAH MENGISI KUOTA INDUSTRI */}
       {quotaModalGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className={`w-full max-w-2xl max-h-[85vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden ${
             theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
           }`}>
