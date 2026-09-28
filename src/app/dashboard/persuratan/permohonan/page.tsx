@@ -994,11 +994,22 @@ export default function PermohonanSuratKelompokPage() {
                         {group.industryName}
                       </h3>
 
-                      {/* BADGE JURUSAN */}
-                      <span className="px-3 py-1 rounded-xl text-xs font-black bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center space-x-1.5">
-                        <GraduationCap className="w-3.5 h-3.5" />
-                        <span>{groupDeptName}</span>
-                      </span>
+                      
+                        {/* BADGE JURUSAN */}
+                        <span className="px-3 py-1 rounded-xl text-xs font-black bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center space-x-1.5">
+                          <GraduationCap className="w-3.5 h-3.5" />
+                          <span>{groupDeptName}</span>
+                        </span>
+
+                        {/* BADGE STATUS */}
+                        <span className={`px-3 py-1 rounded-xl text-xs font-black border flex items-center space-x-1.5 ${
+                          hasSurat 
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                        }`}>
+                          {hasSurat ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                          <span>{hasSurat ? 'Terbit Surat (Menunggu Balasan Industri)' : 'Menunggu Penerbitan Surat'}</span>
+                        </span>
 
                       {group.periodName && (
                         <span className="px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center space-x-1">
