@@ -339,6 +339,8 @@ export default function StudentPengajuanPage() {
       case 'SURAT_DITERBITKAN': return 4;
       case 'KIRIM_SURAT': return 5;
       case 'DISETUJUI_INDUSTRI': return 6;
+        case 'REQUEST_PENGANTARAN': return 7;
+        case 'MENUNGGU_PEMBERANGKATAN': return 8;
       default: return 1;
     }
   };
@@ -706,10 +708,10 @@ export default function StudentPengajuanPage() {
             <h4 className={`font-bold text-xs uppercase tracking-wider ${
               theme === 'dark' ? 'text-slate-400' : 'text-slate-700'
             }`}>
-              Progres Tahapan Alur Pengajuan (1 - 6):
+              Progres Tahapan Alur Pengajuan (1 - 8):
             </h4>
             
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
               <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
                 currentStep >= 1 
                   ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold'
@@ -782,11 +784,37 @@ export default function StudentPengajuanPage() {
               }`}>
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-[10px] font-bold">06</span>
-                  {currentStep >= 6 && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+                    {currentStep >= 6 && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+                  </div>
+                  <div className="font-bold text-xs leading-snug">Upload Balasan</div>
+                  <p className="text-[10px] opacity-80">Unggah bukti balasan</p>
                 </div>
-                <div className="font-bold text-xs leading-snug">Upload Balasan</div>
-                <p className="text-[10px] opacity-80">Unggah bukti balasan</p>
-              </div>
+
+                <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
+                  currentStep >= 7 
+                    ? theme === 'dark' ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-300' : 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold'
+                    : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 font-semibold'
+                }`}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono text-[10px] font-bold">07</span>
+                    {currentStep >= 7 && <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+                  </div>
+                  <div className="font-bold text-xs leading-snug">Request Penerjunan</div>
+                  <p className="text-[10px] opacity-80">Menunggu surat pengantaran</p>
+                </div>
+
+                <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
+                  currentStep >= 8 
+                    ? theme === 'dark' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold'
+                    : theme === 'dark' ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 font-semibold'
+                }`}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono text-[10px] font-bold">08</span>
+                    {currentStep >= 8 && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+                  </div>
+                  <div className="font-bold text-xs leading-snug">Pemberangkatan</div>
+                  <p className="text-[10px] opacity-80">Siap berangkat ke industri</p>
+                </div>
             </div>
           </div>
 
