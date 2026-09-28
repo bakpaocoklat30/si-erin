@@ -247,7 +247,7 @@ export default function PermohonanSuratKelompokPage() {
     let published = 0;
 
     verifiedGroups.forEach((g) => {
-      const hasSurat = Boolean(g.suratTugasUrl || g.letterNumber);
+      const hasSurat = Boolean(g.suratTugasUrl);
       if (hasSurat) {
         published++;
       } else {
@@ -269,7 +269,7 @@ export default function PermohonanSuratKelompokPage() {
       const matchDept = selectedDepartmentFilter === 'SEMUA' || groupDept.toLowerCase() === selectedDepartmentFilter.toLowerCase();
 
       // Filter Berdasarkan Status Surat
-      const hasSurat = Boolean(g.suratTugasUrl || g.letterNumber);
+      const hasSurat = Boolean(g.suratTugasUrl);
       let matchStatus = true;
       if (letterStatusFilter === 'PENDING') {
         matchStatus = !hasSurat; // Hanya yang belum punya surat
@@ -972,7 +972,7 @@ export default function PermohonanSuratKelompokPage() {
       <div className="space-y-6">
         {filteredGroups.length > 0 ? (
           filteredGroups.map((group) => {
-            const hasSurat = Boolean(group.suratTugasUrl || group.letterNumber);
+            const hasSurat = Boolean(group.suratTugasUrl);
             const studentList = group.students || group.placements || [];
             const groupDeptName = group.departmentName || studentList[0]?.department || 'Teknik Kejuruan';
 
@@ -1076,7 +1076,7 @@ export default function PermohonanSuratKelompokPage() {
                       className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/30 cursor-pointer"
                     >
                       <Upload className="w-4 h-4" />
-                      <span>{hasSurat ? 'Ganti Surat & Nomor' : 'Upload Surat Permohonan'}</span>
+                      <span>{hasSurat ? 'Ganti Berkas Surat & Nomor' : 'Upload Surat Resmi (Bertanda-tangan)'}</span>
                     </button>
                       <button
                         type="button"
