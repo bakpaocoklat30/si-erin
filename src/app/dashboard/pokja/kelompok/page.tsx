@@ -80,6 +80,8 @@ interface StudentItem {
   endDate?: string;
   letterNumber?: string;
   suratBalasanUrl?: string;
+    suratPengantaranUrl?: string;
+    suratPenarikanUrl?: string;
   student?: any;
 }
 
@@ -107,6 +109,8 @@ interface GroupItem {
   startDate?: string;
   endDate?: string;
   suratTugasUrl?: string;
+    suratPengantaranUrl?: string;
+    suratPenarikanUrl?: string;
   suratBalasanUrl?: string;
   letterNumber?: string;
   letterUploadedBy?: string;
@@ -1702,7 +1706,49 @@ export default function PokjaKelompokPrakerinPage() {
                       </button>
                     )}
 
-                    {(group.suratBalasanUrl || (group.placements && group.placements.some(p => p.suratBalasanUrl))) && (() => {
+                    {(group.suratPengantaranUrl || (group.placements && group.placements.some(p => p.suratPengantaranUrl))) && (() => {
+                        const pengantaranUrl = group.suratPengantaranUrl || group.placements?.find(p => p.suratPengantaranUrl)?.suratPengantaranUrl;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActivePreviewUrl(pengantaranUrl || null);
+                              setActivePreviewTitle(`Surat Penerjunan/Pengantaran - ${group.industryName}`);
+                            }}
+                            className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
+                              theme === 'dark'
+                                ? 'bg-teal-900/30 hover:bg-teal-800/40 text-teal-400 border-teal-800'
+                                : 'bg-teal-50 hover:bg-teal-100 text-teal-700 border-teal-200 shadow-sm'
+                            }`}
+                            title="Pratinjau Surat Penerjunan dari Tata Usaha"
+                          >
+                            <FileCheck2 className="w-4 h-4 text-teal-600 dark:text-teal-500" />
+                          </button>
+                        );
+                      })()}
+
+                      {(group.suratPenarikanUrl || (group.placements && group.placements.some(p => p.suratPenarikanUrl))) && (() => {
+                        const penarikanUrl = group.suratPenarikanUrl || group.placements?.find(p => p.suratPenarikanUrl)?.suratPenarikanUrl;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActivePreviewUrl(penarikanUrl || null);
+                              setActivePreviewTitle(`Surat Penarikan - ${group.industryName}`);
+                            }}
+                            className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
+                              theme === 'dark'
+                                ? 'bg-orange-900/30 hover:bg-orange-800/40 text-orange-400 border-orange-800'
+                                : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200 shadow-sm'
+                            }`}
+                            title="Pratinjau Surat Penarikan dari Tata Usaha"
+                          >
+                            <FileCheck2 className="w-4 h-4 text-orange-600 dark:text-orange-500" />
+                          </button>
+                        );
+                      })()}
+                      
+                      {(group.suratBalasanUrl || (group.placements && group.placements.some(p => p.suratBalasanUrl))) && (() => {
                       const balasanUrl = group.suratBalasanUrl || group.placements?.find(p => p.suratBalasanUrl)?.suratBalasanUrl;
                       return (
                         <button

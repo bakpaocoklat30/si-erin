@@ -173,6 +173,8 @@ export async function GET(request: Request) {
           startDate: startDate,
           endDate: endDate,
           suratTugasUrl: placement.suratTugasUrl || null,
+            suratPengantaranUrl: placement.suratPengantaranUrl || null,
+            suratPenarikanUrl: placement.suratPenarikanUrl || null,
           suratBalasanUrl: placement.suratBalasanUrl || null,
           letterNumber: savedLetterNumber, 
           letterUploadedBy: placement.letterUploadedBy || null,
@@ -206,6 +208,8 @@ export async function GET(request: Request) {
         placementId: placement.id,
         status: placement.status,
         suratTugasUrl: placement.suratTugasUrl,
+          suratPengantaranUrl: placement.suratPengantaranUrl,
+          suratPenarikanUrl: placement.suratPenarikanUrl,
         suratBalasanUrl: placement.suratBalasanUrl,
         letterNumber: savedLetterNumber,
         student: formattedStudent
