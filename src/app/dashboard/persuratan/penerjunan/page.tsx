@@ -576,7 +576,12 @@ export default function SuratPenerjunanPage() {
                 
                   
                   <div className="mb-3">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nomor Surat Khusus Kelompok Ini</label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nomor Surat Khusus Kelompok Ini</label>
+                      <div className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                        Tersimpan: {group.students[0]?.nomorPengantaran ? <span className="bg-indigo-100 dark:bg-indigo-900/50 px-1.5 py-0.5 rounded text-indigo-700 dark:text-indigo-300">{group.students[0].nomorPengantaran}</span> : <span className="text-rose-500">Belum Ada</span>}
+                      </div>
+                    </div>
                     <div className="flex gap-2">
                       <input
                         type="text"
