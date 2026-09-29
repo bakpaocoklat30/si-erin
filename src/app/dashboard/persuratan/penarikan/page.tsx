@@ -515,21 +515,36 @@ export default function SuratPenarikanPage() {
                 </div>
 
                 
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl flex items-center justify-between mb-3 border border-slate-100 dark:border-slate-800">
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nomor Surat</p>
-                      <p className="text-xs font-black text-slate-700 dark:text-slate-300">
-                        {group.students[0]?.nomorPenarikan || <span className="text-rose-500 font-medium italic">Belum diset</span>}
-                      </p>
+                  
+                  <div className="mb-3">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nomor Surat Khusus Kelompok Ini</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Ketik & Enter/Klik Simpan"
+                        defaultValue={group.students[0]?.nomorPenarikan || ''}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            saveNumber(group, (e.target as HTMLInputElement).value);
+                          }
+                        }}
+                        onBlur={(e) => saveNumber(group, e.target.value)}
+                        className="flex-1 px-3 py-2 text-xs font-bold border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900 focus:border-indigo-500 outline-none"
+                      />
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                          saveNumber(group, input.value);
+                        }}
+                        className="px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400 font-bold text-xs rounded-xl transition-all"
+                      >
+                        Simpan
+                      </button>
                     </div>
-                    <button
-                      onClick={() => { setPromptAction('nomor_tunggal'); setPromptGroup(group); setPromptNomor(group.students[0]?.nomorPenarikan || ''); }}
-                      className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-400 rounded-lg transition-all cursor-pointer"
-                      title="Set Nomor Surat"
-                    >
-                      <Hash className="w-4 h-4" />
-                    </button>
                   </div>
+    
                   
                   <div className="flex flex-col sm:flex-row gap-2 mt-auto">
                   <button
