@@ -213,8 +213,7 @@ export default function SuratPenerjunanPage() {
     const students = g.students || [];
     const startDate = students[0]?.startDate ? new Date(students[0].startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'}) : '[Tanggal Mulai]';
     const endDate = students[0]?.endDate ? new Date(students[0].endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'}) : '[Tanggal Selesai]';
-    const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'});
-    
+        
     return `
       <div style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: black; max-width: 100%; word-wrap: break-word;">
         <!-- KOP SURAT -->
@@ -236,7 +235,7 @@ export default function SuratPenerjunanPage() {
               <div>Hal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <b><i><span style="text-decoration: underline;">Pengantar Praktik Kerja Lapangan</span></i></b></div>
             </td>
             <td style="width: 40%; text-align: right; vertical-align: top;">
-              Adiwerna, ${today}
+              Adiwerna, \${tanggal_naskah}
             </td>
           </tr>
         </table>
@@ -293,11 +292,11 @@ export default function SuratPenerjunanPage() {
 
         <!-- TTD -->
         <div style="margin-top: 40px; text-align: right; float: right; width: 300px;">
-          <div>${jabatan_pengirim}</div>
+          <div>\${jabatan_pengirim}</div>
           <br/><br/><br/>
-          <div><b>${nama_pengirim}</b></div>
+          <div><b>\${nama_pengirim}</b></div>
           <div>Pembina Utama Muda. IV/c</div>
-          <div>NIP ${nip_pengirim}</div>
+          <div>NIP \${nip_pengirim}</div>
         </div>
         <div style="clear: both;"></div>
       </div>

@@ -102,7 +102,7 @@ async function createSection(industryId: string, departmentName: string, periodI
                 ]}),
               ]}),
               new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, children: [
-                new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `Adiwerna, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})}`, font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `Adiwerna, \${tanggal_naskah}`, font: "Times New Roman", size: 24 })] }),
               ]}),
             ],
           }),

@@ -212,8 +212,7 @@ export default function SuratPenarikanPage() {
   const generatePenarikanHtml = (g: any) => {
     const students = g.students || [];
     const endDate = students[0]?.endDate ? new Date(students[0].endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'}) : '[Tanggal Selesai]';
-    const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'});
-    const deptLabel = g.departmentName || 'Teknik Komputer dan Jaringan';
+        const deptLabel = g.departmentName || 'Teknik Komputer dan Jaringan';
     
     return `
       <div style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: black; max-width: 100%; word-wrap: break-word;">
@@ -237,7 +236,7 @@ export default function SuratPenarikanPage() {
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b><i><span style="text-decoration: underline;">Kerja Lapangan (PKL)</span></i></b></div>
             </td>
             <td style="width: 40%; text-align: right; vertical-align: top;">
-              Adiwerna, ${today}
+              Adiwerna, \${tanggal_naskah}
             </td>
           </tr>
         </table>
@@ -270,10 +269,10 @@ export default function SuratPenarikanPage() {
 
         <!-- TTD -->
         <div style="margin-top: 40px; text-align: center; float: right; width: 300px;">
-          <div>Kepala Sekolah,</div>
+          <div>\${jabatan_pengirim}</div>
           <br/><br/><br/>
-          <div><b><span style="text-decoration: underline;">${nama_pengirim}</span></b></div>
-          <div>NIP ${nip_pengirim}</div>
+          <div><b><span style="text-decoration: underline;">\${nama_pengirim}</span></b></div>
+          <div>NIP \${nip_pengirim}</div>
         </div>
         <div style="clear: both;"></div>
       </div>
