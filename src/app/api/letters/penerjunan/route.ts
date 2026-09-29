@@ -7,7 +7,7 @@ import {
 } from 'docx';
 import { db } from '@/lib/db';
 
-async function createSection(industryId: string, departmentName: string, periodId: string, school: any) {
+async function createSection(industryId: string, departmentName: string, periodId: string, school: any, nomorSurat: string = '') {
   const industry = await db.industry.findUnique({ where: { id: industryId } });
   
   const placements = await db.internshipPlacement.findMany({
@@ -94,7 +94,7 @@ async function createSection(industryId: string, departmentName: string, periodI
           new TableRow({
             children: [
               new TableCell({ width: { size: 60, type: WidthType.PERCENTAGE }, children: [
-                new Paragraph({ children: [new TextRun({ text: "Nomor  : ${nomor_naskah}", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [new TextRun({ text: "Nomor  : ${nomorSurat}", font: "Times New Roman", size: 24 })] }),
                 new Paragraph({ children: [new TextRun({ text: "Lamp.  : -", font: "Times New Roman", size: 24 })] }),
                 new Paragraph({ children: [
                   new TextRun({ text: "Hal      : ", font: "Times New Roman", size: 24 }), 
@@ -172,7 +172,7 @@ async function createSection(industryId: string, departmentName: string, periodI
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { groups } = body;
+    const { groups, nomorSurat } = body;
     
     if (!Array.isArray(groups) || groups.length === 0) {
       return NextResponse.json({ error: 'Tidak ada data grup.' }, { status: 400 });
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
 
     const sections = [];
     for (const g of groups) {
-      const section = await createSection(g.industryId, g.departmentName, g.periodId, school);
+      const section = await createSection(g.industryId, g.departmentName, g.periodId, school, nomorSurat || '');
       if (section) sections.push(section);
     }
 
@@ -215,6 +215,7 @@ export async function GET(request: Request) {
     const industryId = searchParams.get('industryId');
     const periodId = searchParams.get('periodId');
     const departmentName = searchParams.get('department');
+    const nomorSurat = searchParams.get('nomorSurat') || '';
 
     if (!industryId || !periodId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
@@ -222,7 +223,7 @@ export async function GET(request: Request) {
       name: 'SMK NEGERI 1 ADIWERNA', address: 'JL. Raya 2 PO BOX 24 Adiwerna', phone: '(0283) 443768', email: 'mail@smkn1adw.sch.id'
     };
 
-    const section = await createSection(industryId, departmentName || '', periodId, school);
+    const section = await createSection(industryId, departmentName || '', periodId, school, nomorSurat);
     if (!section) return NextResponse.json({ error: 'Data kosong' }, { status: 404 });
 
     const doc = new Document({ sections: [section] });

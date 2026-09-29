@@ -24,6 +24,58 @@ export default function SuratPenarikanPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [docxPreviewGroup, setDocxPreviewGroup] = useState<any>(null);
+  const [promptAction, setPromptAction] = useState<'preview' | 'cetak' | 'bulk' | null>(null);
+  const [promptGroup, setPromptGroup] = useState<any>(null);
+  const [promptNomor, setPromptNomor] = useState('');
+
+  const handlePromptSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promptNomor.trim()) {
+      alert('Nomor Surat wajib diisi!');
+      return;
+    }
+    
+    if (promptAction === 'preview' && promptGroup) {
+      setDocxPreviewGroup({ ...promptGroup, inputNomor: promptNomor });
+      setPromptAction(null);
+      setPromptGroup(null);
+    } else if (promptAction === 'cetak' && promptGroup) {
+      const printUrl = `/api/letters/penarikan?industryId=${promptGroup.industryId}&department=${encodeURIComponent(promptGroup.departmentName)}&periodId=${promptGroup.periodId}&nomorSurat=${encodeURIComponent(promptNomor)}`;
+      window.open(printUrl, '_blank');
+      setPromptAction(null);
+      setPromptGroup(null);
+      setPromptNomor('');
+    } else if (promptAction === 'bulk') {
+      executeBulkDownload(promptNomor);
+      setPromptAction(null);
+      setPromptNomor('');
+    }
+  };
+
+  const executeBulkDownload = async (nomorSurat: string) => {
+    try {
+      const selectedData = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
+      const res = await fetch(`/api/letters/penarikan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groups: selectedData, nomorSurat })
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        const link = document.createElement('a');
+        link.href = json.data;
+        link.download = `Bulk_Surat_Penarikan.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        alert('Gagal mengunduh dokumen: ' + json.error);
+      }
+    } catch (e) {
+      alert('Error saat mengunduh dokumen gabungan');
+    }
+  };
+  
   
   const generatePenarikanHtml = (g: any) => {
     const students = g.students || [];
@@ -47,7 +99,7 @@ export default function SuratPenarikanPage() {
         <table style="width: 100%; border: none;">
           <tr>
             <td style="width: 60%; vertical-align: top;">
-              <div>Nomor&nbsp;&nbsp;&nbsp;: ${nomor_naskah}</div>
+              <div>Nomor&nbsp;&nbsp;&nbsp;: ${g.inputNomor || '...............'}</div>
               <div>Lamp.&nbsp;&nbsp;&nbsp;: -</div>
               <div>Hal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <b><i><span style="text-decoration: underline;">Penarikan Siswa/Siswi Praktik</span></i></b></div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b><i><span style="text-decoration: underline;">Kerja Lapangan (PKL)</span></i></b></div>
@@ -106,28 +158,9 @@ export default function SuratPenarikanPage() {
       setSelectedGroupIds(currentGroupIds);
     }
   };
-  const handleBulkDownload = async () => {
-    try {
-      const selectedData = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
-      const res = await fetch('/api/letters/penarikan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groups: selectedData })
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        const link = document.createElement('a');
-        link.href = json.data;
-        link.download = 'Bulk_Surat_Penarikan.docx';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        alert('Gagal mengunduh dokumen: ' + json.error);
-      }
-    } catch (e) {
-      alert('Error saat mengunduh dokumen gabungan');
-    }
+  const handleBulkDownload = () => {
+    setPromptAction('bulk');
+    setPromptNomor('');
   };
 
   const fetchAcceptedGroups = async () => {
@@ -345,17 +378,14 @@ export default function SuratPenarikanPage() {
 
                 <div className="flex flex-col sm:flex-row gap-2 mt-auto">
                   <button
-                      onClick={() => setDocxPreviewGroup(group)}
+                      onClick={() => { setPromptAction('preview'); setPromptGroup(group); setPromptNomor(''); }}
                       className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
                     >
                       <FileText className="w-4 h-4" />
                       Preview
                     </button>
                     <button
-                      onClick={() => {
-                        const printUrl = `/api/letters/penarikan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}`;
-                        window.open(printUrl, '_blank');
-                      }}
+                      onClick={() => { setPromptAction('cetak'); setPromptGroup(group); setPromptNomor(''); }}
                       className="flex-1 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
                     >
                       <Printer className="w-4 h-4" />
@@ -451,7 +481,7 @@ export default function SuratPenarikanPage() {
             <div className="p-4 border-t border-inherit flex justify-end gap-2">
               <button 
                 onClick={() => {
-                  const printUrl = `/api/letters/penarikan?industryId=${docxPreviewGroup.industryId}&department=${encodeURIComponent(docxPreviewGroup.departmentName)}&periodId=${docxPreviewGroup.periodId}`;
+                  const printUrl = `/api/letters/penarikan?industryId=${docxPreviewGroup.industryId}&department=${encodeURIComponent(docxPreviewGroup.departmentName)}&periodId=${docxPreviewGroup.periodId}&nomorSurat=${encodeURIComponent(docxPreviewGroup.inputNomor || '')}`;
                   window.open(printUrl, '_blank');
                   setDocxPreviewGroup(null);
                 }} 
@@ -465,6 +495,42 @@ export default function SuratPenarikanPage() {
         </div>
       )}
 
+      
+      {/* MODAL INPUT NOMOR SURAT */}
+      {promptAction && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <form onSubmit={handlePromptSubmit} className="bg-white dark:bg-slate-900 p-6 rounded-3xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-800">
+            <h3 className="font-bold text-lg mb-2 dark:text-white">Input Nomor Surat</h3>
+            <p className="text-xs text-slate-500 mb-4">Silakan masukkan nomor surat sebelum {promptAction === 'preview' ? 'melihat pratinjau' : 'mencetak dokumen'}.</p>
+            
+            <input 
+              type="text" 
+              autoFocus
+              value={promptNomor}
+              onChange={(e) => setPromptNomor(e.target.value)}
+              placeholder="Contoh: 400.14.5.4 / 299 / 2026"
+              className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500 outline-none mb-6 text-sm font-bold"
+            />
+
+            <div className="flex gap-3">
+              <button 
+                type="button" 
+                onClick={() => { setPromptAction(null); setPromptGroup(null); }}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
+              >
+                Batal
+              </button>
+              <button 
+                type="submit" 
+                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30"
+              >
+                Lanjutkan
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    
       {selectedGroupIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 px-6 py-4 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-200 dark:border-slate-800 flex items-center space-x-6">
