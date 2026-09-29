@@ -429,6 +429,37 @@ export default function SuratPenerjunanPage() {
     return matchSearch && matchStatus;
   });
 
+  
+  const handleDirectPrint = () => {
+    if (!docxPreviewGroup) return;
+    const htmlContent = generatePenerjunanHtml(docxPreviewGroup);
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Cetak Surat</title>
+            <style>
+              @page { size: 215.9mm 330.2mm; margin: 15mm; }
+              body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; color: black; background: white; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid black; padding: 5px; }
+              #print-content { max-width: 100% !important; padding: 0 !important; }
+            </style>
+          </head>
+          <body>
+            ${htmlContent}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 700);
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
