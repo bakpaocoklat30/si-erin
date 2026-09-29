@@ -23,6 +23,103 @@ export default function SuratPenerjunanPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [docxPreviewGroup, setDocxPreviewGroup] = useState<any>(null);
+  
+  const generatePenerjunanHtml = (g: any) => {
+    const students = g.students || [];
+    const startDate = students[0]?.startDate ? new Date(students[0].startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'}) : '[Tanggal Mulai]';
+    const endDate = students[0]?.endDate ? new Date(students[0].endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'}) : '[Tanggal Selesai]';
+    const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'});
+    
+    return `
+      <div style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: black; max-width: 100%; word-wrap: break-word;">
+        <!-- KOP SURAT -->
+        <div style="text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px;">
+          <div style="font-size: 14pt;">PEMERINTAH PROVINSI JAWA TENGAH</div>
+          <div style="font-size: 14pt;">DINAS PENDIDIKAN</div>
+          <div style="font-size: 16pt; font-weight: bold;">SEKOLAH MENENGAH KEJURUAN NEGERI 1 ADIWERNA</div>
+          <div style="font-size: 10pt;">Jl. Raya 2 PO BOX 24 Adiwerna, Kabupaten Tegal, Jawa Tengah Kode Pos 52194</div>
+          <div style="font-size: 10pt;">Telepon (0283) 443768, Fax. (0283) 445494</div>
+          <div style="font-size: 10pt;">Laman <span style="text-decoration: underline;">https://smkn1adw.sch.id</span> Pos-el: mail@smkn1adw.sch.id</div>
+        </div>
+
+        <!-- HEADER SURAT -->
+        <table style="width: 100%; border: none;">
+          <tr>
+            <td style="width: 60%; vertical-align: top;">
+              <div>Nomor&nbsp;&nbsp;&nbsp;: ${nomor_naskah}</div>
+              <div>Lamp.&nbsp;&nbsp;&nbsp;: -</div>
+              <div>Hal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <b><i><span style="text-decoration: underline;">Pengantar Praktik Kerja Lapangan</span></i></b></div>
+            </td>
+            <td style="width: 40%; text-align: right; vertical-align: top;">
+              Adiwerna, ${today}
+            </td>
+          </tr>
+        </table>
+
+        <!-- TUJUAN -->
+        <div style="margin-top: 30px;">
+          Kepada Yth. Pimpinan<br/>
+          <b>${g.industryName || 'Perusahaan'}</b><br/>
+          ${g.industryAddress || 'Alamat Perusahaan'}
+        </div>
+
+        <!-- ISI SURAT -->
+        <div style="margin-top: 25px; text-indent: 40px;">
+          Dengan hormat,
+        </div>
+        <div style="text-align: justify; text-indent: 40px; margin-top: 10px;">
+          Menindaklanjuti surat balasan/konfirmasi yang kami terima dari Instansi/Perusahaan yang Bapak/Ibu pimpin terkait permohonan PKL, maka kami bermaksud menyampaikan bahwa kegiatan praktik kerja Lapangan murid kelas XII untuk Program Keahlian ${g.departmentName || 'Jurusan'} tahun pelajaran 2026/2027 akan mulai dilaksanakan pada tanggal <b>${startDate} s.d ${endDate}</b> atau selama <b>± [X] bulan</b>
+        </div>
+        <div style="text-indent: 40px; margin-top: 10px;">
+          Adapun daftar nama murid yang melaksanakan praktik kerja lapangan:
+        </div>
+
+        <!-- TABEL -->
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;" border="1">
+          <thead>
+            <tr>
+              <th style="padding: 5px; text-align: center;">NO</th>
+              <th style="padding: 5px; text-align: center;">NIS</th>
+              <th style="padding: 5px; text-align: center;">NAMA</th>
+              <th style="padding: 5px; text-align: center;">KELAS</th>
+              <th style="padding: 5px; text-align: center;">NO. HP/WA</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${students.map((s: any, i: number) => `
+              <tr>
+                <td style="padding: 5px; text-align: center;">${i+1}</td>
+                <td style="padding: 5px; text-align: center;">${s.nis || '-'}</td>
+                <td style="padding: 5px;">${s.name.toUpperCase()}</td>
+                <td style="padding: 5px; text-align: center;">${s.className || '-'}</td>
+                <td style="padding: 5px; text-align: center;">${s.phone || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <!-- PENUTUP -->
+        <div style="text-align: justify; text-indent: 40px; margin-top: 15px;">
+          Sebagai tambahan informasi, berikut ini adalah Kontak PIC (<i>Person in Charge</i>) dari kami yang dapat dihubungi di nomor WhatsApp <b>[No HP] a.n [Nama Pokja]</b> selaku Pokja PKL ${g.departmentName} SMKN 1 Adiwerna, atau dapat menghubungi melalui surel <span style="text-decoration: underline;">tkj@smkn1adw.sch.id</span>.
+        </div>
+        <div style="text-align: justify; text-indent: 40px; margin-top: 10px;">
+          Demikian untuk menjadi periksa, atas perhatian dan kerjasamanya disampaikan terimakasih.
+        </div>
+
+        <!-- TTD -->
+        <div style="margin-top: 40px; text-align: right; float: right; width: 300px;">
+          <div>${jabatan_pengirim}</div>
+          <br/><br/><br/>
+          <div><b>${nama_pengirim}</b></div>
+          <div>Pembina Utama Muda. IV/c</div>
+          <div>NIP ${nip_pengirim}</div>
+        </div>
+        <div style="clear: both;"></div>
+      </div>
+    `;
+  };
+
   const toggleGroupSelection = (groupId: string) => {
     setSelectedGroupIds(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
   };
@@ -272,15 +369,22 @@ export default function SuratPenerjunanPage() {
 
                 <div className="flex flex-col sm:flex-row gap-2 mt-auto">
                   <button
-                    onClick={() => {
-                      const printUrl = `/api/letters/penerjunan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}`;
-                      window.open(printUrl, '_blank');
-                    }}
-                    className="flex-1 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
-                  >
-                    <Printer className="w-4 h-4" />
-                    Cetak DOCX
-                  </button>
+                      onClick={() => setDocxPreviewGroup(group)}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => {
+                        const printUrl = `/api/letters/penerjunan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}`;
+                        window.open(printUrl, '_blank');
+                      }}
+                      className="flex-1 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <Printer className="w-4 h-4" />
+                      Cetak
+                    </button>
                   <button
                     onClick={() => {
                       setTargetGroup(group);
@@ -347,6 +451,44 @@ export default function SuratPenerjunanPage() {
         </div>
       )}
     
+      
+      {docxPreviewGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-4xl max-h-[90vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <div className="p-5 border-b border-inherit flex justify-between items-center">
+              <h3 className="font-bold text-sm text-indigo-600 dark:text-indigo-400 flex items-center space-x-2">
+                <FileText className="w-4 h-4" />
+                <span>Preview DOCX - {docxPreviewGroup.industryName}</span>
+              </h3>
+              <button onClick={() => setDocxPreviewGroup(null)} className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-100 dark:bg-slate-950 flex justify-center">
+              <div 
+                className="bg-white text-black shadow-xl w-full max-w-[21.59cm] min-h-[33.02cm] p-[2.54cm] docx-preview-content"
+                dangerouslySetInnerHTML={{
+                  __html: generatePenerjunanHtml(docxPreviewGroup)
+                }}
+              />
+            </div>
+            <div className="p-4 border-t border-inherit flex justify-end gap-2">
+              <button 
+                onClick={() => {
+                  const printUrl = `/api/letters/penerjunan?industryId=${docxPreviewGroup.industryId}&department=${encodeURIComponent(docxPreviewGroup.departmentName)}&periodId=${docxPreviewGroup.periodId}`;
+                  window.open(printUrl, '_blank');
+                  setDocxPreviewGroup(null);
+                }} 
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                Cetak DOCX Asli
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedGroupIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 px-6 py-4 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-200 dark:border-slate-800 flex items-center space-x-6">
