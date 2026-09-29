@@ -228,6 +228,10 @@ export default function SuratPenerjunanPage() {
     const students = g.students || [];
     const startDate = students[0]?.startDate ? new Date(students[0].startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'}) : '[Tanggal Mulai]';
     const endDate = students[0]?.endDate ? new Date(students[0].endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'}) : '[Tanggal Selesai]';
+    let durationMonths = 6;
+    if (students[0]?.startDate && students[0]?.endDate) {
+      durationMonths = Math.max(1, Math.round((new Date(students[0].endDate).getTime() - new Date(students[0].startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    }
         
     return `
       <div style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: black; max-width: 100%; word-wrap: break-word;">
@@ -262,7 +266,7 @@ export default function SuratPenerjunanPage() {
           Dengan hormat,
         </div>
         <div style="text-align: justify; text-indent: 40px; margin-top: 10px;">
-          Menindaklanjuti surat balasan/konfirmasi yang kami terima dari Instansi/Perusahaan yang Bapak/Ibu pimpin terkait permohonan PKL, maka kami bermaksud menyampaikan bahwa kegiatan praktik kerja Lapangan murid kelas XII untuk Program Keahlian ${g.departmentName || 'Jurusan'} tahun pelajaran 2026/2027 akan mulai dilaksanakan pada tanggal <b>${startDate} s.d ${endDate}</b> atau selama <b>± [X] bulan</b>
+          Menindaklanjuti surat balasan/konfirmasi yang kami terima dari Instansi/Perusahaan yang Bapak/Ibu pimpin terkait permohonan PKL, maka kami bermaksud menyampaikan bahwa kegiatan praktik kerja Lapangan murid kelas XII untuk Program Keahlian ${g.departmentName || 'Jurusan'} tahun pelajaran 2026/2027 akan mulai dilaksanakan pada tanggal <b>${startDate} s.d ${endDate}</b> atau selama <b>&plusmn; \ bulan</b>
         </div>
         <div style="text-indent: 40px; margin-top: 10px;">
           Adapun daftar nama murid yang melaksanakan praktik kerja lapangan:
@@ -294,7 +298,7 @@ export default function SuratPenerjunanPage() {
 
         <!-- PENUTUP -->
         <div style="text-align: justify; text-indent: 40px; margin-top: 15px;">
-          Sebagai tambahan informasi, berikut ini adalah Kontak PIC (<i>Person in Charge</i>) dari kami yang dapat dihubungi di nomor WhatsApp <b>[No HP] a.n [Nama Pokja]</b> selaku Pokja PKL ${g.departmentName} SMKN 1 Adiwerna, atau dapat menghubungi melalui surel <span style="text-decoration: underline;">tkj@smkn1adw.sch.id</span>.
+          Sebagai tambahan informasi, berikut ini adalah Kontak PIC (<i>Person in Charge</i>) dari kami yang dapat dihubungi di nomor WhatsApp <b>- a.n Tim Pokja (Otomatis dari Sistem saat Cetak)</b> selaku Pokja PKL ${g.departmentName} SMKN 1 Adiwerna, atau dapat menghubungi melalui surel <span style="text-decoration: underline;">tkj@smkn1adw.sch.id</span>.
         </div>
         <div style="text-align: justify; text-indent: 40px; margin-top: 10px;">
           Demikian untuk menjadi periksa, atas perhatian dan kerjasamanya disampaikan terimakasih.
