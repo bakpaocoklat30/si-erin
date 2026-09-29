@@ -26,7 +26,7 @@ export default function SuratPenerjunanPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [docxPreviewGroup, setDocxPreviewGroup] = useState<any>(null);
-  const [promptAction, setPromptAction] = useState<'preview' | 'cetak' | 'bulk' | null>(null);
+  const [promptAction, setPromptAction] = useState<'nomor_tunggal' | 'nomor_bulk' | null>(null);
   const [promptGroup, setPromptGroup] = useState<any>(null);
   const [promptNomor, setPromptNomor] = useState('');
   const [showBulkUploadModal, setShowBulkUploadModal] = useState<boolean>(false);
@@ -184,25 +184,16 @@ export default function SuratPenerjunanPage() {
       return;
     }
     
-    if (promptAction === 'preview' && promptGroup) {
+    if (promptAction === 'nomor_tunggal' && promptGroup) {
       await saveNumber(promptGroup, promptNomor);
-      setDocxPreviewGroup({ ...promptGroup, inputNomor: promptNomor });
-      setPromptAction(null);
-      setPromptGroup(null);
-    } else if (promptAction === 'cetak' && promptGroup) {
-      await saveNumber(promptGroup, promptNomor);
-      const printUrl = `/api/letters/penerjunan?industryId=${promptGroup.industryId}&department=${encodeURIComponent(promptGroup.departmentName)}&periodId=${promptGroup.periodId}&nomorSurat=${encodeURIComponent(promptNomor)}`;
-      window.open(printUrl, '_blank');
       setPromptAction(null);
       setPromptGroup(null);
       setPromptNomor('');
-    } else if (promptAction === 'bulk') {
-      // For bulk, we could save number for all selected groups
+    } else if (promptAction === 'nomor_bulk') {
       const selectedGroupsData = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
       for (const group of selectedGroupsData) {
         await saveNumber(group, promptNomor);
       }
-      executeBulkDownload(promptNomor);
       setPromptAction(null);
       setPromptNomor('');
     }
@@ -332,10 +323,7 @@ export default function SuratPenerjunanPage() {
       setSelectedGroupIds(currentGroupIds);
     }
   };
-  const handleBulkDownload = () => {
-    setPromptAction('bulk');
-    setPromptNomor('');
-  };
+  
 
   const fetchAcceptedGroups = async () => {
     setLoading(true);
@@ -550,16 +538,36 @@ export default function SuratPenerjunanPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 mt-auto">
+                
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl flex items-center justify-between mb-3 border border-slate-100 dark:border-slate-800">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nomor Surat</p>
+                      <p className="text-xs font-black text-slate-700 dark:text-slate-300">
+                        {group.students[0]?.nomorPengantaran || <span className="text-rose-500 font-medium italic">Belum diset</span>}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { setPromptAction('nomor_tunggal'); setPromptGroup(group); setPromptNomor(group.students[0]?.nomorPengantaran || ''); }}
+                      className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-400 rounded-lg transition-all cursor-pointer"
+                      title="Set Nomor Surat"
+                    >
+                      <Hash className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row gap-2 mt-auto">
                   <button
-                      onClick={() => { setPromptAction('preview'); setPromptGroup(group); setPromptNomor(group.students[0]?.nomorPengantaran || ''); }}
+                      onClick={() => setDocxPreviewGroup({...group, inputNomor: group.students[0]?.nomorPengantaran || ''})}
                       className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
                     >
                       <FileText className="w-4 h-4" />
                       Preview
                     </button>
                     <button
-                      onClick={() => { setPromptAction('cetak'); setPromptGroup(group); setPromptNomor(group.students[0]?.nomorPengantaran || ''); }}
+                      onClick={() => {
+                        const printUrl = `/api/letters/penerjunan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}&nomorSurat=${encodeURIComponent(group.students[0]?.nomorPengantaran || '')}`;
+                        window.open(printUrl, '_blank');
+                      }}
                       className="flex-1 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
                     >
                       <Printer className="w-4 h-4" />
@@ -816,7 +824,7 @@ export default function SuratPenerjunanPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <form onSubmit={handlePromptSubmit} className="bg-white dark:bg-slate-900 p-6 rounded-3xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-800">
             <h3 className="font-bold text-lg mb-2 dark:text-white">Input Nomor Surat</h3>
-            <p className="text-xs text-slate-500 mb-4">Silakan masukkan nomor surat sebelum {promptAction === 'preview' ? 'melihat pratinjau' : 'mencetak dokumen'}.</p>
+            <p className="text-xs text-slate-500 mb-4">Silakan masukkan nomor surat resmi untuk {promptAction === 'nomor_bulk' ? 'semua kelompok yang dipilih' : 'kelompok ini'}.</p>
             
             <input 
               type="text" 
@@ -861,12 +869,19 @@ export default function SuratPenerjunanPage() {
             <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
             <div className="flex items-center gap-2">
               <button
-                onClick={handleBulkDownload}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-emerald-600/20 cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Unduh Gabung (DOCX)</span>
-              </button>
+                  onClick={() => executeBulkDownload('')}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-emerald-600/20 cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Unduh Gabung (DOCX)</span>
+                </button>
+                <button
+                  onClick={() => { setPromptAction('nomor_bulk'); setPromptNomor(''); }}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-amber-500/20 cursor-pointer"
+                >
+                  <Hash className="w-4 h-4" />
+                  <span>Beri Nomor</span>
+                </button>
               <button
                 onClick={() => {
                   setErrorMsg('');

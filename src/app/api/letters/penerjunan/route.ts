@@ -67,7 +67,6 @@ async function createSection(industryId: string, departmentName: string, periodI
             }
           })
         ]
-      })]
       }),
       
       new Paragraph({ spacing: { before: 200, after: 200 }, children: [] }),
@@ -172,7 +171,8 @@ export async function POST(request: Request) {
 
     const sections = [];
     for (const g of groups) {
-      const section = await createSection(g.industryId, g.departmentName, g.periodId, school, nomorSurat || '');
+      const groupNomor = nomorSurat || (g.students && g.students.length > 0 ? g.students[0].nomorPengantaran : '');
+      const section = await createSection(g.industryId, g.departmentName, g.periodId, school, groupNomor);
       if (section) sections.push(section);
     }
 
