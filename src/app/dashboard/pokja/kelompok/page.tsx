@@ -1900,7 +1900,7 @@ export default function PokjaKelompokPrakerinPage() {
                       {group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
                         <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center space-x-1">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Penerjunan Direquest</span>
+                          <span>Menunggu Surat Penerjunan</span>
                         </span>
                       )}
 
@@ -1918,7 +1918,7 @@ export default function PokjaKelompokPrakerinPage() {
                         {group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
                           <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-orange-500/10 text-orange-600 border border-orange-500/20 flex items-center space-x-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Penarikan Direquest</span>
+                            <span>Menunggu Surat Penarikan</span>
                           </span>
                         )}
                   </div>
