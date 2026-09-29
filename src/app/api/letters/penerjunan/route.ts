@@ -4,7 +4,9 @@ export const revalidate = 0;
 import { NextResponse } from 'next/server';
 import { 
   Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, VerticalAlign
-} from 'docx';
+, ImageRun} from 'docx';
+import fs from 'fs';
+import path from 'path';
 import { db } from '@/lib/db';
 
 async function createSection(industryId: string, departmentName: string, periodId: string, school: any, nomorSurat: string = '') {
@@ -55,36 +57,17 @@ async function createSection(industryId: string, departmentName: string, periodI
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "PEMERINTAH PROVINSI JAWA TENGAH", font: "Times New Roman", size: 28 })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "DINAS PENDIDIKAN DAN KEBUDAYAAN", font: "Times New Roman", size: 28 })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "SEKOLAH MENENGAH KEJURUAN NEGERI 1 ADIWERNA", font: "Times New Roman", size: 32, bold: true })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "Jalan Raya 2 PO BOX 24 Adiwerna, Kab. Tegal Kode Pos 52194", font: "Times New Roman", size: 20 })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({ text: "Telepon (0283) 443768 Faksimile (0283) 445494", font: "Times New Roman", size: 20 }),
-        ],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({ text: "Surat Elektronik: mail@smkn1adw.sch.id Laman: ", font: "Times New Roman", size: 20 }),
-          new TextRun({ text: "smkn1adw.sch.id", font: "Times New Roman", size: 20, underline: {} }),
-        ],
-      }),
-      new Paragraph({
         border: { bottom: { color: "auto", space: 1, style: BorderStyle.SINGLE, size: 18 } },
-        children: [new TextRun({ text: "" })]
+        children: [
+          new ImageRun({
+            data: fs.readFileSync(path.join(process.cwd(), 'public/images/kop-surat-tugas.png')),
+            transformation: {
+              width: 700,
+              height: 137
+            }
+          })
+        ]
+      })]
       }),
       
       new Paragraph({ spacing: { before: 200, after: 200 }, children: [] }),

@@ -160,7 +160,24 @@ export default function SuratPenarikanPage() {
   };
   
 
-  const handlePromptSubmit = (e: React.FormEvent) => {
+    const saveNumber = async (group: any, nomor: string) => {
+    try {
+      const placementIds = group.students.map((s: any) => s.id || s.placementId).filter(Boolean);
+      await fetch('/api/pokja/groups', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placementIds,
+          nomorPenarikan: nomor
+        })
+      });
+      fetchAcceptedGroups();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePromptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!promptNomor.trim()) {
       alert('Nomor Surat wajib diisi!');
@@ -168,16 +185,23 @@ export default function SuratPenarikanPage() {
     }
     
     if (promptAction === 'preview' && promptGroup) {
+      await saveNumber(promptGroup, promptNomor);
       setDocxPreviewGroup({ ...promptGroup, inputNomor: promptNomor });
       setPromptAction(null);
       setPromptGroup(null);
     } else if (promptAction === 'cetak' && promptGroup) {
+      await saveNumber(promptGroup, promptNomor);
       const printUrl = `/api/letters/penarikan?industryId=${promptGroup.industryId}&department=${encodeURIComponent(promptGroup.departmentName)}&periodId=${promptGroup.periodId}&nomorSurat=${encodeURIComponent(promptNomor)}`;
       window.open(printUrl, '_blank');
       setPromptAction(null);
       setPromptGroup(null);
       setPromptNomor('');
     } else if (promptAction === 'bulk') {
+      // For bulk, we could save number for all selected groups
+      const selectedGroupsData = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
+      for (const group of selectedGroupsData) {
+        await saveNumber(group, promptNomor);
+      }
       executeBulkDownload(promptNomor);
       setPromptAction(null);
       setPromptNomor('');
@@ -218,12 +242,7 @@ export default function SuratPenarikanPage() {
       <div style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: black; max-width: 100%; word-wrap: break-word;">
         <!-- KOP SURAT -->
         <div style="text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px;">
-          <div style="font-size: 14pt;">PEMERINTAH PROVINSI JAWA TENGAH</div>
-          <div style="font-size: 14pt;">DINAS PENDIDIKAN DAN KEBUDAYAAN</div>
-          <div style="font-size: 16pt; font-weight: bold;">SEKOLAH MENENGAH KEJURUAN NEGERI 1 ADIWERNA</div>
-          <div style="font-size: 10pt;">Jalan Raya 2 PO BOX 24 Adiwerna, Kab. Tegal Kode Pos 52194</div>
-          <div style="font-size: 10pt;">Telepon (0283) 443768 Faksimile (0283) 445494</div>
-          <div style="font-size: 10pt;">Surat Elektronik: mail@smkn1adw.sch.id Laman: <span style="text-decoration: underline;">smkn1adw.sch.id</span></div>
+          <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" />
         </div>
 
         <!-- HEADER SURAT -->
@@ -509,14 +528,14 @@ export default function SuratPenarikanPage() {
 
                 <div className="flex flex-col sm:flex-row gap-2 mt-auto">
                   <button
-                      onClick={() => { setPromptAction('preview'); setPromptGroup(group); setPromptNomor(''); }}
+                      onClick={() => { setPromptAction('preview'); setPromptGroup(group); setPromptNomor(group.students[0]?.nomorPenarikan || ''); }}
                       className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
                     >
                       <FileText className="w-4 h-4" />
                       Preview
                     </button>
                     <button
-                      onClick={() => { setPromptAction('cetak'); setPromptGroup(group); setPromptNomor(''); }}
+                      onClick={() => { setPromptAction('cetak'); setPromptGroup(group); setPromptNomor(group.students[0]?.nomorPenarikan || ''); }}
                       className="flex-1 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
                     >
                       <Printer className="w-4 h-4" />

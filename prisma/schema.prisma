@@ -194,7 +194,9 @@ model InternshipPlacement {
   
   // FIELD PENGANTARAN
     suratPengantaranUrl String?   @db.Text
+    nomorPengantaran    String?
     suratPenarikanUrl   String?   @db.Text
+    nomorPenarikan      String?
     startDate          DateTime?
   endDate            DateTime?
   appliedAt          DateTime  @default(now())

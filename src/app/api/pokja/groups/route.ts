@@ -242,13 +242,13 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { placementIds, suratTugasUrl, letterNumber, letterDate, status, suratPengantaranUrl, suratPenarikanUrl } = body;
+    const { placementIds, suratTugasUrl, letterNumber, letterDate, status, suratPengantaranUrl, suratPenarikanUrl, nomorPengantaran, nomorPenarikan } = body;
 
     if (!Array.isArray(placementIds) || placementIds.length === 0) {
       return NextResponse.json({ error: 'Pilih kelompok siswa yang akan dikirimkan suratnya' }, { status: 400 });
     }
 
-    if (!status && (!letterNumber || !letterNumber.trim()) && !suratTugasUrl && !suratPengantaranUrl && !suratPenarikanUrl) {
+    if (!status && (!letterNumber || !letterNumber.trim()) && !suratTugasUrl && !suratPengantaranUrl && !suratPenarikanUrl && nomorPengantaran === undefined && nomorPenarikan === undefined) {
         return NextResponse.json({ error: 'Harus mengisi Nomor Surat, mengunggah File, atau update status!' }, { status: 400 });
       }
 
