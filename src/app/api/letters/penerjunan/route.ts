@@ -3,20 +3,9 @@ export const revalidate = 0;
 
 import { NextResponse } from 'next/server';
 import { 
-  Document, 
-  Packer, 
-  Paragraph, 
-  TextRun, 
-  AlignmentType, 
-  Table, 
-  TableRow, 
-  TableCell, 
-  WidthType,
-  BorderStyle,
-  VerticalAlign
+  Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, VerticalAlign
 } from 'docx';
 import { db } from '@/lib/db';
-
 
 async function createSection(industryId: string, departmentName: string, periodId: string, school: any) {
   const industry = await db.industry.findUnique({ where: { id: industryId } });
@@ -36,14 +25,29 @@ async function createSection(industryId: string, departmentName: string, periodI
 
   if (placements.length === 0) return null;
 
+  const pokjaUser = await db.user.findFirst({
+    where: {
+      OR: [{ role: 'POKJA' }, { role: 'TIM_POKJA' }],
+      department: departmentName && departmentName !== 'Semua Jurusan' ? departmentName : undefined
+    }
+  });
+
+  const picName = pokjaUser?.name || "Abdul Ghofur, SST";
+  const picPhone = pokjaUser?.phone || "081911481960";
+  const deptLabel = departmentName && departmentName !== 'Semua Jurusan' ? departmentName : "TKJ";
+
   const students = placements.map((p: any) => p.student);
   const startDate = placements[0].startDate ? new Date(placements[0].startDate) : new Date();
   const endDate = placements[0].endDate ? new Date(placements[0].endDate) : new Date();
-  
   const durationMonths = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)));
 
   return {
-    properties: {},
+    properties: {
+      page: {
+        size: { width: 12240, height: 18720 }, // F4 Size
+        margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+      }
+    },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -55,19 +59,25 @@ async function createSection(industryId: string, departmentName: string, periodI
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: school.name.toUpperCase(), font: "Times New Roman", size: 32, bold: true })],
+        children: [new TextRun({ text: "SEKOLAH MENENGAH KEJURUAN NEGERI 1 ADIWERNA", font: "Times New Roman", size: 32, bold: true })],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: school.address, font: "Times New Roman", size: 20 })],
+        children: [new TextRun({ text: "Jl. Raya 2 PO BOX 24 Adiwerna, Kabupaten Tegal, Jawa Tengah Kode Pos 52194", font: "Times New Roman", size: 20 })],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
-          new TextRun({ text: "Telepon : ", font: "Times New Roman", size: 20 }),
-          new TextRun({ text: school.phone, font: "Times New Roman", size: 20 }),
-          new TextRun({ text: " Surat Elektronik : ", font: "Times New Roman", size: 20 }),
-          new TextRun({ text: school.email, font: "Times New Roman", size: 20 }),
+          new TextRun({ text: "Telepon (0283) 443768, Fax. (0283) 445494", font: "Times New Roman", size: 20 }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({ text: "Laman ", font: "Times New Roman", size: 20 }),
+          new TextRun({ text: "https://smkn1adw.sch.id", font: "Times New Roman", size: 20, underline: {} }),
+          new TextRun({ text: " Pos-el: ", font: "Times New Roman", size: 20 }),
+          new TextRun({ text: "mail@smkn1adw.sch.id", font: "Times New Roman", size: 20 }),
         ],
       }),
       new Paragraph({
@@ -84,23 +94,26 @@ async function createSection(industryId: string, departmentName: string, periodI
           new TableRow({
             children: [
               new TableCell({ width: { size: 60, type: WidthType.PERCENTAGE }, children: [
-                new Paragraph({ children: [new TextRun({ text: "Nomor          : ${nomor_surat}", font: "Times New Roman", size: 24 })] }),
-                new Paragraph({ children: [new TextRun({ text: "Sifat              : Biasa", font: "Times New Roman", size: 24 })] }),
-                new Paragraph({ children: [new TextRun({ text: "Lampiran       : 1 (satu) lembar", font: "Times New Roman", size: 24 })] }),
-                new Paragraph({ children: [new TextRun({ text: "Hal                : ", font: "Times New Roman", size: 24 }), new TextRun({ text: "Pengantaran Prakerin", font: "Times New Roman", size: 24, bold: true })] }),
+                new Paragraph({ children: [new TextRun({ text: "Nomor  : ${nomor_naskah}", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [new TextRun({ text: "Lamp.  : -", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [
+                  new TextRun({ text: "Hal      : ", font: "Times New Roman", size: 24 }), 
+                  new TextRun({ text: "Pengantar Praktik Kerja Lapangan", font: "Times New Roman", size: 24, bold: true, italics: true, underline: {} })
+                ]}),
               ]}),
               new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, children: [
-                new Paragraph({ children: [new TextRun({ text: "Yth. Pimpinan/Direktur", font: "Times New Roman", size: 24 })] }),
-                new Paragraph({ children: [new TextRun({ text: industry?.name || "Perusahaan", font: "Times New Roman", size: 24, bold: true })] }),
-                new Paragraph({ children: [new TextRun({ text: "di", font: "Times New Roman", size: 24 })] }),
-                new Paragraph({ children: [new TextRun({ text: industry?.address || "Tempat", font: "Times New Roman", size: 24, bold: true })] }),
+                new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `Adiwerna, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})}`, font: "Times New Roman", size: 24 })] }),
               ]}),
             ],
           }),
         ],
       }),
 
-      new Paragraph({ spacing: { before: 400, after: 200 }, children: [new TextRun({ text: "Dengan hormat,", font: "Times New Roman", size: 24 })] }),
+      new Paragraph({ spacing: { before: 400 }, children: [new TextRun({ text: "Kepada Yth. Pimpinan", font: "Times New Roman", size: 24 })] }),
+      new Paragraph({ children: [new TextRun({ text: industry?.name || "Perusahaan", font: "Times New Roman", size: 24, bold: true })] }),
+      new Paragraph({ children: [new TextRun({ text: industry?.address || "Tempat", font: "Times New Roman", size: 24 })] }),
+      
+      new Paragraph({ spacing: { before: 400 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Dengan hormat,", font: "Times New Roman", size: 24 })] }),
       new Paragraph({
         alignment: AlignmentType.JUSTIFIED,
         spacing: { after: 200 },
@@ -108,7 +121,7 @@ async function createSection(industryId: string, departmentName: string, periodI
         children: [
           new TextRun({ text: `Menindaklanjuti surat balasan/konfirmasi yang kami terima dari Instansi/Perusahaan yang Bapak/Ibu pimpin terkait permohonan PKL, maka kami bermaksud menyampaikan bahwa kegiatan praktik kerja Lapangan murid kelas XII untuk Program Keahlian ${departmentName || 'Teknik Jaringan Komputer dan Telekomunikasi (TJKT)'} tahun pelajaran 2026/2027 akan mulai dilaksanakan pada tanggal `, font: "Times New Roman", size: 24 }),
           new TextRun({ text: `${startDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})} s.d ${endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})}`, font: "Times New Roman", size: 24, bold: true }),
-          new TextRun({ text: ` atau selama ± ${durationMonths} bulan`, font: "Times New Roman", size: 24 }),
+          new TextRun({ text: ` atau selama ± ${durationMonths} bulan`, font: "Times New Roman", size: 24, bold: true }),
         ],
       }),
       new Paragraph({ spacing: { after: 200 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Adapun daftar nama murid yang melaksanakan praktik kerja lapangan:", font: "Times New Roman", size: 24 })] }),
@@ -137,15 +150,19 @@ async function createSection(industryId: string, departmentName: string, periodI
       }),
       
       new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { before: 200, after: 200 }, indent: { firstLine: 720 }, children: [
-        new TextRun({ text: "Sebagai tambahan informasi, berikut ini adalah Kontak PIC (Person in Charge) dari kami yang dapat dihubungi di nomor WhatsApp ................. a.n .................... selaku Pokja PKL SMK Negeri 1 Adiwerna, atau dapat menghubungi melalui surel ", font: "Times New Roman", size: 24 }),
+        new TextRun({ text: "Sebagai tambahan informasi, berikut ini adalah Kontak PIC (", font: "Times New Roman", size: 24 }),
+        new TextRun({ text: "Person in Charge", font: "Times New Roman", size: 24, italics: true }),
+        new TextRun({ text: `) dari kami yang dapat dihubungi di nomor WhatsApp `, font: "Times New Roman", size: 24 }),
+        new TextRun({ text: `${picPhone} a.n ${picName}`, font: "Times New Roman", size: 24, bold: true }),
+        new TextRun({ text: ` selaku Pokja PKL ${deptLabel} SMKN 1 Adiwerna, atau dapat menghubungi melalui surel `, font: "Times New Roman", size: 24 }),
         new TextRun({ text: "tkj@smkn1adw.sch.id", font: "Times New Roman", size: 24, underline: {} }),
         new TextRun({ text: ".", font: "Times New Roman", size: 24 }),
       ]}),
       new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { after: 400 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Demikian untuk menjadi periksa, atas perhatian dan kerjasamanya disampaikan terimakasih.", font: "Times New Roman", size: 24 })] }),
-      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `Adiwerna, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})}`, font: "Times New Roman", size: 24 })] }),
+      
       new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${jabatan_pengirim}", font: "Times New Roman", size: 24 })] }),
       new Paragraph({ spacing: { before: 600 }, alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${ttd_pengirim}", font: "Times New Roman", size: 24 })] }),
-      new Paragraph({ spacing: { before: 600 }, alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${nama_pengirim}", font: "Times New Roman", size: 24 })] }),
+      new Paragraph({ spacing: { before: 600 }, alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${nama_pengirim}", font: "Times New Roman", size: 24, bold: true })] }),
       new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Pembina Utama Muda. IV/c", font: "Times New Roman", size: 24 })] }),
       new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "NIP ${nip_pengirim}", font: "Times New Roman", size: 24 })] }),
     ],
