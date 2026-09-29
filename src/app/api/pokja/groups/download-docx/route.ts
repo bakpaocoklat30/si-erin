@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
 
     if (format === 'zip' || (groups.length > 1 && !groupId)) {
       const zipBuffer = await generateBulkSuratPermohonanZip(groups, { useTteTags: useTte });
-      const filename = `Surat_Permohonan_PKL_Masal_${Date.now()}.zip`;
+      const filename = `Surat Permohonan - Masal.zip`;
       return new NextResponse(new Uint8Array(zipBuffer), {
         headers: {
           'Content-Type': 'application/zip',
@@ -173,7 +173,7 @@ export async function GET(req: NextRequest) {
     const group = groups[0];
     const docxBuffer = await generateSuratPermohonanDocx(group, { useTteTags: useTte });
     const safeName = sanitizeFilename(group.industryName);
-    const filename = `Surat_Permohonan_${safeName}_${useTte ? 'TTE' : 'Langsung'}.docx`;
+    const filename = `Surat Permohonan - ${safeName}.docx`;
 
     return new NextResponse(new Uint8Array(docxBuffer), {
       headers: {
@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
 
     if (format === 'merged' && targetGroups.length > 1) {
       const mergedBuffer = await generateMergedSuratPermohonanDocx(targetGroups, { useTteTags: useTte });
-      const filename = `Surat_Permohonan_Gabungan_${Date.now()}.docx`;
+      const filename = `Surat Permohonan - Gabungan.docx`;
       return new NextResponse(new Uint8Array(mergedBuffer), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -234,7 +234,7 @@ export async function POST(req: NextRequest) {
     if (targetGroups.length === 1 && format !== 'zip') {
       const docxBuffer = await generateSuratPermohonanDocx(targetGroups[0], { useTteTags: useTte });
       const safeName = sanitizeFilename(targetGroups[0].industryName);
-      const filename = `Surat_Permohonan_${safeName}_${useTte ? 'TTE' : 'Langsung'}.docx`;
+      const filename = `Surat Permohonan - ${safeName}.docx`;
       return new NextResponse(new Uint8Array(docxBuffer), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -245,7 +245,7 @@ export async function POST(req: NextRequest) {
 
     // Default: ZIP file
     const zipBuffer = await generateBulkSuratPermohonanZip(targetGroups, { useTteTags: useTte });
-    const filename = `Surat_Permohonan_PKL_Masal_${Date.now()}.zip`;
+    const filename = `Surat Permohonan - Masal.zip`;
     return new NextResponse(new Uint8Array(zipBuffer), {
       headers: {
         'Content-Type': 'application/zip',

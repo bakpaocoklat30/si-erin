@@ -207,6 +207,10 @@ export async function GET(request: Request) {
     const school = await db.schoolSetting.findFirst() || {
       name: 'SMK NEGERI 1 ADIWERNA', address: 'JL. Raya 2 PO BOX 24 Adiwerna', phone: '(0283) 443768', email: 'mail@smkn1adw.sch.id'
     };
+    
+    const industry = await db.industry.findUnique({ where: { id: industryId } });
+    const industryNameSafe = industry ? industry.name.replace(/[^a-zA-Z0-9 ]/g, '') : 'Industri';
+    const filename = `Surat Penerjunan - ${industryNameSafe}.docx`;
 
     const section = await createSection(industryId, departmentName || '', periodId, school, nomorSurat);
     if (!section) return NextResponse.json({ error: 'Data kosong' }, { status: 404 });
@@ -218,7 +222,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': 'attachment; filename="Surat_Penerjunan.docx"',
+        `Content-Disposition`: `attachment; filename="${filename}"`,
       },
     });
   } catch (error) {

@@ -14,7 +14,7 @@ export default function SuratPenarikanPage() {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'PENDING' | 'PUBLISHED' | 'ALL'>('PENDING');
+  const [statusFilter, setStatusFilter] = useState<'PENDING' | 'PUBLISHED' | 'ALL'>('ALL');
 
   // Upload Modal State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -452,13 +452,17 @@ export default function SuratPenarikanPage() {
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
             <button
+                onClick={() => setStatusFilter('ALL')}
+                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'ALL' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Semua Data
+              </button>
+              <button
               onClick={() => setStatusFilter('PENDING')}
               className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'PENDING' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Menunggu Penarikan
-            </button>
-            <button
-              onClick={() => setStatusFilter('PUBLISHED')}
+            >Menunggu Diproses</button>
+              <button
+                onClick={() => setStatusFilter('PUBLISHED')}
               className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'PUBLISHED' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:text-slate-700'}`}
             >
               Menunggu Penarikan
@@ -528,7 +532,7 @@ export default function SuratPenarikanPage() {
                     </div>
                     
                     <span className={`text-[10px] font-black px-3 py-1.5 rounded-full border ${isPublished ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`}>
-                      {isPublished ? 'Menunggu Penarikan' : 'Menunggu Penarikan'}
+                      {isPublished ? 'Surat Siap' : 'Menunggu Diproses'}
                     </span>
                   </div>
 
@@ -594,9 +598,7 @@ export default function SuratPenarikanPage() {
                   onClick={handleDirectPrint}
                   className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-2"
                 >
-                  <Printer className="w-4 h-4" />
-                  Cetak Langsung
-                </button>
+                  <Printer className="w-4 h-4" />Unduh DOCX</button>
                 <button 
                   onClick={() => {
                     const printUrl = `/api/letters/penarikan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}&nomorSurat=${encodeURIComponent(group.students[0]?.nomorPenarikan || '')}`;
@@ -604,9 +606,7 @@ export default function SuratPenarikanPage() {
                       }}
                       className="flex-1 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
                     >
-                      <Printer className="w-4 h-4" />
-                      Cetak
-                    </button>
+                      <Printer className="w-4 h-4" />Unduh DOCX</button>
                   <button
                     onClick={() => {
                       setTargetGroup(group);
@@ -703,9 +703,7 @@ export default function SuratPenarikanPage() {
                 }} 
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-2"
               >
-                <Printer className="w-4 h-4" />
-                Cetak DOCX Asli
-              </button>
+                <Printer className="w-4 h-4" />Unduh DOCX Asli</button>
             </div>
           </div>
         </div>
