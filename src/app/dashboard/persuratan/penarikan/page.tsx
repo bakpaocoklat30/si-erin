@@ -233,7 +233,7 @@ export default function SuratPenarikanPage() {
       <div style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: black; max-width: 100%; word-wrap: break-word;">
         <!-- KOP SURAT -->
         <div style="text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px;">
-          <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" />
+          <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
         </div>
 
         <!-- HEADER SURAT -->
@@ -554,9 +554,16 @@ export default function SuratPenarikanPage() {
                       <FileText className="w-4 h-4" />
                       Preview
                     </button>
-                    <button
-                      onClick={() => {
-                        const printUrl = `/api/letters/penarikan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}&nomorSurat=${encodeURIComponent(group.students[0]?.nomorPenarikan || '')}`;
+                    <button 
+                  onClick={handleDirectPrint}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  Cetak Langsung
+                </button>
+                <button 
+                  onClick={() => {
+                    const printUrl = `/api/letters/penarikan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}&nomorSurat=${encodeURIComponent(group.students[0]?.nomorPenarikan || '')}`;
                         window.open(printUrl, '_blank');
                       }}
                       className="flex-1 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
