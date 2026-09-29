@@ -1581,113 +1581,6 @@ export default function PokjaKelompokPrakerinPage() {
                       )}
                     </span>
 
-                    <button
-                      type="button"
-                      onClick={() => setDetailModalGroup(group)}
-                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                        theme === 'dark'
-                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300'
-                      }`}
-                    >
-                      <Eye className="w-4 h-4 text-indigo-600 dark:text-indigo-500" />
-                      <span>Detail</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleExportGroupToNewTab(group)}
-                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                        theme === 'dark'
-                          ? 'bg-emerald-900/30 hover:bg-emerald-800/40 text-emerald-400 border-emerald-800'
-                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                      }`}
-                      title="Export Kelompok ke Spreadsheet"
-                    >
-                      <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
-                      <span>Export</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditPeriodGroup(group);
-                        setEditStartDate(group.startDate ? new Date(group.startDate).toISOString().split('T')[0] : '');
-                        setEditEndDate(group.endDate ? new Date(group.endDate).toISOString().split('T')[0] : '');
-                      }}
-                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                        theme === 'dark'
-                          ? 'bg-orange-900/30 hover:bg-orange-800/40 text-orange-400 border-orange-800'
-                          : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200'
-                      }`}
-                      title="Edit Periode Prakerin"
-                    >
-                      <Edit3 className="w-4 h-4 text-orange-600 dark:text-orange-500" />
-                      <span>Edit Periode</span>
-                    </button>
-
-                    {/* 🌟 TOMBOL PRATINJAU SURAT PERMOHONAN (DOCX) */}
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDocxPreview(group)}
-                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 border-indigo-500"
-                      title="Lihat Pratinjau Surat Permohonan PKL (Format Resmi A4 DOCX & TTE)"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span>Preview Surat (DOCX)</span>
-                    </button>
-
-                    {/* 🌟 TOMBOL GENERATE SURAT PERMOHONAN (DOCX) */}
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadSingleDocx(group)}
-                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 border-blue-500"
-                      title={`Generate & Unduh Surat Permohonan PKL Format Resmi (DOCX & ${useTteMode ? 'TTE' : 'Cetak'})`}
-                    >
-                      <FileText className="w-4 h-4" />
-                      <span>Surat Permohonan (DOCX)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTargetGroup(group);
-                        setInputLetterNumber(group.letterNumber || '');
-                        setInputLetterDate(formatDateIndonesia(group.letterUploadedAt) !== '-' ? formatDateIndonesia(group.letterUploadedAt) : formatDateIndonesia(new Date().toISOString()));
-                        setDateDetectedNotice('');
-                        setSuratBase64('');
-                        setSelectedFileName('');
-                      }}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/30 cursor-pointer"
-                    >
-                      <Upload className="w-4 h-4" />
-                      <span>{hasSurat ? 'Ganti Surat & Nomor' : 'Upload Surat'}</span>
-                    </button>
-
-                    {/* 🌟 TOMBOL GENERATOR LEMBAR KONFIRMASI (BALASAN DUDI) - HANYA SAAT hasSurat = true */}
-                    {hasSurat && (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenConfirmationModal(group)}
-                        className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30 border-purple-500"
-                        title="Cetak Format Balasan / Lembar Konfirmasi DUDI"
-                      >
-                        <FileSignature className="w-4 h-4" />
-                        <span>Format Balasan DUDI</span>
-                      </button>
-                    )}
-
-                    {/* 🌟 TOMBOL HAPUS KELOMPOK */}
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTargetGroup(group)}
-                      className="px-4 py-2.5 rounded-2xl text-xs font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm"
-                      title="Hapus Kelompok & Reset Status Penempatan Siswa"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Hapus Kelompok</span>
-                    </button>
-
                     {hasSurat && group.suratTugasUrl && (
                       <button
                         type="button"
@@ -1882,6 +1775,114 @@ export default function PokjaKelompokPrakerinPage() {
 
                   {/* TOMBOL REQUEST FOOTER */}
                   <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 flex flex-wrap justify-end gap-3 rounded-b-3xl mt-0">
+<button
+                      type="button"
+                      onClick={() => setDetailModalGroup(group)}
+                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                        theme === 'dark'
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300'
+                      }`}
+                    >
+                      <Eye className="w-4 h-4 text-indigo-600 dark:text-indigo-500" />
+                      <span>Detail</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleExportGroupToNewTab(group)}
+                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                        theme === 'dark'
+                          ? 'bg-emerald-900/30 hover:bg-emerald-800/40 text-emerald-400 border-emerald-800'
+                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                      }`}
+                      title="Export Kelompok ke Spreadsheet"
+                    >
+                      <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                      <span>Export</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPeriodGroup(group);
+                        setEditStartDate(group.startDate ? new Date(group.startDate).toISOString().split('T')[0] : '');
+                        setEditEndDate(group.endDate ? new Date(group.endDate).toISOString().split('T')[0] : '');
+                      }}
+                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                        theme === 'dark'
+                          ? 'bg-orange-900/30 hover:bg-orange-800/40 text-orange-400 border-orange-800'
+                          : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200'
+                      }`}
+                      title="Edit Periode Prakerin"
+                    >
+                      <Edit3 className="w-4 h-4 text-orange-600 dark:text-orange-500" />
+                      <span>Edit Periode</span>
+                    </button>
+
+                    {/* 🌟 TOMBOL PRATINJAU SURAT PERMOHONAN (DOCX) */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocxPreview(group)}
+                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 border-indigo-500"
+                      title="Lihat Pratinjau Surat Permohonan PKL (Format Resmi A4 DOCX & TTE)"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>Preview Surat (DOCX)</span>
+                    </button>
+
+                    {/* 🌟 TOMBOL GENERATE SURAT PERMOHONAN (DOCX) */}
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadSingleDocx(group)}
+                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 border-blue-500"
+                      title={`Generate & Unduh Surat Permohonan PKL Format Resmi (DOCX & ${useTteMode ? 'TTE' : 'Cetak'})`}
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Surat Permohonan (DOCX)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetGroup(group);
+                        setInputLetterNumber(group.letterNumber || '');
+                        setInputLetterDate(formatDateIndonesia(group.letterUploadedAt) !== '-' ? formatDateIndonesia(group.letterUploadedAt) : formatDateIndonesia(new Date().toISOString()));
+                        setDateDetectedNotice('');
+                        setSuratBase64('');
+                        setSelectedFileName('');
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/30 cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>{hasSurat ? 'Ganti Surat & Nomor' : 'Upload Surat'}</span>
+                    </button>
+
+                    {/* 🌟 TOMBOL GENERATOR LEMBAR KONFIRMASI (BALASAN DUDI) - HANYA SAAT hasSurat = true */}
+                    {hasSurat && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenConfirmationModal(group)}
+                        className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30 border-purple-500"
+                        title="Cetak Format Balasan / Lembar Konfirmasi DUDI"
+                      >
+                        <FileSignature className="w-4 h-4" />
+                        <span>Format Balasan DUDI</span>
+                      </button>
+                    )}
+
+                    {/* 🌟 TOMBOL HAPUS KELOMPOK */}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTargetGroup(group)}
+                      className="px-4 py-2.5 rounded-2xl text-xs font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm"
+                      title="Hapus Kelompok & Reset Status Penempatan Siswa"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Hapus Kelompok</span>
+                    </button>
+
+                    
                     {/* TOMBOL REQUEST PENERJUNAN */}
                       {group.placements?.some(p => ['DISETUJUI_INDUSTRI', 'MENUNGGU_PENERJUNAN'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
                         <button
