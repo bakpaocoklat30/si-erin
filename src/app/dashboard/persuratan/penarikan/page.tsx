@@ -1,9 +1,11 @@
 'use client';
+import { PDFDocument } from 'pdf-lib';
+
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
-import { Truck, Printer, Search, Loader2, Users, Building2, Calendar, FileText, Upload, SendHorizontal, X, Eye } from 'lucide-react';
+import { Truck, Printer, Search, Loader2, Users, Building2, Calendar, FileText, Upload, SendHorizontal, X, Eye , UploadCloud, FileCheck2, Trash2, Hash} from 'lucide-react';
 
 export default function SuratPenarikanPage() {
   const { data: session } = useSession();
@@ -27,6 +29,136 @@ export default function SuratPenarikanPage() {
   const [promptAction, setPromptAction] = useState<'preview' | 'cetak' | 'bulk' | null>(null);
   const [promptGroup, setPromptGroup] = useState<any>(null);
   const [promptNomor, setPromptNomor] = useState('');
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState<boolean>(false);
+  const [bulkPdfBytes, setBulkPdfBytes] = useState<Uint8Array | null>(null);
+  const [pdfPageCount, setPdfPageCount] = useState<number>(0);
+  const [pageMapping, setPageMapping] = useState<Record<string, number>>({});
+  const [showPdfPreview, setShowPdfPreview] = useState<boolean>(true);
+  const [bulkPdfPreviewUrl, setBulkPdfPreviewUrl] = useState<string>('');
+  
+  const handleBulkFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFileName(file.name);
+    
+    try {
+      const url = URL.createObjectURL(file);
+      setBulkPdfPreviewUrl(url);
+      
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      setBulkPdfBytes(bytes);
+      
+      if (file.type === 'application/pdf') {
+        const pdfDoc = await PDFDocument.load(bytes);
+        const count = pdfDoc.getPageCount();
+        setPdfPageCount(count);
+
+        const newMapping: Record<string, number> = {};
+        const selectedGroups = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
+        selectedGroups.forEach((g, index) => {
+           newMapping[g.groupId || (g.industryId + g.departmentName)] = Math.min(index + 1, count);
+        });
+        setPageMapping(newMapping);
+      } else {
+        setPdfPageCount(1);
+        const newMapping: Record<string, number> = {};
+        filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName))).forEach(g => {
+           newMapping[g.groupId || (g.industryId + g.departmentName)] = 1;
+        });
+        setPageMapping(newMapping);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Gagal membaca dokumen PDF.');
+    }
+  };
+
+  const handleBulkUploadSurat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkPdfBytes) {
+      setErrorMsg('Silakan pilih berkas Surat (PDF)!');
+      return;
+    }
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const selectedGroups = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
+      
+      let sourcePdf: PDFDocument | null = null;
+      if (pdfPageCount > 1) {
+         sourcePdf = await PDFDocument.load(bulkPdfBytes);
+      }
+
+      let successCount = 0;
+
+      for (const group of selectedGroups) {
+        const mappedPage = pageMapping[group.groupId || (group.industryId + group.departmentName)] || 1;
+        
+        let finalBase64 = '';
+        const toBase64 = (arr: Uint8Array) => {
+          let binary = '';
+          for (let i = 0; i < arr.byteLength; i++) {
+            binary += String.fromCharCode(arr[i]);
+          }
+          return window.btoa(binary);
+        };
+
+        if (sourcePdf && pdfPageCount > 1) {
+           const newPdf = await PDFDocument.create();
+           const [copiedPage] = await newPdf.copyPages(sourcePdf, [mappedPage - 1]);
+           newPdf.addPage(copiedPage);
+           const newBytes = await newPdf.save();
+           finalBase64 = 'data:application/pdf;base64,' + toBase64(newBytes);
+        } else {
+           const mime = selectedFileName.toLowerCase().endsWith('pdf') ? 'application/pdf' : 'image/jpeg';
+           finalBase64 = 'data:' + mime + ';base64,' + toBase64(bulkPdfBytes);
+        }
+
+        const rawList = group.placements || group.students || [];
+        const placementIds = rawList.map((p: any) => p.id || p.placementId).filter(Boolean);
+
+        const res = await fetch('/api/pokja/groups', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            placementIds: placementIds,
+            suratPenarikanUrl: finalBase64,
+            status: 'MENUNGGU_PENARIKAN'
+          })
+        });
+
+        if (res.ok) {
+           successCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        setSuccessMsg('Berhasil memetakan dan mengunggah untuk ' + successCount + ' kelompok!');
+        setTimeout(() => {
+          setShowBulkUploadModal(false);
+          setSelectedGroupIds([]);
+          setBulkPdfBytes(null);
+          setSelectedFileName('');
+          if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
+          setBulkPdfPreviewUrl('');
+          setPdfPageCount(0);
+          setPageMapping({});
+          fetchAcceptedGroups();
+        }, 2000);
+      } else {
+        setErrorMsg('Gagal mengunggah untuk semua kelompok.');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Terjadi kesalahan saat upload massal.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
 
   const handlePromptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -496,6 +628,147 @@ export default function SuratPenarikanPage() {
       )}
 
       
+      
+      {/* MODAL BULK UPLOAD */}
+      {showBulkUploadModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className={`bg-white dark:bg-slate-900 w-full rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 transition-all ${bulkPdfPreviewUrl && showPdfPreview ? 'max-w-6xl' : 'max-w-lg'}`}>
+            <div className="flex items-center justify-between p-6 border-b border-inherit bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex items-center space-x-4">
+                <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center space-x-2">
+                  <UploadCloud className="w-6 h-6 text-indigo-500" />
+                  <span>Upload Massal - {selectedGroupIds.length} Kelompok</span>
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBulkUploadModal(false);
+                  if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
+                  setBulkPdfPreviewUrl('');
+                }}
+                className="p-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-500 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[80vh] overflow-y-auto">
+              <div className={`grid grid-cols-1 ${bulkPdfPreviewUrl && showPdfPreview ? 'lg:grid-cols-12 gap-8' : ''}`}>
+                {/* Left Panel: Form */}
+                <form onSubmit={handleBulkUploadSurat} className={`space-y-6 ${bulkPdfPreviewUrl && showPdfPreview ? 'lg:col-span-7' : 'col-span-1'}`}>
+                  
+                  {/* File Input */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-bold text-slate-800 dark:text-slate-200">
+                      Pilih Berkas Gabungan (PDF)
+                    </label>
+                    <div className="relative border-2 border-dashed border-indigo-200 dark:border-indigo-800/50 rounded-2xl p-6 bg-slate-50 dark:bg-slate-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors text-center group cursor-pointer" onClick={() => document.getElementById('bulkFileInput')?.click()}>
+                      <input
+                        type="file"
+                        id="bulkFileInput"
+                        accept="application/pdf,image/*"
+                        className="hidden"
+                        onChange={handleBulkFileChange}
+                      />
+                      <FileCheck2 className="w-12 h-12 text-indigo-400 mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                        {selectedFileName || 'Klik untuk memilih dokumen (PDF)'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">Maks. ukuran berkas 10MB</p>
+                    </div>
+                  </div>
+
+                  {/* Mapping Pages */}
+                  {pdfPageCount > 1 && (
+                    <div className="space-y-4">
+                      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 p-4 rounded-xl">
+                        <p className="text-xs text-amber-800 dark:text-amber-400 font-bold mb-2">
+                          PDF ini memiliki {pdfPageCount} halaman. Silakan tentukan halaman mana untuk kelompok mana.
+                        </p>
+                      </div>
+                      
+                      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-200 dark:divide-slate-800">
+                        {filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName))).map((g, i) => (
+                          <div key={g.groupId || (g.industryId + g.departmentName)} className="flex items-center justify-between p-4">
+                            <div className="flex-1 min-w-0 pr-4">
+                              <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{g.industryName}</p>
+                              <p className="text-[10px] font-medium text-slate-500 truncate">{g.departmentName} - {g.students.length} Siswa</p>
+                            </div>
+                            <div className="flex items-center space-x-3 bg-white dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                              <span className="text-xs font-bold text-slate-500">Hal.</span>
+                              <input 
+                                type="number" 
+                                min={1} 
+                                max={pdfPageCount}
+                                value={pageMapping[g.groupId || (g.industryId + g.departmentName)] || 1}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 1;
+                                  setPageMapping(prev => ({...prev, [g.groupId || (g.industryId + g.departmentName)]: val}));
+                                }}
+                                className="w-16 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-0 p-0 text-indigo-600 dark:text-indigo-400"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {errorMsg && <div className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-600 border border-rose-200 dark:border-rose-900/50 text-sm font-bold rounded-xl">{errorMsg}</div>}
+                  {successMsg && <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border border-emerald-200 dark:border-emerald-900/50 text-sm font-bold rounded-xl">{successMsg}</div>}
+
+                  <div className="flex items-center gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowBulkUploadModal(false);
+                        if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
+                        setBulkPdfPreviewUrl('');
+                      }}
+                      className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="flex-[2] py-3 rounded-xl font-black bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex justify-center items-center space-x-2 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
+                      <span>Unggah & Eksekusi {selectedGroupIds.length} Kelompok</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Right Panel: Live PDF Viewer */}
+                {bulkPdfPreviewUrl && showPdfPreview && (
+                  <div className="lg:col-span-5 h-[550px] bg-slate-100 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col shadow-inner">
+                    <div className="px-3.5 py-2.5 bg-slate-200/70 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-indigo-500" />
+                        <span>Pratinjau PDF Asli</span>
+                      </div>
+                    </div>
+                    <object
+                      data={`${bulkPdfPreviewUrl}#toolbar=1&navpanes=1&view=FitH`}
+                      type="application/pdf"
+                      className="w-full flex-1 border-0"
+                    >
+                      <iframe
+                        src={bulkPdfPreviewUrl}
+                        title="PDF Preview"
+                        className="w-full h-full border-0"
+                      />
+                    </object>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    
       {/* MODAL INPUT NOMOR SURAT */}
       {promptAction && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -551,6 +824,23 @@ export default function SuratPenarikanPage() {
               >
                 <Printer className="w-4 h-4" />
                 <span>Unduh Gabung (DOCX)</span>
+              </button>
+              <button
+                onClick={() => {
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                  setSelectedFileName('');
+                  setBulkPdfBytes(null);
+                  if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
+                  setBulkPdfPreviewUrl('');
+                  setPdfPageCount(0);
+                  setPageMapping({});
+                  setShowBulkUploadModal(true);
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/20 cursor-pointer"
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>Upload Massal</span>
               </button>
               <button
                 onClick={() => setSelectedGroupIds([])}
