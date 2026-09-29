@@ -162,7 +162,7 @@ export default function SuratPenerjunanPage() {
 
     const saveNumber = async (group: any, nomor: string) => {
     try {
-      const placementIds = group.students.map((s: any) => s.id || s.placementId).filter(Boolean);
+      const placementIds = group.students.map((s: any) => s.placementId).filter(Boolean);
       await fetch('/api/pokja/groups', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
