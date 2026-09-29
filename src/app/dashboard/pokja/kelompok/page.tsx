@@ -1438,8 +1438,11 @@ export default function PokjaKelompokPrakerinPage() {
               <option value="PEMBUATAN_SURAT">Pembuatan Surat (Menunggu No/File Surat)</option>
               <option value="SURAT_DITERBITKAN">Surat Diterbitkan</option>
               <option value="DISETUJUI_INDUSTRI">Disetujui Industri</option>
-                <option value="REQUEST_PENGANTARAN">Request Pengantaran</option>
+                <option value="REQUEST_PENGANTARAN">Menunggu Surat Penerjunan</option>
                 <option value="MENUNGGU_PEMBERANGKATAN">Menunggu Pemberangkatan</option>
+                <option value="REQUEST_PENARIKAN">Menunggu Surat Penarikan</option>
+                <option value="MENUNGGU_PENARIKAN">Menunggu Penarikan (Surat Siap)</option>
+                <option value="COMPLETED">Selesai PKL / Completed</option>
               </select>
           </div>
         </div>
