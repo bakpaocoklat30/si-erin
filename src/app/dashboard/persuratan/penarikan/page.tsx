@@ -219,11 +219,11 @@ export default function SuratPenarikanPage() {
         <!-- KOP SURAT -->
         <div style="text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px;">
           <div style="font-size: 14pt;">PEMERINTAH PROVINSI JAWA TENGAH</div>
-          <div style="font-size: 14pt;">DINAS PENDIDIKAN</div>
+          <div style="font-size: 14pt;">DINAS PENDIDIKAN DAN KEBUDAYAAN</div>
           <div style="font-size: 16pt; font-weight: bold;">SEKOLAH MENENGAH KEJURUAN NEGERI 1 ADIWERNA</div>
-          <div style="font-size: 10pt;">Jl. Raya 2 PO BOX 24 Adiwerna, Kabupaten Tegal, Jawa Tengah Kode Pos 52194</div>
-          <div style="font-size: 10pt;">Telepon (0283) 443768, Fax. (0283) 445494</div>
-          <div style="font-size: 10pt;">Laman <span style="text-decoration: underline;">https://smkn1adw.sch.id</span> Pos-el: mail@smkn1adw.sch.id</div>
+          <div style="font-size: 10pt;">Jalan Raya 2 PO BOX 24 Adiwerna, Kab. Tegal Kode Pos 52194</div>
+          <div style="font-size: 10pt;">Telepon (0283) 443768 Faksimile (0283) 445494</div>
+          <div style="font-size: 10pt;">Surat Elektronik: mail@smkn1adw.sch.id Laman: <span style="text-decoration: underline;">smkn1adw.sch.id</span></div>
         </div>
 
         <!-- HEADER SURAT -->

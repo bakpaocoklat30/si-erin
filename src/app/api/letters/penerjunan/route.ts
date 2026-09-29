@@ -28,8 +28,12 @@ async function createSection(industryId: string, departmentName: string, periodI
   const pokjaUser = await db.user.findFirst({
     where: {
       OR: [{ role: 'POKJA' }, { role: 'TIM_POKJA' }],
-      department: departmentName && departmentName !== 'Semua Jurusan' ? departmentName : undefined
-    }
+      department: {
+        equals: departmentName && departmentName !== 'Semua Jurusan' ? departmentName : 'Teknik Komputer dan Jaringan',
+        mode: 'insensitive'
+      }
+    },
+    orderBy: { createdAt: 'asc' }
   });
 
   const picName = pokjaUser?.name || "Abdul Ghofur, SST";
@@ -55,7 +59,7 @@ async function createSection(industryId: string, departmentName: string, periodI
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "DINAS PENDIDIKAN", font: "Times New Roman", size: 28 })],
+        children: [new TextRun({ text: "DINAS PENDIDIKAN DAN KEBUDAYAAN", font: "Times New Roman", size: 28 })],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -63,21 +67,19 @@ async function createSection(industryId: string, departmentName: string, periodI
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "Jl. Raya 2 PO BOX 24 Adiwerna, Kabupaten Tegal, Jawa Tengah Kode Pos 52194", font: "Times New Roman", size: 20 })],
+        children: [new TextRun({ text: "Jalan Raya 2 PO BOX 24 Adiwerna, Kab. Tegal Kode Pos 52194", font: "Times New Roman", size: 20 })],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
-          new TextRun({ text: "Telepon (0283) 443768, Fax. (0283) 445494", font: "Times New Roman", size: 20 }),
+          new TextRun({ text: "Telepon (0283) 443768 Faksimile (0283) 445494", font: "Times New Roman", size: 20 }),
         ],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
-          new TextRun({ text: "Laman ", font: "Times New Roman", size: 20 }),
-          new TextRun({ text: "https://smkn1adw.sch.id", font: "Times New Roman", size: 20, underline: {} }),
-          new TextRun({ text: " Pos-el: ", font: "Times New Roman", size: 20 }),
-          new TextRun({ text: "mail@smkn1adw.sch.id", font: "Times New Roman", size: 20 }),
+          new TextRun({ text: "Surat Elektronik: mail@smkn1adw.sch.id Laman: ", font: "Times New Roman", size: 20 }),
+          new TextRun({ text: "smkn1adw.sch.id", font: "Times New Roman", size: 20, underline: {} }),
         ],
       }),
       new Paragraph({

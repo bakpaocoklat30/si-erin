@@ -219,11 +219,11 @@ export default function SuratPenerjunanPage() {
         <!-- KOP SURAT -->
         <div style="text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px;">
           <div style="font-size: 14pt;">PEMERINTAH PROVINSI JAWA TENGAH</div>
-          <div style="font-size: 14pt;">DINAS PENDIDIKAN</div>
+          <div style="font-size: 14pt;">DINAS PENDIDIKAN DAN KEBUDAYAAN</div>
           <div style="font-size: 16pt; font-weight: bold;">SEKOLAH MENENGAH KEJURUAN NEGERI 1 ADIWERNA</div>
-          <div style="font-size: 10pt;">Jl. Raya 2 PO BOX 24 Adiwerna, Kabupaten Tegal, Jawa Tengah Kode Pos 52194</div>
-          <div style="font-size: 10pt;">Telepon (0283) 443768, Fax. (0283) 445494</div>
-          <div style="font-size: 10pt;">Laman <span style="text-decoration: underline;">https://smkn1adw.sch.id</span> Pos-el: mail@smkn1adw.sch.id</div>
+          <div style="font-size: 10pt;">Jalan Raya 2 PO BOX 24 Adiwerna, Kab. Tegal Kode Pos 52194</div>
+          <div style="font-size: 10pt;">Telepon (0283) 443768 Faksimile (0283) 445494</div>
+          <div style="font-size: 10pt;">Surat Elektronik: mail@smkn1adw.sch.id Laman: <span style="text-decoration: underline;">smkn1adw.sch.id</span></div>
         </div>
 
         <!-- HEADER SURAT -->
@@ -262,21 +262,21 @@ export default function SuratPenerjunanPage() {
         <table style="width: 100%; border-collapse: collapse; margin-top: 15px;" border="1">
           <thead>
             <tr>
-              <th style="padding: 5px; text-align: center;">NO</th>
-              <th style="padding: 5px; text-align: center;">NIS</th>
-              <th style="padding: 5px; text-align: center;">NAMA</th>
-              <th style="padding: 5px; text-align: center;">KELAS</th>
-              <th style="padding: 5px; text-align: center;">NO. HP/WA</th>
+              <th style="padding: 5px; text-align: center; border: 1px solid black;">NO</th>
+              <th style="padding: 5px; text-align: center; border: 1px solid black;">NIS</th>
+              <th style="padding: 5px; text-align: center; border: 1px solid black;">NAMA</th>
+              <th style="padding: 5px; text-align: center; border: 1px solid black;">KELAS</th>
+              <th style="padding: 5px; text-align: center; border: 1px solid black;">NO. HP/WA</th>
             </tr>
           </thead>
           <tbody>
             ${students.map((s: any, i: number) => `
               <tr>
-                <td style="padding: 5px; text-align: center;">${i+1}</td>
-                <td style="padding: 5px; text-align: center;">${s.nis || '-'}</td>
-                <td style="padding: 5px;">${s.name.toUpperCase()}</td>
-                <td style="padding: 5px; text-align: center;">${s.className || '-'}</td>
-                <td style="padding: 5px; text-align: center;">${s.phone || '-'}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid black;">${i+1}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid black;">${s.nis || '-'}</td>
+                <td style="padding: 5px; border: 1px solid black;">${s.name.toUpperCase()}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid black;">${s.className || '-'}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid black;">${s.phone || '-'}</td>
               </tr>
             `).join('')}
           </tbody>
