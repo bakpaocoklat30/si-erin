@@ -196,7 +196,9 @@ export async function GET(request: Request) {
         startDate: startDate,
         endDate: endDate,
         letterNumber: savedLetterNumber,
-        suratBalasanUrl: placement.suratBalasanUrl || null
+        suratBalasanUrl: placement.suratBalasanUrl || null,
+        nomorPengantaran: placement.nomorPengantaran || null,
+        nomorPenarikan: placement.nomorPenarikan || null
       };
 
       groupedMap[groupKey].placements.push({
@@ -258,6 +260,15 @@ export async function PUT(request: Request) {
       }
       if (suratPengantaranUrl) {
         updateData.suratPengantaranUrl = suratPengantaranUrl;
+      }
+      if (suratPenarikanUrl !== undefined) {
+        updateData.suratPenarikanUrl = suratPenarikanUrl;
+      }
+      if (nomorPengantaran !== undefined) {
+        updateData.nomorPengantaran = nomorPengantaran;
+      }
+      if (nomorPenarikan !== undefined) {
+        updateData.nomorPenarikan = nomorPenarikan;
       }
     if (letterNumber && letterNumber.trim()) {
       updateData.letterNumber = letterNumber.trim();

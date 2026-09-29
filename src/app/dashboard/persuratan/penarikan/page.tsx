@@ -553,7 +553,7 @@ export default function SuratPenarikanPage() {
                       <input
                         type="text"
                         placeholder="Ketik & Enter/Klik Simpan"
-                        defaultValue={group.students[0]?.nomorPenarikan || ''}
+                        key={group.students[0]?.nomorPenarikan || 'empty'} defaultValue={group.students[0]?.nomorPenarikan || ''}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
