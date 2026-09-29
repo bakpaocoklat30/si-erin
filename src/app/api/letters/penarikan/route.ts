@@ -222,7 +222,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        `Content-Disposition`: `attachment; filename="${filename}"`,
+        'Content-Disposition': `attachment; filename="${filename}"`,
       },
     });
   } catch (error) {
