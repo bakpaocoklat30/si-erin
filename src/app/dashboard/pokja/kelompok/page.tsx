@@ -1723,42 +1723,7 @@ export default function PokjaKelompokPrakerinPage() {
                         );
                       })()}
                       
-                      {/* TOMBOL REQUEST PENERJUNAN */}
-                      {group.placements?.some(p => ['DISETUJUI_INDUSTRI', 'MENUNGGU_PENERJUNAN'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
-                        <button
-                          type="button"
-                          onClick={() => handleRequestPenerjunan(group)}
-                          className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-teal-600 hover:bg-teal-500 text-white shadow-lg shadow-teal-600/30 border-teal-500 ml-2"
-                          title="Request Pembuatan Surat Pengantaran/Penerjunan ke Tata Usaha"
-                        >
-                          <Send className="w-4 h-4" />
-                          <span>Request Penerjunan</span>
-                        </button>
-                      )}
-                      {group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
-                        <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center space-x-1 ml-2">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Penerjunan Direquest</span>
-                        </span>
-                      )}
-
-                        {group.placements?.some(p => ['MENUNGGU_PEMBERANGKATAN', 'COMPLETED', 'SELESAI_PKL'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
-                          <button
-                            type="button"
-                            onClick={() => handleRequestPenarikan(group)}
-                            className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/30 border-orange-500 ml-2"
-                            title="Request Pembuatan Surat Penarikan ke Tata Usaha"
-                          >
-                            <Send className="w-4 h-4" />
-                            <span>Request Penarikan</span>
-                          </button>
-                        )}
-                        {group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
-                          <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-orange-500/10 text-orange-600 border border-orange-500/20 flex items-center space-x-1 ml-2">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Penarikan Direquest</span>
-                          </span>
-                        )}
+                      
                   </div>
                 </div>
 
@@ -1866,14 +1831,52 @@ export default function PokjaKelompokPrakerinPage() {
                           </div>
                         </div>
                       );
-                    })}
+                    })}                    </div>
+                  </div>
+
+                  {/* TOMBOL REQUEST FOOTER */}
+                  <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 flex flex-wrap justify-end gap-3 rounded-b-3xl mt-0">
+                    {/* TOMBOL REQUEST PENERJUNAN */}
+                      {group.placements?.some(p => ['DISETUJUI_INDUSTRI', 'MENUNGGU_PENERJUNAN'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
+                        <button
+                          type="button"
+                          onClick={() => handleRequestPenerjunan(group)}
+                          className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-teal-600 hover:bg-teal-500 text-white shadow-lg shadow-teal-600/30 border-teal-500"
+                          title="Request Pembuatan Surat Pengantaran/Penerjunan ke Tata Usaha"
+                        >
+                          <Send className="w-4 h-4" />
+                          <span>Request Penerjunan</span>
+                        </button>
+                      )}
+                      {group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
+                        <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center space-x-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Penerjunan Direquest</span>
+                        </span>
+                      )}
+
+                        {group.placements?.some(p => ['MENUNGGU_PEMBERANGKATAN', 'COMPLETED', 'SELESAI_PKL'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
+                          <button
+                            type="button"
+                            onClick={() => handleRequestPenarikan(group)}
+                            className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/30 border-orange-500"
+                            title="Request Pembuatan Surat Penarikan ke Tata Usaha"
+                          >
+                            <Send className="w-4 h-4" />
+                            <span>Request Penarikan</span>
+                          </button>
+                        )}
+                        {group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
+                          <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-orange-500/10 text-orange-600 border border-orange-500/20 flex items-center space-x-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Penarikan Direquest</span>
+                          </span>
+                        )}
                   </div>
                 </div>
-
-              </div>
-            );
-          })
-        ) : (
+              );
+            })
+          ) : (
           <div className={`p-12 text-center rounded-3xl border space-y-4 ${
             theme === 'dark' ? 'bg-slate-900/40 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-700'
           }`}>
