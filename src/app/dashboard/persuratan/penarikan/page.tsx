@@ -14,7 +14,7 @@ export default function SuratPenarikanPage() {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'PENDING' | 'PUBLISHED' | 'ALL'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'PENDING' | 'PUBLISHED' | 'ALL'>('PENDING');
 
   // Upload Modal State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -452,21 +452,17 @@ export default function SuratPenarikanPage() {
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
             <button
-                onClick={() => setStatusFilter('ALL')}
-                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'ALL' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                onClick={() => setStatusFilter('PENDING')}
+                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'PENDING' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Semua Data
+                Belum Terbit
               </button>
               <button
-              onClick={() => setStatusFilter('PENDING')}
-              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'PENDING' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700'}`}
-            >Menunggu Diproses</button>
-              <button
                 onClick={() => setStatusFilter('PUBLISHED')}
-              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'PUBLISHED' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Menunggu Penarikan
-            </button>
+                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'PUBLISHED' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Sudah Terbit
+              </button>
           </div>
           
           <div className="flex items-center space-x-3 mr-2">
@@ -594,11 +590,7 @@ export default function SuratPenarikanPage() {
                       <FileText className="w-4 h-4" />
                       Preview
                     </button>
-                    <button 
-                  onClick={handleDirectPrint}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-2"
-                >
-                  <Printer className="w-4 h-4" />Unduh DOCX</button>
+                    
                 <button 
                   onClick={() => {
                     const printUrl = `/api/letters/penarikan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}&nomorSurat=${encodeURIComponent(group.students[0]?.nomorPenarikan || '')}`;

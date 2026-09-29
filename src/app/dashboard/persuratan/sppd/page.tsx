@@ -1501,13 +1501,7 @@ export default function PersuratanSppdPage() {
                   <span>{previewModal.useTteTags ? 'Mode TTE: AKTIF' : 'Mode Langsung'}</span>
                 </button>
 
-                {/* Print Button */}
-                <button
-                  type="button"
-                  onClick={handlePrintDocument}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" /><span>Unduh DOCX</span></button>
+                
 
                 {/* Download DOCX Button */}
                 <button
