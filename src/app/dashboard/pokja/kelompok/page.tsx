@@ -773,6 +773,33 @@ export default function PokjaKelompokPrakerinPage() {
     }
   };
 
+    const handleRequestPenarikan = async (group: GroupItem) => {
+      if (!confirm('Apakah Anda yakin ingin request penarikan untuk kelompok ini ke Tata Usaha?')) return;
+      
+      const rawList = group.placements || group.students || [];
+      const placementIds = rawList.map((p: any) => p.id || p.placementId).filter(Boolean);
+  
+      try {
+        const res = await fetch('/api/pokja/groups', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            placementIds: placementIds,
+            status: 'REQUEST_PENARIKAN'
+          })
+        });
+        if (res.ok) {
+          alert('Berhasil mengirim request penarikan ke Tata Usaha!');
+          fetchGroupsData(selectedPeriodId, selectedStatus);
+        } else {
+          alert('Gagal request penarikan');
+        }
+      } catch (e) {
+        alert('Terjadi kesalahan jaringan');
+      }
+    };
+    
+
   const handleUploadSuratGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetGroup) return;
@@ -1714,6 +1741,24 @@ export default function PokjaKelompokPrakerinPage() {
                           <span>Penerjunan Direquest</span>
                         </span>
                       )}
+
+                        {group.placements?.some(p => ['MENUNGGU_PEMBERANGKATAN', 'COMPLETED', 'SELESAI_PKL'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
+                          <button
+                            type="button"
+                            onClick={() => handleRequestPenarikan(group)}
+                            className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/30 border-orange-500 ml-2"
+                            title="Request Pembuatan Surat Penarikan ke Tata Usaha"
+                          >
+                            <Send className="w-4 h-4" />
+                            <span>Request Penarikan</span>
+                          </button>
+                        )}
+                        {group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
+                          <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-orange-500/10 text-orange-600 border border-orange-500/20 flex items-center space-x-1 ml-2">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Penarikan Direquest</span>
+                          </span>
+                        )}
                   </div>
                 </div>
 

@@ -121,7 +121,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
     { name: 'Surat Permohonan', href: '/dashboard/persuratan/permohonan', icon: FileText },
     { name: 'Surat Penerjunan', href: '/dashboard/persuratan/penerjunan', icon: Truck },
     { name: 'Surat Monitoring', href: '/dashboard/persuratan/coming-soon?title=Surat%20Monitoring', icon: Search },
-    { name: 'Surat Penarikan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penarikan', icon: Award },
+    { name: 'Surat Penarikan', href: '/dashboard/persuratan/penarikan', icon: Award },
     { name: 'Template Surat', href: '/dashboard/persuratan/coming-soon?title=Template%20Surat', icon: FileSpreadsheet },
     { name: 'Pengaturan Kepsek & TTD', href: '/dashboard/persuratan/coming-soon?title=Pengaturan%20Kepsek%20%26%20TTD', icon: UserCheck },
   ];
@@ -201,7 +201,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
         { name: 'Surat Permohonan', href: '/dashboard/persuratan/permohonan', icon: FileText },
         { name: 'Surat Penerjunan', href: '/dashboard/persuratan/penerjunan', icon: Truck },
         { name: 'Surat Tugas & SPPD', href: '/dashboard/persuratan/sppd', icon: Search },
-        { name: 'Surat Penarikan', href: '/dashboard/persuratan/coming-soon?title=Surat%20Penarikan', icon: Award },
+        { name: 'Surat Penarikan', href: '/dashboard/persuratan/penarikan', icon: Award },
       ]
     },
     {

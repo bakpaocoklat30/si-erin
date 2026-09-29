@@ -65,6 +65,9 @@ export async function GET(request: Request) {
         'REQUEST_PENGANTARAN',
         'MENUNGGU_PEMBERANGKATAN',
         'PENGANTARAN_DITERBITKAN',
+        'REQUEST_PENARIKAN',
+        'MENUNGGU_PENARIKAN',
+        'PENARIKAN_DITERBITKAN',
         'DITERIMA',
         'DITERIMA_INDUSTRI',
         'COMPLETED',
@@ -239,13 +242,13 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { placementIds, suratTugasUrl, letterNumber, letterDate, status, suratPengantaranUrl } = body;
+    const { placementIds, suratTugasUrl, letterNumber, letterDate, status, suratPengantaranUrl, suratPenarikanUrl } = body;
 
     if (!Array.isArray(placementIds) || placementIds.length === 0) {
       return NextResponse.json({ error: 'Pilih kelompok siswa yang akan dikirimkan suratnya' }, { status: 400 });
     }
 
-    if (!status && (!letterNumber || !letterNumber.trim()) && !suratTugasUrl && !suratPengantaranUrl) {
+    if (!status && (!letterNumber || !letterNumber.trim()) && !suratTugasUrl && !suratPengantaranUrl && !suratPenarikanUrl) {
         return NextResponse.json({ error: 'Harus mengisi Nomor Surat, mengunggah File, atau update status!' }, { status: 400 });
       }
 
