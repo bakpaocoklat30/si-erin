@@ -57,7 +57,7 @@ async function createSection(industryId: string, departmentName: string, periodI
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        border: { bottom: { color: "auto", space: 1, style: BorderStyle.SINGLE, size: 18 } },
+        
         children: [
           new ImageRun({
             data: fs.readFileSync(path.join(process.cwd(), 'public/images/kop-surat-tugas.png')),
@@ -78,7 +78,7 @@ async function createSection(industryId: string, departmentName: string, periodI
           new TableRow({
             children: [
               new TableCell({ width: { size: 60, type: WidthType.PERCENTAGE }, children: [
-                new Paragraph({ children: [new TextRun({ text: "Nomor  : ${nomorSurat}", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [new TextRun({ text: `Nomor  : ${nomorSurat || "\${nomor_naskah}"}`, font: "Times New Roman", size: 24 })] }),
                 new Paragraph({ children: [new TextRun({ text: "Lamp.  : -", font: "Times New Roman", size: 24 })] }),
                 new Paragraph({ children: [
                   new TextRun({ text: "Hal      : ", font: "Times New Roman", size: 24 }), 

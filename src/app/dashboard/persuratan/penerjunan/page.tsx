@@ -232,7 +232,7 @@ export default function SuratPenerjunanPage() {
     return `
       <div style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: black; max-width: 100%; word-wrap: break-word;">
         <!-- KOP SURAT -->
-        <div style="text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px;">
+        <div style="text-align: center;  margin-bottom: 20px;">
           <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
         </div>
 
@@ -240,7 +240,7 @@ export default function SuratPenerjunanPage() {
         <table style="width: 100%; border: none;">
           <tr>
             <td style="width: 60%; vertical-align: top;">
-              <div>Nomor&nbsp;&nbsp;&nbsp;: ${g.inputNomor || '...............'}</div>
+              <div>Nomor&nbsp;&nbsp;&nbsp;: ${g.inputNomor || '${nomor_naskah}'}</div>
               <div>Lamp.&nbsp;&nbsp;&nbsp;: -</div>
               <div>Hal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <b><i><span style="text-decoration: underline;">Pengantar Praktik Kerja Lapangan</span></i></b></div>
             </td>
