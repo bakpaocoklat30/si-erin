@@ -693,7 +693,29 @@ export default function PokjaKelompokPrakerinPage() {
   };
 
   // Cetak Dokumen Surat Permohonan PKL
-  const handlePrintDocxPreview = (group: GroupItem, useTte: boolean) => {
+  
+    const handleOpenPdf = (dataUrl: string | null, title: string) => {
+      if (!dataUrl) return;
+      if (dataUrl.startsWith('data:')) {
+        try {
+          const [header, base64] = dataUrl.split(',');
+          const mime = header.split(':')[1].split(';')[0];
+          const binary = atob(base64);
+          const array = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+          const blob = new Blob([array], { type: mime });
+          const blobUrl = URL.createObjectURL(blob);
+          setActivePreviewUrl(blobUrl);
+        } catch (err) {
+          setActivePreviewUrl(dataUrl);
+        }
+      } else {
+        setActivePreviewUrl(dataUrl);
+      }
+      setActivePreviewTitle(title);
+    };
+  
+    const handlePrintDocxPreview = (group: GroupItem, useTte: boolean) => {
     const html = generateSuratPermohonanHtml(group, useTte);
     const printWin = window.open('', '_blank');
     if (printWin) {
@@ -1588,8 +1610,7 @@ export default function PokjaKelompokPrakerinPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          setActivePreviewUrl(group.suratTugasUrl || null);
-                          setActivePreviewTitle(`Surat Permohonan PKL (No: ${group.letterNumber || '-'}) - ${group.industryName}`);
+                          handleOpenPdf(group.suratTugasUrl || null, `Surat Permohonan PKL (No: ${group.letterNumber || '-'}) - ${group.industryName}`);
                         }}
                         className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
                           theme === 'dark'
@@ -1608,8 +1629,7 @@ export default function PokjaKelompokPrakerinPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            setActivePreviewUrl(balasanUrl || null);
-                            setActivePreviewTitle(`Surat Balasan Industri - ${group.industryName}`);
+                            handleOpenPdf(balasanUrl || null, `Surat Balasan Industri - ${group.industryName}`);
                           }}
                           className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
                             theme === 'dark'
@@ -1742,8 +1762,7 @@ export default function PokjaKelompokPrakerinPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            setActivePreviewUrl(pengantaranUrl || null);
-                            setActivePreviewTitle(`Surat Penerjunan/Pengantaran - ${group.industryName}`);
+                            handleOpenPdf(pengantaranUrl || null, `Surat Penerjunan/Pengantaran - ${group.industryName}`);
                           }}
                           className={`px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer ${
                             theme === 'dark'
@@ -1764,8 +1783,7 @@ export default function PokjaKelompokPrakerinPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            setActivePreviewUrl(penarikanUrl || null);
-                            setActivePreviewTitle(`Surat Penarikan - ${group.industryName}`);
+                            handleOpenPdf(penarikanUrl || null, `Surat Penarikan - ${group.industryName}`);
                           }}
                           className={`px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer ${
                             theme === 'dark'
