@@ -1050,14 +1050,7 @@ export default function PokjaMonitoringPage() {
                 <Upload className="w-4 h-4" />
                 <span>Import CSV</span>
               </button>
-              <button
-                onClick={() => setBulkUploadModal(prev => ({ ...prev, isOpen: true }))}
-                className="inline-flex items-center space-x-2 px-4 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-xl shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                title="Unggah dan Pisahkan Laporan Gabungan Massal"
-              >
-                <UploadCloud className="w-4 h-4" />
-                <span>Unggah Massal Laporan</span>
-              </button>
+              
   
               <input type="file" accept=".csv" ref={fileInputRefCsv} className="hidden" onChange={handleImportCsvChange} />
   
@@ -1174,14 +1167,25 @@ export default function PokjaMonitoringPage() {
         
         <div className="flex items-center gap-3">
           {selectedAssignments.length > 0 && (
-            <button
-              onClick={handleRequestTteBulk}
+            <>
+              <button
+                onClick={handleRequestTteBulk}
               className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all"
             >
               <FileSignature className="w-4 h-4" />
               Minta TTE ({selectedAssignments.length})
             </button>
-          )}
+
+              <button
+                onClick={() => setBulkUploadModal(prev => ({ ...prev, isOpen: true, targetTaskIds: selectedAssignments }))}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all"
+              >
+                <UploadCloud className="w-4 h-4" />
+                Unggah Massal Hasil ({selectedAssignments.length})
+              </button>
+  
+                      </>
+)}
         </div>
 
         <div className="relative w-full md:w-96">
