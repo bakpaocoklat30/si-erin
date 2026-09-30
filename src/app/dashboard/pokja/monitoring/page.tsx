@@ -16,6 +16,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
 import {
+  Upload,
   ClipboardCheck,
   Building2,
   Users,
@@ -218,6 +219,98 @@ export default function PokjaMonitoringPage() {
     }
   };
 
+  
+    const fileInputRefCsv = useRef<HTMLInputElement>(null);
+
+    const handleExportCsv = () => {
+      const headers = ['No', 'Nama Guru', 'NIP Guru', 'Industri Tujuan', 'Tanggal Berangkat', 'Status', 'Tujuan'];
+      const csvContent = assignments.map((a, idx) => {
+        return [
+          idx + 1,
+          `"${a.teacher?.name || ''}"`,
+          `"${a.teacher?.nip || ''}"`,
+          `"${a.industry?.name || ''}"`,
+          `"${formatIndonesianDate(a.monitoringDate) || ''}"`,
+          `"${a.status || ''}"`,
+          `"${a.purpose || ''}"`
+        ].join(',');
+      });
+
+      const csvString = [headers.join(','), ...csvContent].join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Data_Penugasan_Monitoring_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    const parseCSV = (text: string) => {
+      const lines = text.split('\n').filter(line => line.trim() !== '');
+      if (lines.length < 2) return [];
+      const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+      const data = [];
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+        if (!row) continue;
+        const rowObj: any = {};
+        row.forEach((val, idx) => {
+          if (headers[idx]) {
+            rowObj[headers[idx]] = val.replace(/^"|"$/g, '').trim();
+          }
+        });
+        data.push(rowObj);
+      }
+      return data;
+    };
+
+    const handleImportCsvChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+        alert('File harus berformat CSV!');
+        return;
+      }
+      const text = await file.text();
+      const parsedData = parseCSV(text);
+      if (parsedData.length === 0) {
+        alert('Data CSV kosong atau format tidak valid!');
+        return;
+      }
+      if (!confirm(`Ditemukan ${parsedData.length} baris data CSV. Yakin ingin mengimpor?`)) {
+        if (fileInputRefCsv.current) fileInputRefCsv.current.value = '';
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const res = await fetch('/api/pokja/monitoring/import-bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignments: parsedData })
+        });
+        const json = await res.json();
+        if (json.success) {
+          const { successCount, failCount, errors } = json.data;
+          let msg = `Berhasil mengimpor: ${successCount} baris.\nGagal: ${failCount} baris.`;
+          if (failCount > 0) {
+            msg += '\n\nDetail Error:\n' + errors.join('\n');
+          }
+          alert(msg);
+          fetchData();
+        } else {
+          alert('Gagal impor: ' + json.error);
+        }
+      } catch (err) {
+        alert('Terjadi kesalahan sistem.');
+      } finally {
+        setLoading(false);
+        if (fileInputRefCsv.current) fileInputRefCsv.current.value = '';
+      }
+    };
+  
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -698,7 +791,26 @@ export default function PokjaMonitoringPage() {
             >
               <Plus className="w-5 h-5" />
               <span>Jadwalkan Monitoring</span>
-            </button>
+              </button>
+
+              <button
+                onClick={handleExportCsv}
+                className="inline-flex items-center space-x-2 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-xl shadow-emerald-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                title="Export data ke CSV"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+              <button
+                onClick={() => fileInputRefCsv.current?.click()}
+                className="inline-flex items-center space-x-2 px-4 py-3 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm shadow-xl shadow-sky-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                title="Import penugasan dari CSV"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Import CSV</span>
+              </button>
+              <input type="file" accept=".csv" ref={fileInputRefCsv} className="hidden" onChange={handleImportCsvChange} />
+  
             <button
               onClick={fetchData}
               disabled={loading}
