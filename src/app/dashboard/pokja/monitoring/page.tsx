@@ -132,6 +132,53 @@ export default function PokjaMonitoringPage() {
   const [selectedAssignments, setSelectedAssignments] = useState<string[]>([]);
 
   const [assignments, setAssignments] = useState<MonitoringAssignmentData[]>([]);
+
+  const [uploadModal, setUploadModal] = useState<{
+    isOpen: boolean;
+    assignmentId: string;
+    industryName: string;
+    teacherName: string;
+    type: 'TUGAS' | 'SPPD' | 'LAPORAN';
+    uploading: boolean;
+  }>({
+    isOpen: false,
+    assignmentId: '',
+    industryName: '',
+    teacherName: '',
+    type: 'TUGAS',
+    uploading: false,
+  });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadModal.assignmentId) return;
+
+    setUploadModal(prev => ({ ...prev, uploading: true }));
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('id', uploadModal.assignmentId);
+    formData.append('type', uploadModal.type);
+
+    try {
+      const res = await fetch('/api/persuratan/sppd/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('Berkas berhasil diunggah!');
+        setUploadModal(prev => ({ ...prev, isOpen: false }));
+        fetchData();
+      } else {
+        alert(data.error || 'Gagal mengunggah berkas.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi.');
+    } finally {
+      setUploadModal(prev => ({ ...prev, uploading: false }));
+    }
+  };
+
   const [industries, setIndustries] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [schoolSetting, setSchoolSetting] = useState<any>(null);
@@ -1379,9 +1426,27 @@ export default function PokjaMonitoringPage() {
                             assignment.status !== 'TERBIT_TTE' &&
                             !assignment.suratTugasUrl &&
                             !assignment.sppdUrl && (
-                            <button
-                              onClick={async () => {
-                                if (!confirm('Anda yakin ingin mengirim penugasan ini ke Tata Usaha untuk di-TTE?')) return;
+                            
+                              <button
+                                onClick={() =>
+                                  setUploadModal({
+                                    isOpen: true,
+                                    assignmentId: assignment.id!,
+                                    industryName: assignment.industry.name,
+                                    teacherName: assignment.teacher.name,
+                                    type: 'TUGAS',
+                                    uploading: false,
+                                  })
+                                }
+                                className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-sm border border-slate-200 dark:border-slate-700"
+                                title="Unggah Hasil Scan Kunjungan"
+                              >
+                                <Upload className="w-4 h-4" />
+                              </button>
+  
+                              <button
+                                onClick={async () => {
+                                  if (!confirm('Anda yakin ingin mengirim penugasan ini ke Tata Usaha untuk di-TTE?')) return;
                                 try {
                                   const res = await fetch('/api/pokja/monitoring/request-tte', {
                                     method: 'POST',
