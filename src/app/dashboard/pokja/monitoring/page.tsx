@@ -1629,7 +1629,7 @@ export default function PokjaMonitoringPage() {
                             assignment.status !== 'TERBIT_TTE' &&
                             !assignment.suratTugasUrl &&
                             !assignment.sppdUrl && (
-                            
+                            <>
                               <button
                                 onClick={() =>
                                   setUploadModal({
@@ -1666,7 +1666,8 @@ export default function PokjaMonitoringPage() {
                               title="Minta TTE"
                             >
                               <FileSignature className="w-3.5 h-3.5" />
-                            </button>
+                              </button>
+                            </>
                           )}
 
                           <button
