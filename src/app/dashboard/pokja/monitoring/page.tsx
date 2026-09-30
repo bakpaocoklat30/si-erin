@@ -44,6 +44,8 @@ import {
   GraduationCap,
   ShieldCheck,
   Briefcase,
+  Loader2,
+  UploadCloud,
   Building,
 } from 'lucide-react';
 import {
@@ -138,14 +140,14 @@ export default function PokjaMonitoringPage() {
     assignmentId: string;
     industryName: string;
     teacherName: string;
-    type: 'TUGAS' | 'SPPD' | 'LAPORAN';
+    type: 'LAPORAN' | 'SPPD' | 'LAPORAN';
     uploading: boolean;
   }>({
     isOpen: false,
     assignmentId: '',
     industryName: '',
     teacherName: '',
-    type: 'TUGAS',
+    type: 'LAPORAN',
     uploading: false,
   });
 
@@ -357,6 +359,198 @@ export default function PokjaMonitoringPage() {
         if (fileInputRefCsv.current) fileInputRefCsv.current.value = '';
       }
     };
+  
+  
+  const [bulkUploadModal, setBulkUploadModal] = useState<{
+    isOpen: boolean;
+    file: File | null;
+    mode: 'AUTO' | 'TUGAS' | 'SPPD' | 'LAPORAN';
+    analyzing: boolean;
+    committing: boolean;
+    targetTaskIds: string[]; // If specific rows selected
+    analysisResult: any | null;
+    mappings: Array<{ id: string; startPage: number | ''; endPage: number | ''; assignmentId: string; status: 'pending' | 'success' | 'error' }>;
+    commitResult: { success: boolean; message: string; updatedAssignments?: any[] } | null;
+    showPdfPreview: boolean;
+  }>({
+    isOpen: false,
+    file: null,
+    mode: 'LAPORAN', // Changed to LAPORAN for Gabungan
+    analyzing: false,
+    committing: false,
+    targetTaskIds: [],
+    analysisResult: null,
+    mappings: [],
+    commitResult: null,
+    showPdfPreview: false,
+  });
+
+  const [bulkPdfPreviewUrl, setBulkPdfPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (bulkUploadModal.file) {
+      const url = URL.createObjectURL(bulkUploadModal.file);
+      setBulkPdfPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } else {
+      setBulkPdfPreviewUrl(null);
+    }
+  }, [bulkUploadModal.file]);
+
+  const triggerBulkAnalyze = async (file: File, mode: string, customTargetIds?: string[]) => {
+    const targetIds = customTargetIds !== undefined ? customTargetIds : bulkUploadModal.targetTaskIds;
+    setBulkUploadModal((prev) => ({
+      ...prev,
+      analyzing: true,
+      analysisResult: null,
+      commitResult: null,
+      mappings: [],
+    }));
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('mode', mode);
+    formData.append('action', 'analyze');
+    if (targetIds && targetIds.length > 0) {
+      formData.append('taskIds', JSON.stringify(targetIds));
+    }
+
+    try {
+      const res = await fetch('/api/persuratan/sppd/upload-bulk', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Gagal analisis');
+
+      const initialMappings = (json.segments || []).map((d: any, idx: number) => ({
+        id: `mapping-${idx}-${Date.now()}`,
+        startPage: d.startPage,
+        endPage: d.endPage,
+        assignmentId: d.assignmentId || '',
+        status: 'pending',
+        autoMatched: Boolean(d.assignmentId),
+      }));
+
+      setBulkUploadModal((prev) => ({
+        ...prev,
+        analysisResult: json,
+        mappings: initialMappings,
+      }));
+    } catch (e: any) {
+      console.error('Bulk upload analyze error:', e);
+      alert(`Gagal menganalisis berkas: ${e.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setBulkUploadModal((prev) => ({ ...prev, analyzing: false }));
+    }
+  };
+
+  const handleBulkUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setBulkUploadModal((prev) => ({
+        ...prev,
+        file,
+        analysisResult: null,
+        commitResult: null,
+        mappings: [],
+      }));
+      triggerBulkAnalyze(file, bulkUploadModal.mode, bulkUploadModal.targetTaskIds);
+    }
+  };
+
+  const handleBulkUploadAnalyze = () => {
+    if (!bulkUploadModal.file) {
+      alert('Pilih berkas PDF terlebih dahulu.');
+      return;
+    }
+    triggerBulkAnalyze(bulkUploadModal.file, bulkUploadModal.mode, bulkUploadModal.targetTaskIds);
+  };
+
+  const handleAddMappingRow = () => {
+    setBulkUploadModal((prev) => ({
+      ...prev,
+      mappings: [
+        ...prev.mappings,
+        { id: `mapping-new-${Date.now()}`, startPage: '', endPage: '', assignmentId: '', status: 'pending' },
+      ],
+    }));
+  };
+
+  const handleRemoveMappingRow = (id: string) => {
+    setBulkUploadModal((prev) => ({
+      ...prev,
+      mappings: prev.mappings.filter((m) => m.id !== id),
+    }));
+  };
+
+  const handleUpdateMappingRow = (id: string, field: string, value: any) => {
+    setBulkUploadModal((prev) => ({
+      ...prev,
+      mappings: prev.mappings.map((m) => (m.id === id ? { ...m, [field]: value } : m)),
+    }));
+  };
+
+  const handleBulkUploadCommit = async () => {
+    if (!bulkUploadModal.file) {
+      alert('Pilih berkas PDF terlebih dahulu.');
+      return;
+    }
+
+    if (bulkUploadModal.mappings.length === 0) {
+      alert('Belum ada pemetaan dokumen yang ditentukan. Klik "+ Tambah Dokumen" atau analisis berkas terlebih dahulu.');
+      return;
+    }
+
+    for (const m of bulkUploadModal.mappings) {
+      if (!m.startPage || !m.endPage) {
+        alert('Pastikan semua rentang halaman terisi dengan angka.');
+        return;
+      }
+      if (!m.assignmentId) {
+        alert('Pastikan semua dokumen telah dipasangkan dengan guru/industri (Penugasan).');
+        return;
+      }
+    }
+
+    setBulkUploadModal((prev) => ({ ...prev, committing: true }));
+    const formData = new FormData();
+    formData.append('file', bulkUploadModal.file);
+    formData.append('mode', bulkUploadModal.mode);
+    formData.append('action', 'commit');
+    formData.append(
+      'segments',
+      JSON.stringify(
+        bulkUploadModal.mappings.map((m) => ({
+          startPage: parseInt(m.startPage as string),
+          endPage: parseInt(m.endPage as string),
+          assignmentId: m.assignmentId,
+        }))
+      )
+    );
+
+    try {
+      const res = await fetch('/api/persuratan/sppd/upload-bulk', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Gagal memisahkan dokumen');
+
+      setBulkUploadModal((prev) => ({
+        ...prev,
+        commitResult: { success: true, message: json.message, updatedAssignments: json.updatedAssignments },
+      }));
+      fetchData(); // Refresh table
+    } catch (e: any) {
+      console.error('Bulk upload commit error:', e);
+      alert(`Gagal memisahkan dan menyimpan dokumen: ${e.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setBulkUploadModal((prev) => ({ ...prev, committing: false }));
+    }
+  };
   
   const fetchData = async () => {
     setLoading(true);
@@ -856,6 +1050,15 @@ export default function PokjaMonitoringPage() {
                 <Upload className="w-4 h-4" />
                 <span>Import CSV</span>
               </button>
+              <button
+                onClick={() => setBulkUploadModal(prev => ({ ...prev, isOpen: true }))}
+                className="inline-flex items-center space-x-2 px-4 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-xl shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                title="Unggah dan Pisahkan Laporan Gabungan Massal"
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>Unggah Massal Laporan</span>
+              </button>
+  
               <input type="file" accept=".csv" ref={fileInputRefCsv} className="hidden" onChange={handleImportCsvChange} />
   
             <button
@@ -1407,10 +1610,10 @@ export default function PokjaMonitoringPage() {
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-xs font-bold border border-amber-500/30 transition-all cursor-pointer shadow-sm"
-                              title="Buka / Unduh Berkas PDF Laporan Kegiatan TTE Resmi yang Terbit"
+                              title="Buka / Unduh Berkas PDF Dokumen Gabungan Hasil Kunjungan"
                             >
                               <ShieldCheck className="w-3.5 h-3.5" />
-                              <span>PDF Lap TTE</span>
+                              <span>Dokumen Hasil</span>
                             </a>
                           )}
                         </div>
@@ -1434,7 +1637,7 @@ export default function PokjaMonitoringPage() {
                                     assignmentId: assignment.id!,
                                     industryName: assignment.industry.name,
                                     teacherName: assignment.teacher.name,
-                                    type: 'TUGAS',
+                                    type: 'LAPORAN',
                                     uploading: false,
                                   })
                                 }
