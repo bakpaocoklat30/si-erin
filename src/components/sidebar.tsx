@@ -455,6 +455,21 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
         <div className={`p-4 border-t shrink-0 relative z-10 ${
           theme === 'dark' ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-slate-50/50'
         }`}>
+          
+          {session?.user?.isImpersonating && (
+            <button
+              type="button"
+              onClick={async () => {
+                await update({ revertImpersonation: true });
+                window.location.href = '/dashboard/admin/users';
+              }}
+              title={isCollapsed ? "Kembali ke Akses Asli" : undefined}
+              className="w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-3 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center space-x-2 cursor-pointer relative z-20 mb-3"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+              {!isCollapsed && <span>Kembali ke Asli</span>}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: '/login' })}

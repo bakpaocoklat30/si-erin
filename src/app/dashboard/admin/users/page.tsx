@@ -35,7 +35,7 @@ import { useTheme } from '@/app/theme-provider';
 import Link from 'next/link';
 
 export default function AdminManageUsersPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const { theme } = useTheme();
 
   const [users, setUsers] = useState<any[]>([]);
@@ -119,6 +119,15 @@ export default function AdminManageUsersPage() {
     } catch (err) {
       alert('Terjadi kesalahan jaringan.');
     }
+  };
+
+  
+  const handleImpersonate = async (targetUser: UserItem) => {
+    if (targetUser.id === session?.user?.id) return;
+    if (!confirm(`Tukar akses masuk sebagai ${targetUser.name} (${targetUser.role})? Anda bisa kembali menjadi Admin kapan saja.`)) return;
+    
+    await update({ impersonateUserId: targetUser.id });
+    window.location.href = '/dashboard';
   };
 
   const handleBulkDelete = async () => {

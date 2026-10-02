@@ -58,13 +58,46 @@ export const authOptions: AuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user }: { token: any; user: any }) {
+    async jwt({ token, user, trigger, session }: { token: any; user: any; trigger?: string; session?: any }) {
       if (user) {
         token.id = user.id;
         token.username = user.username; // Diteruskan agar API Siswa/Admin bisa membaca NIS/Username
         token.role = user.role;
         token.department = user.department;
       }
+      
+      // Impersonation (Tukar Akses) Logic
+      if (trigger === "update" && session) {
+        if (session.impersonateUserId) {
+          // Hanya izinkan jika original role (atau current role) adalah ADMIN/SUPER_ADMIN
+          if (token.role === 'ADMIN' || token.role === 'SUPER_ADMIN' || token.originalRole === 'ADMIN' || token.originalRole === 'SUPER_ADMIN') {
+            const targetUser = await db.user.findUnique({ where: { id: session.impersonateUserId }});
+            if (targetUser) {
+              token.originalUserId = token.originalUserId || token.id;
+              token.originalRole = token.originalRole || token.role;
+              
+              token.id = targetUser.id;
+              token.username = targetUser.username;
+              token.role = targetUser.role;
+              token.department = targetUser.department;
+            }
+          }
+        } else if (session.revertImpersonation) {
+          if (token.originalUserId) {
+            const originalUser = await db.user.findUnique({ where: { id: token.originalUserId }});
+            if (originalUser) {
+              token.id = originalUser.id;
+              token.username = originalUser.username;
+              token.role = originalUser.role;
+              token.department = originalUser.department;
+              
+              delete token.originalUserId;
+              delete token.originalRole;
+            }
+          }
+        }
+      }
+      
       return token;
     },
     async session({ session, token }: { session: any; token: any }) {
@@ -73,6 +106,12 @@ export const authOptions: AuthOptions = {
         session.user.username = token.username; // Menyediakan session.user.username secara global
         session.user.role = token.role;
         session.user.department = token.department;
+        
+        // Teruskan data impersonation ke frontend
+        if (token.originalUserId) {
+          session.user.isImpersonating = true;
+          session.user.originalRole = token.originalRole;
+        }
       }
       return session;
     },
