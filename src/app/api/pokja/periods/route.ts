@@ -67,13 +67,6 @@ export async function POST(request: Request) {
 
     let newPeriod;
     try {
-            // Jika periode diset aktif, nonaktifkan periode lain terlebih dahulu agar tidak ada duplikasi
-      if (Boolean(isActive)) {
-        await (db as any).internshipPeriod.updateMany({
-          data: { isActive: false }
-        }).catch(() => {});
-      }
-
       // Data disimpan LANGSUNG ke database tanpa fallback memory
       newPeriod = await (db as any).internshipPeriod.create({
         data: {
@@ -118,18 +111,10 @@ export async function PUT(request: Request) {
       if (startDate) updateData.startDate = new Date(startDate);
       if (endDate) updateData.endDate = new Date(endDate);
       if (department) updateData.department = department;
-              if (typeof isActive === 'boolean') updateData.isActive = isActive;
-        if (activeIndustries !== undefined) updateData.activeIndustries = activeIndustries; // Masuk permanen ke kolom Json
+      if (typeof isActive === 'boolean') updateData.isActive = isActive;
+      if (activeIndustries !== undefined) updateData.activeIndustries = activeIndustries; // Masuk permanen ke kolom Json
 
-        // Jika periode diset aktif, nonaktifkan periode lain terlebih dahulu
-        if (updateData.isActive) {
-          await (db as any).internshipPeriod.updateMany({
-            where: { id: { not: id } },
-            data: { isActive: false }
-          }).catch(() => {});
-        }
-
-        updated = await (db as any).internshipPeriod.update({
+      updated = await (db as any).internshipPeriod.update({
         where: { id },
         data: updateData
       });
