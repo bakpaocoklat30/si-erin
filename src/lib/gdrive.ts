@@ -120,15 +120,37 @@ export async function listDriveBackups() {
   }
 
   const response = await drive.files.list({
-    q: `'${folderId.trim()}' in parents and trashed = false`,
+    q: `'${folderId.trim()}' in parents and trashed = false and mimeType = 'application/zip'`,
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
     fields: 'files(id, name, webViewLink, createdTime, size)',
     orderBy: 'createdTime desc',
-    pageSize: 20,
+    pageSize: 100, // Fetch up to 100 to clean up old ones
   });
 
-  return response.data.files || [];
+  const files = response.data.files || [];
+  
+  // LIMITASI BACKUP: Hanya simpan 10 backup terbaru
+  if (files.length > 10) {
+    const filesToDelete = files.slice(10);
+    
+    // Hapus backup lama di background
+    Promise.all(filesToDelete.map(async (file) => {
+      try {
+        if (file.id) {
+          await drive.files.delete({ fileId: file.id, supportsAllDrives: true });
+          console.log(`[RETENTION] Backup lama dihapus otomatis: ${file.name}`);
+        }
+      } catch (err) {
+        console.error(`[RETENTION ERROR] Gagal menghapus ${file.name}:`, err);
+      }
+    })).catch(() => {});
+    
+    // Return hanya 10 terbaru ke UI
+    return files.slice(0, 10);
+  }
+
+  return files;
 }
 
 /**
