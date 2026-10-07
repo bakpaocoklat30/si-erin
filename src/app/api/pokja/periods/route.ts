@@ -22,7 +22,22 @@ export async function GET(request: Request) {
 
     let periods: any[] = [];
     try {
+      const userRole = (session.user as any)?.role;
+      const userDepartment = (session.user as any)?.department;
+      
+      let whereClause = {};
+      if (userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan') {
+        whereClause = {
+          OR: [
+            { department: { contains: userDepartment, mode: 'insensitive' } },
+            { department: { equals: 'Semua Jurusan', mode: 'insensitive' } },
+            { department: { equals: 'ALL', mode: 'insensitive' } }
+          ]
+        };
+      }
+
       periods = await (db as any).internshipPeriod.findMany({
+        where: whereClause,
         orderBy: { createdAt: 'desc' }
       });
       

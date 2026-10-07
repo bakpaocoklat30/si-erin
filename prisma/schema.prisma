@@ -88,6 +88,7 @@ model InternshipPeriod {
   monitoringAssignments MonitoringAssignment[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  PlacementGroup        PlacementGroup[]
 }
 
 // 🔑 MODEL: INTERNSHIP COEFFICIENT (Terikat spesifik ke periodId)
@@ -144,6 +145,7 @@ model Industry {
   monitoringAssignments MonitoringAssignment[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  PlacementGroup        PlacementGroup[]
 }
 
 model Student {
@@ -328,4 +330,16 @@ model MonitoringAssignment {
   @@index([teacherId])
   @@index([periodId])
   @@index([monitoringDate])
+}
+
+model PlacementGroup {
+  id         String           @id @default(cuid())
+  industryId String
+  industry   Industry         @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  periodId   String
+  period     InternshipPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  startDate  DateTime?
+  endDate    DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 }
