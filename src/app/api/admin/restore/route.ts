@@ -50,14 +50,31 @@ const VALID_TABLE_COLUMNS: Record<string, Set<string>> = {
 
 // Helper pembersih baris INSERT dari kolom relasi phantom (seperti "period", "classes", dll.)
 function cleanInsertLine(line: string): string {
-  const match = line.match(/^INSERT INTO "([^"]+)" \(([^)]+)\) VALUES \(([\s\S]+)\)([\s\S]*?);?$/);
-  if (!match) return line;
+  const insertPrefix = 'INSERT INTO "';
+  if (!line.startsWith(insertPrefix)) return line;
 
-  const [, tableName, keysStr, valsStr, suffix] = match;
+  const tableEnd = line.indexOf('"', insertPrefix.length);
+  if (tableEnd === -1) return line;
+  const tableName = line.substring(insertPrefix.length, tableEnd);
+
   const validCols = VALID_TABLE_COLUMNS[tableName];
   if (!validCols) return line;
 
-  const keys = keysStr.split(',').map(k => k.trim().replace(/^"|"$/g, ''));
+  const colsStart = line.indexOf(' (', tableEnd);
+  if (colsStart === -1) return line;
+  const colsEnd = line.indexOf(') VALUES (', colsStart);
+  if (colsEnd === -1) return line;
+
+  const valsStart = colsEnd + ') VALUES ('.length;
+  // find the last ')' that closes the VALUES block.
+  const valsEnd = line.lastIndexOf(')');
+  if (valsEnd === -1 || valsEnd <= valsStart) return line;
+
+  const keysStr = line.substring(colsStart + 2, colsEnd);
+  const valsStr = line.substring(valsStart, valsEnd);
+  const suffix = line.substring(valsEnd + 1);
+
+  const keys = keysStr.split(',').map((k: string) => k.trim().replace(/^"|"$/g, ''));
   
   const vals: string[] = [];
   let cur = '';
@@ -79,7 +96,9 @@ function cleanInsertLine(line: string): string {
       cur += ch;
     }
   }
-  if (cur.trim()) vals.push(cur.trim());
+  if (cur.trim() || vals.length < keys.length) {
+    vals.push(cur.trim());
+  }
 
   if (keys.length !== vals.length) {
     return line;

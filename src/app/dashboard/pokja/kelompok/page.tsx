@@ -163,6 +163,15 @@ export default function PokjaKelompokPrakerinPage() {
   const [deleteTargetGroup, setDeleteTargetGroup] = useState<GroupItem | null>(null);
   const [deleteTargetStudent, setDeleteTargetStudent] = useState<StudentItem | null>(null);
 
+  // Target Kelompok untuk Upload Balasan Industri
+  const [targetGroupBalasan, setTargetGroupBalasan] = useState<GroupItem | null>(null);
+  const [balasanBase64, setBalasanBase64] = useState<string>('');
+  const [balasanFileName, setBalasanFileName] = useState<string>('');
+  
+  // Target Kelompok untuk Gabung
+  const [mergeSourceGroup, setMergeSourceGroup] = useState<GroupItem | null>(null);
+  const [mergeTargetGroupId, setMergeTargetGroupId] = useState<string>('');
+
   // Target Kelompok untuk Edit Periode Prakerin
   const [editPeriodGroup, setEditPeriodGroup] = useState<GroupItem | null>(null);
   const [editStartDate, setEditStartDate] = useState<string>('');
@@ -804,6 +813,38 @@ export default function PokjaKelompokPrakerinPage() {
     }
   };
 
+  const handleMergeGroup = async () => {
+    if (!mergeSourceGroup || !mergeTargetGroupId) return;
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const sourcePlacementIds = mergeSourceGroup.placements?.map(p => p.placementId).filter(Boolean) || [];
+      const res = await fetch('/api/pokja/groups/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourcePlacementIds,
+          targetPlacementId: mergeTargetGroupId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menggabungkan kelompok');
+      
+      setSuccessMsg('Kelompok berhasil digabung!');
+      setMergeSourceGroup(null);
+      setMergeTargetGroupId('');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error: any) {
+      setErrorMsg(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+
     const handleRequestPenarikan = async (group: GroupItem) => {
       if (!confirm('Apakah Anda yakin ingin request penarikan untuk kelompok ini ke Tata Usaha?')) return;
       
@@ -894,6 +935,59 @@ export default function PokjaKelompokPrakerinPage() {
       setSubmitting(false);
     }
   };
+
+  const handleUploadBalasanGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetGroupBalasan) return;
+
+    if (!balasanBase64) {
+      setErrorMsg('Silakan pilih berkas Surat Balasan (PDF/Gambar)!');
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const rawList = targetGroupBalasan.placements || targetGroupBalasan.students || [];
+    const placementIds = rawList.map((p: any) => p.placementId || p.id).filter(Boolean);
+
+    try {
+      const res = await fetch('/api/pokja/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placementIds: placementIds,
+          suratBalasanUrl: balasanBase64
+        })
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        setGroups(prev => prev.map(item => (item.groupId === targetGroupBalasan.groupId || item.groupKey === targetGroupBalasan.groupKey) ? { 
+          ...item, 
+          suratBalasanUrl: balasanBase64,
+        } : item));
+
+        setSuccessMsg('Surat Balasan berhasil diunggah!');
+        setTimeout(() => {
+          setTargetGroupBalasan(null);
+          setBalasanBase64('');
+          setBalasanFileName('');
+          fetchGroupsData();
+        }, 1500);
+      } else {
+        setErrorMsg(json.error || 'Gagal mengunggah surat balasan');
+      }
+    } catch (error) {
+      console.error('Error uploading balasan:', error);
+      setErrorMsg('Terjadi kesalahan jaringan');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   const handleSavePeriod = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1942,6 +2036,32 @@ export default function PokjaKelompokPrakerinPage() {
                       </button>
                     )}
 
+                    {/* 🌟 TOMBOL UPLOAD BALASAN INDUSTRI */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetGroupBalasan(group);
+                        setBalasanBase64('');
+                        setBalasanFileName('');
+                      }}
+                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 border-emerald-500"
+                      title="Upload Balasan Resmi dari Industri"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>{group.suratBalasanUrl ? 'Ganti Balasan Industri' : 'Upload Balasan'}</span>
+                    </button>
+
+                    {/* 🌟 TOMBOL GABUNG KELOMPOK */}
+                    <button
+                      type="button"
+                      onClick={() => setMergeSourceGroup(group)}
+                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 border-blue-500"
+                      title="Gabungkan kelompok ini ke kelompok lain"
+                    >
+                      <Layers className="w-4 h-4" />
+                      <span>Gabung Kelompok</span>
+                    </button>
+
                     {/* 🌟 TOMBOL HAPUS KELOMPOK */}
                     <button
                       type="button"
@@ -2021,6 +2141,72 @@ export default function PokjaKelompokPrakerinPage() {
           </div>
         )}
       </div>
+
+      {/* 🌟 MODAL GABUNG KELOMPOK */}
+      {mergeSourceGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden transition-all ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="p-6 border-b border-inherit flex justify-between items-center bg-blue-500/10">
+              <h3 className="font-extrabold text-base text-blue-700 dark:text-blue-400 flex items-center space-x-2">
+                <Layers className="w-5 h-5" />
+                <span>Gabung Kelompok</span>
+              </h3>
+              <button onClick={() => setMergeSourceGroup(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 mb-4">
+                <p className="text-xs text-slate-500 mb-1">Kelompok yang akan digabung:</p>
+                <p className="font-bold text-slate-900 dark:text-white">{mergeSourceGroup.industryName}</p>
+                <p className="text-xs text-slate-500">{mergeSourceGroup.students?.length || 0} Siswa</p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Pilih Kelompok Tujuan (Penerima):</label>
+                <select
+                  value={mergeTargetGroupId}
+                  onChange={(e) => setMergeTargetGroupId(e.target.value)}
+                  className={`w-full p-3 rounded-xl border transition-all text-sm ${
+                    theme === 'dark' ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-900'
+                  } focus:ring-2 focus:ring-blue-500/50 outline-none`}
+                >
+                  <option value="">-- Pilih Kelompok Tujuan --</option>
+                  {groups.filter(g => g.groupKey !== mergeSourceGroup.groupKey && g.periodId === mergeSourceGroup.periodId).map(g => (
+                    <option key={g.groupKey} value={g.placements?.[0]?.placementId || ''}>
+                      {g.industryName} - {g.students?.length || 0} Siswa {g.letterNumber ? `(Surat: ${g.letterNumber})` : '(Belum ada surat)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {errorMsg && <div className="p-3 mb-4 rounded-xl bg-rose-500/10 text-rose-600 text-sm">{errorMsg}</div>}
+              {successMsg && <div className="p-3 mb-4 rounded-xl bg-emerald-500/10 text-emerald-600 text-sm">{successMsg}</div>}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setMergeSourceGroup(null)}
+                  disabled={submitting}
+                  className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold transition-all disabled:opacity-50 text-sm"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleMergeGroup}
+                  disabled={submitting || !mergeTargetGroupId}
+                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 text-sm"
+                >
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
+                  <span>Gabungkan</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 🌟 MODAL KONFIRMASI HAPUS SELURUH KELOMPOK */}
       {deleteTargetGroup && (
@@ -2268,6 +2454,135 @@ export default function PokjaKelompokPrakerinPage() {
                 Tutup Detail
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL UPLOAD BALASAN INDUSTRI */}
+      {targetGroupBalasan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden transition-all ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="p-6 border-b border-inherit flex justify-between items-center bg-emerald-500/10">
+              <h3 className="font-extrabold text-base text-emerald-800 dark:text-emerald-400 flex items-center space-x-2">
+                <FileCheck2 className="w-5 h-5" />
+                <span>Upload Balasan Industri</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setTargetGroupBalasan(null)}
+                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                  theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUploadBalasanGroup} className="p-6 space-y-5">
+              <div className={`p-4 rounded-2xl border ${
+                theme === 'dark' ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <p className="text-xs font-semibold text-slate-500 mb-2 flex items-center space-x-1">
+                  <Building className="w-3.5 h-3.5" />
+                  <span>Target Industri:</span>
+                </p>
+                <p className="font-extrabold text-sm text-slate-800 dark:text-white">{targetGroupBalasan.industryName}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Berkas Balasan Industri
+                </label>
+                <div 
+                  className={`w-full p-4 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${
+                    balasanFileName 
+                    ? 'border-emerald-500/50 bg-emerald-500/5 hover:bg-emerald-500/10' 
+                    : theme === 'dark' ? 'border-slate-700 hover:border-slate-500' : 'border-slate-300 hover:border-slate-400'
+                  }`}
+                  onClick={() => {
+                    const input = document.getElementById('balasanUploadInput');
+                    input?.click();
+                  }}
+                >
+                  <input
+                    id="balasanUploadInput"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const maxSize = 2 * 1024 * 1024;
+                      if (file.size > maxSize) {
+                        alert('Ukuran file maksimal 2MB!');
+                        return;
+                      }
+                      setBalasanFileName(file.name);
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setBalasanBase64(reader.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  {balasanFileName ? (
+                    <div className="flex flex-col items-center space-y-2 text-emerald-600 dark:text-emerald-400">
+                      <FileCheck2 className="w-8 h-8" />
+                      <span className="text-xs font-semibold text-center">{balasanFileName}</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center space-y-2 text-slate-500">
+                      <Upload className="w-8 h-8" />
+                      <span className="text-xs font-semibold">Klik untuk pilih berkas (Max 2MB)</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {errorMsg && (
+                <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center space-x-2 text-rose-600 dark:text-rose-400">
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-bold leading-tight">{errorMsg}</span>
+                </div>
+              )}
+              {successMsg && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center space-x-2 text-emerald-600 dark:text-emerald-400">
+                  <CheckSquare className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-bold leading-tight">{successMsg}</span>
+                </div>
+              )}
+
+              <div className="flex space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTargetGroupBalasan(null)}
+                  disabled={submitting}
+                  className={`flex-1 px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
+                    theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || !balasanBase64}
+                  className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-600/30"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Simpan Balasan</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -19,28 +19,28 @@ enum Role {
   POKJA
   PEMBIMBING
   SISWA
-  TATA_USAHA    // 🌟 ROLE BARU: Persuratan & Tata Usaha Sekolah
+  TATA_USAHA // 🌟 ROLE BARU: Persuratan & Tata Usaha Sekolah
 }
 
 model User {
-  id                 String                  @id @default(cuid())
-  username           String                  @unique
-  name               String
-  password           String
-  role               String                  @default("SISWA")
-  department         String?
-  phone              String?
-  nip                String?
-  rank               String?
-  golongan           String?
-  jobTitle           String?
-  employeeType       String?
-  student            Student?                @relation("StudentAccount")
-  supervisedStudents Student[]               @relation("TeacherStudents")
-  teacherHours       TeacherHourAllocation[]
-  monitoringAssignments MonitoringAssignment[] @relation("AssignedTeacherMonitoring")
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
+  id                    String                  @id @default(cuid())
+  username              String                  @unique
+  name                  String
+  password              String
+  role                  String                  @default("SISWA")
+  department            String?
+  phone                 String?
+  nip                   String?
+  rank                  String?
+  golongan              String?
+  jobTitle              String?
+  employeeType          String?
+  student               Student?                @relation("StudentAccount")
+  supervisedStudents    Student[]               @relation("TeacherStudents")
+  teacherHours          TeacherHourAllocation[]
+  monitoringAssignments MonitoringAssignment[]  @relation("AssignedTeacherMonitoring")
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
 }
 
 model AcademicYear {
@@ -74,20 +74,20 @@ model ClassRoom {
 }
 
 model InternshipPeriod {
-  id               String                @id @default(cuid())
-  name             String
-  startDate        DateTime
-  endDate          DateTime
-  department       String                @default("ALL")
-  isActive         Boolean               @default(false)
-  academicYearId   String?
-  academicYear     AcademicYear?         @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
-  activeIndustries Json?                 @default("[]")
-  classes          ClassRoom[]
-  coefficient      InternshipCoefficient? // 🔑 Relasi 1-to-1 spesifik per periode
+  id                    String                 @id @default(cuid())
+  name                  String
+  startDate             DateTime
+  endDate               DateTime
+  department            String                 @default("ALL")
+  isActive              Boolean                @default(false)
+  academicYearId        String?
+  academicYear          AcademicYear?          @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  activeIndustries      Json?                  @default("[]")
+  classes               ClassRoom[]
+  coefficient           InternshipCoefficient? // 🔑 Relasi 1-to-1 spesifik per periode
   monitoringAssignments MonitoringAssignment[]
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 }
 
 // 🔑 MODEL: INTERNSHIP COEFFICIENT (Terikat spesifik ke periodId)
@@ -115,35 +115,35 @@ model IndustryCategory {
 }
 
 model Industry {
-  id            String                @id @default(cuid())
-  name          String                @unique
-  nib           String?
-  sector        String?
-  npwp          String?
-  logoUrl       String?               @db.Text
-  province      String?
-  regency       String?
-  address       String?               @db.Text
-  rt            String?
-  rw            String?
-  dusun         String?
-  desaKelurahan String?
-  subDistrict   String?
-  postalCode    String?
-  latitude      String?
-  longitude     String?
-  contactPerson String?
-  phone         String?
-  fax           String?
-  email         String?
-  website       String?
-  workType      String?               @default("Onsite") // Onsite, Remote, atau Hybrid
-  jobDescription String?              @db.Text
-  totalQuota    Int                   @default(0)
-  placements    InternshipPlacement[]
+  id                    String                 @id @default(cuid())
+  name                  String                 @unique
+  nib                   String?
+  sector                String?
+  npwp                  String?
+  logoUrl               String?                @db.Text
+  province              String?
+  regency               String?
+  address               String?                @db.Text
+  rt                    String?
+  rw                    String?
+  dusun                 String?
+  desaKelurahan         String?
+  subDistrict           String?
+  postalCode            String?
+  latitude              String?
+  longitude             String?
+  contactPerson         String?
+  phone                 String?
+  fax                   String?
+  email                 String?
+  website               String?
+  workType              String?                @default("Onsite") // Onsite, Remote, atau Hybrid
+  jobDescription        String?                @db.Text
+  totalQuota            Int                    @default(0)
+  placements            InternshipPlacement[]
   monitoringAssignments MonitoringAssignment[]
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 }
 
 model Student {
@@ -151,7 +151,7 @@ model Student {
   userId         String?              @unique
   user           User?                @relation("StudentAccount", fields: [userId], references: [id], onDelete: Cascade)
   nis            String               @unique
-  nisn           String?              
+  nisn           String?
   name           String
   className      String
   department     String
@@ -173,44 +173,45 @@ model Student {
 
 // 🌟 MODEL: INTERNSHIP PLACEMENT (DILENGKAPI FIELD PERSURATAN TAHAP 3 & DUAL-AUTHORITY TRACKING)
 model InternshipPlacement {
-  id                 String    @id @default(cuid())
-  studentId          String    @unique
-  student            Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  industryId         String
-  industry           Industry  @relation(fields: [industryId], references: [id], onDelete: Cascade)
-  status             String    @default("PENGAJUAN_DIKIRIM") // PENGAJUAN_DIKIRIM -> REVIEW_POKJA -> PEMBUATAN_SURAT -> SURAT_DITERBITKAN -> SENT_DUDI -> COMPLETED
-  stage              Int       @default(1)                   // Tahap 1 s.d. 6
-  notes              String?   @db.Text
-  
+  id         String   @id @default(cuid())
+  studentId  String   @unique
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  industryId String
+  industry   Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  status     String   @default("PENGAJUAN_DIKIRIM") // PENGAJUAN_DIKIRIM -> REVIEW_POKJA -> PEMBUATAN_SURAT -> SURAT_DITERBITKAN -> SENT_DUDI -> COMPLETED
+  stage      Int      @default(1) // Tahap 1 s.d. 6
+  notes      String?  @db.Text
+
   // 📜 FIELD PERSURATAN PERMOHONAN PKL (TAHAP 3 -> TAHAP 4)
-  letterNumber       String?                                 // Nomor Surat Resmi dari TU / Pokja
-  suratTugasUrl      String?   @db.Text                      // File Surat Permohonan/Tugas yang sudah di-TTD & Stempel
-  letterUploadedBy   String?                                 // Identifier Pengunggah (misal: "Tata Usaha" atau "Tim Pokja")
-  letterUploadedAt   DateTime?                               // Timestamp waktu penerbitan surat
-  
+  letterNumber     String? // Nomor Surat Resmi dari TU / Pokja
+  suratTugasUrl    String?   @db.Text // File Surat Permohonan/Tugas yang sudah di-TTD & Stempel
+  letterUploadedBy String? // Identifier Pengunggah (misal: "Tata Usaha" atau "Tim Pokja")
+  letterUploadedAt DateTime? // Timestamp waktu penerbitan surat
+
   // 📑 FIELD BALASAN DUDI
-  suratBalasanUrl    String?   @db.Text
-  suratBalasanStatus String?   @default("BELUM_UPLOAD")
-  
+  suratBalasanUrl    String? @db.Text
+  suratBalasanStatus String? @default("BELUM_UPLOAD")
+
   // FIELD PENGANTARAN
-    suratPengantaranUrl String?   @db.Text
-    nomorPengantaran    String?
-    suratPenarikanUrl   String?   @db.Text
-    nomorPenarikan      String?
-    startDate          DateTime?
-  endDate            DateTime?
-  appliedAt          DateTime  @default(now())
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  suratPengantaranUrl String?   @db.Text
+  nomorPengantaran    String?
+  suratPenarikanUrl   String?   @db.Text
+  nomorPenarikan      String?
+  startDate           DateTime?
+  endDate             DateTime?
+  groupId             String?
+  appliedAt           DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }
 
 model TeacherHourAllocation {
   id           String   @id @default(cuid())
-  className    String   
-  teacherId    String   
+  className    String
+  teacherId    String
   teacher      User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  totalHours   Int      
-  academicYear String   
+  totalHours   Int
+  academicYear String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -239,8 +240,8 @@ model AuditLog {
   userId    String?
   username  String
   userRole  String
-  action    String   // Contoh: "CREATE", "UPDATE", "DELETE", "EXPORT", "UPLOAD_LETTER"
-  module    String   // Contoh: "ANALYTICS", "STUDENTS", "PLACEMENTS", "PERSURATAN"
+  action    String // Contoh: "CREATE", "UPDATE", "DELETE", "EXPORT", "UPLOAD_LETTER"
+  module    String // Contoh: "ANALYTICS", "STUDENTS", "PLACEMENTS", "PERSURATAN"
   details   String   @db.Text
   ipAddress String?
   userAgent String?  @db.Text
@@ -256,22 +257,23 @@ model AuditLog {
 // ======================================================================
 model Notification {
   id        String   @id @default(cuid())
-  userId    String   // Target Penerima Notifikasi (User ID / "ALL")
+  userId    String // Target Penerima Notifikasi (User ID / "ALL")
   title     String
   message   String   @db.Text
   type      String   @default("INFO") // "INFO", "SUCCESS", "WARNING", "DANGER"
-  link      String?  // URL Pengalihan saat notifikasi diklik
+  link      String? // URL Pengalihan saat notifikasi diklik
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([isRead])
 }
+
 model ErrorLog {
   id        String   @id @default(cuid())
   level     String   @default("ERROR") // ERROR, WARN, FATAL
   message   String
-  stack     String?  
+  stack     String?
   path      String?
   method    String?
   userId    String?
@@ -305,25 +307,25 @@ model MonitoringAssignment {
   period            InternshipPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
   monitoringDate    DateTime
   returnDate        DateTime?
-  letterNumber      String?           // Nomor Surat Tugas, default: "800.1.11.1 /1000/2026" atau "${nomor_naskah}"
-  sppdNumber        String?           // Nomor SPPD, default: "${nomor_naskah}"
+  letterNumber      String? // Nomor Surat Tugas, default: "800.1.11.1 /1000/2026" atau "${nomor_naskah}"
+  sppdNumber        String? // Nomor SPPD, default: "${nomor_naskah}"
   purpose           String?           @default("Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)")
   transportType     String?           @default("Mobil Dinas / Kendaraan Umum")
   departurePlace    String?           @default("SMK Negeri 1 Adiwerna")
-  destinationPlace  String?           // Tujuan (DUDI)
+  destinationPlace  String? // Tujuan (DUDI)
   budgetSource      String?           @default("SMK Negeri 1 Adiwerna")
   budgetAccount     String?           @default("Dana BOS")
   suratTugasUrl     String?           @db.Text
   sppdUrl           String?           @db.Text
   laporanUrl        String?           @db.Text
 
-  status            String            @default("TERJADWAL") // TERJADWAL, SELESAI, DIBATALKAN
-  notes             String?           @db.Text
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  status    String   @default("TERJADWAL") // TERJADWAL, SELESAI, DIBATALKAN
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([industryId])
   @@index([teacherId])
   @@index([periodId])
   @@index([monitoringDate])
-}
+}

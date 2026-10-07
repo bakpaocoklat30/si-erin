@@ -131,8 +131,9 @@ export async function GET(request: Request) {
       const industryName = industry?.name || 'Tanpa Nama Industri';
       const departmentName = student?.department || userDepartment || 'Teknik Kejuruan';
 
-      const groupKey = `${industryId}___${periodId}___${departmentName}`;
       const savedLetterNumber = placement.letterNumber || null;
+      const groupKey = placement.groupId || `${industryId}___${periodId}___${departmentName}___${savedLetterNumber || 'PENDING'}`;
+
 
       if (!groupedMap[groupKey]) {
         // Susun komponen alamat detail dan gabungan alamat lengkap
@@ -248,13 +249,13 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { placementIds, suratTugasUrl, letterNumber, letterDate, status, suratPengantaranUrl, suratPenarikanUrl, nomorPengantaran, nomorPenarikan } = body;
+    const { placementIds, suratTugasUrl, letterNumber, letterDate, status, suratPengantaranUrl, suratPenarikanUrl, nomorPengantaran, nomorPenarikan, suratBalasanUrl } = body;
 
     if (!Array.isArray(placementIds) || placementIds.length === 0) {
       return NextResponse.json({ error: 'Pilih kelompok siswa yang akan dikirimkan suratnya' }, { status: 400 });
     }
 
-    if (!status && (!letterNumber || !letterNumber.trim()) && !suratTugasUrl && !suratPengantaranUrl && !suratPenarikanUrl && nomorPengantaran === undefined && nomorPenarikan === undefined) {
+    if (!status && (!letterNumber || !letterNumber.trim()) && !suratTugasUrl && !suratPengantaranUrl && !suratPenarikanUrl && nomorPengantaran === undefined && nomorPenarikan === undefined && !suratBalasanUrl) {
         return NextResponse.json({ error: 'Harus mengisi Nomor Surat, mengunggah File, atau update status!' }, { status: 400 });
       }
 
@@ -289,6 +290,15 @@ export async function PUT(request: Request) {
         letterUploadedBy: userName,
         letterUploadedAt: uploadTimestamp,
         status: 'SURAT_DITERBITKAN'
+      };
+    }
+
+    if (suratBalasanUrl) {
+      updateData = {
+        ...updateData,
+        suratBalasanUrl: suratBalasanUrl.trim(),
+        status: 'DISETUJUI_INDUSTRI',
+        suratBalasanStatus: 'DITERIMA'
       };
     }
 
