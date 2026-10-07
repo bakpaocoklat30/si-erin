@@ -122,7 +122,7 @@ export default function AdminManageUsersPage() {
   };
 
   
-  const handleImpersonate = async (targetUser: UserItem) => {
+  const handleImpersonate = async (targetUser: any) => {
     if (targetUser.id === session?.user?.id) return;
     if (!confirm(`Tukar akses masuk sebagai ${targetUser.name} (${targetUser.role})? Anda bisa kembali menjadi Admin kapan saja.`)) return;
     
@@ -460,8 +460,16 @@ export default function AdminManageUsersPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => openEditModal(user)}
+                        {user.id !== session?.user?.id && (
+                          <button
+                            onClick={() => handleImpersonate(user)}
+                            className="p-2 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white transition-all cursor-pointer shadow-sm inline-flex items-center"
+                            title="Tukar Akses (Login Sebagai)"
+                          >
+                            <UserCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button onClick={() => openEditModal(user)}
                           className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all cursor-pointer shadow-sm inline-flex items-center"
                           title="Edit Data Pengguna"
                         >

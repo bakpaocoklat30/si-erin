@@ -73,6 +73,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
   const sessionState = useSession();
   const session = sessionState?.data;
   const status = sessionState?.status || 'loading';
+  const update = sessionState?.update;
 
   const { theme, toggleTheme } = useTheme();
   

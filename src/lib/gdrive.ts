@@ -130,25 +130,28 @@ export async function listDriveBackups() {
 
   const files = response.data.files || [];
   
-  // LIMITASI BACKUP: Hanya simpan 10 backup terbaru
-  if (files.length > 10) {
-    const filesToDelete = files.slice(10);
-    
+  // LIMITASI BACKUP: Hanya simpan backup 10 hari terakhir
+  const tenDaysAgo = new Date();
+  tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+
+  const filesToKeep = files.filter(f => f.createdTime && new Date(f.createdTime) >= tenDaysAgo);
+  const filesToDelete = files.filter(f => f.createdTime && new Date(f.createdTime) < tenDaysAgo);
+  
+  if (filesToDelete.length > 0) {
     // Hapus backup lama di background
     Promise.all(filesToDelete.map(async (file) => {
       try {
         if (file.id) {
           await drive.files.delete({ fileId: file.id, supportsAllDrives: true });
-          console.log(`[RETENTION] Backup lama dihapus otomatis: ${file.name}`);
+          console.log(`[RETENTION] Backup lama dihapus otomatis (> 10 hari): ${file.name}`);
         }
       } catch (err) {
         console.error(`[RETENTION ERROR] Gagal menghapus ${file.name}:`, err);
       }
     })).catch(() => {});
-    
-    // Return hanya 10 terbaru ke UI
-    return files.slice(0, 10);
   }
+
+  return filesToKeep;
 
   return files;
 }
@@ -279,4 +282,4 @@ export async function uploadOrUpdateFileInDrive(
     throw new Error(`Google Drive API: ${errorDetails}`);
   }
 }
-
+

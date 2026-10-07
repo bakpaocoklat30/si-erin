@@ -261,7 +261,48 @@ export default function PokjaStudentsPage() {
   };
 
   // ----------------------------------------------------------------------
-  // 🌟 BULK ACTION 2: MASSAL RESET PASSWORD
+  // 🌟 BULK ACTION 2: MASSAL PAKSA STATUS
+  // ----------------------------------------------------------------------
+  const handleBulkForceStatus = async () => {
+    if (selectedStudentIds.length === 0) return;
+
+    if (!confirm(`Apakah Anda yakin ingin MEMAKSA status ${selectedStudentIds.length} siswa terpilih menjadi DISETUJUI_INDUSTRI? Tindakan ini akan melewati alur upload normal.`)) {
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/pokja/students/bulk-force-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentIds: selectedStudentIds,
+          status: 'DISETUJUI_INDUSTRI'
+        })
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        setSuccessMsg(json.message || `Status ${selectedStudentIds.length} siswa berhasil diperbarui paksa.`);
+        setSelectedStudentIds([]);
+        fetchStudents(); // Refresh data to reflect the new status correctly
+      } else {
+        setErrorMsg(json.error || 'Gagal mengubah status massal.');
+      }
+    } catch (err) {
+      console.error('Error executing bulk force status:', err);
+      setErrorMsg('Gagal terhubung ke server saat memaksa status.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ----------------------------------------------------------------------
+  // 🌟 BULK ACTION 3: MASSAL RESET PASSWORD
   // ----------------------------------------------------------------------
   const handleBulkResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -834,6 +875,18 @@ export default function PokjaStudentsPage() {
             >
               <KeyRound className="w-4 h-4" />
               <span>Reset Pass Massal</span>
+            </button>
+
+            {/* BULK ACTION: PAKSA STATUS DISETUJUI INDUSTRI */}
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => handleBulkForceStatus()}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-xl font-bold transition-all shadow-md flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+              title="Paksa Status Disetujui Industri"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Force Setuju Industri</span>
             </button>
 
             {/* BATALKAN PILIHAN */}

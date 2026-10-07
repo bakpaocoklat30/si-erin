@@ -88,7 +88,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== 'ADMIN') {
+    const userRole = (session?.user as any)?.role;
+    if (!session || (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized - Akses khusus Admin' }, { status: 401 });
     }
 
@@ -164,7 +165,8 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== 'ADMIN') {
+    const userRole = (session?.user as any)?.role;
+    if (!session || (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized - Akses khusus Admin' }, { status: 401 });
     }
 
@@ -243,7 +245,8 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== 'ADMIN') {
+    const userRole = (session?.user as any)?.role;
+    if (!session || (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized - Akses khusus Admin' }, { status: 401 });
     }
 

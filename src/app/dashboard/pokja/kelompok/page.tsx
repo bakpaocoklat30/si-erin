@@ -145,6 +145,11 @@ export default function PokjaKelompokPrakerinPage() {
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [showMassUploadModal, setShowMassUploadModal] = useState(false);
+  const [massUploadFile, setMassUploadFile] = useState<File | null>(null);
+  const [massUploadMappings, setMassUploadMappings] = useState<Record<string, {start: string, end: string}>>({});
+  const toggleGroupSelection = (groupKey: string) => { setSelectedGroups(prev => prev.includes(groupKey) ? prev.filter(key => key !== groupKey) : [...prev, groupKey]); };
 
   // Target Kelompok untuk Upload Surat & Input Nomor Surat Pokja
   const [targetGroup, setTargetGroup] = useState<GroupItem | null>(null);
@@ -1501,6 +1506,48 @@ export default function PokjaKelompokPrakerinPage() {
         className="hidden"
       />
 
+      {/* MASS ACTION BAR */}
+      {selectedGroups.length > 0 && (
+        <div className="sticky top-4 z-40 mb-6 p-4 rounded-2xl shadow-2xl bg-indigo-600 border border-indigo-500 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center space-x-3">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 font-bold">{selectedGroups.length}</span>
+            <span className="font-bold">Penugasan Terpilih</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/pokja/groups/download-docx', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupIds: selectedGroups, format: 'merged' })
+                  });
+                  if (!res.ok) throw new Error('Gagal download');
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Laporan_Massal_Permohonan.docx';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch(e) { alert('Gagal mendownload'); }
+              }}
+              className="px-4 py-2 bg-white text-indigo-600 hover:bg-indigo-50 font-bold rounded-xl text-sm flex items-center gap-2 cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download Massal (Gabungan)</span>
+            </button>
+            <button
+              onClick={() => setShowMassUploadModal(true)}
+              className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-400 font-bold rounded-xl text-sm flex items-center gap-2 shadow-lg cursor-pointer"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Unggah Massal Laporan</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* DAFTAR KARTU KELOMPOK SISWA PER INDUSTRI */}
       <div className="space-y-6">
         {filteredGroups.length > 0 ? (
@@ -1524,6 +1571,7 @@ export default function PokjaKelompokPrakerinPage() {
                   <div className="flex items-start gap-3.5">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
+                        <input type="checkbox" checked={selectedGroups.includes(groupKey)} onChange={() => toggleGroupSelection(groupKey)} className="w-5 h-5 rounded cursor-pointer accent-indigo-600 shrink-0" />
                         <Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                         <h3 className="text-xl font-black text-slate-900 dark:text-white">
                           {group.industryName}

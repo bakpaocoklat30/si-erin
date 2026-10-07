@@ -529,7 +529,7 @@ export default function AdminMasterPage() {
           </button>
         </div>
 
-        {activeTab !== 'coefficient' && (activeTab !== 'period' || isAdmin) && (
+        {isAdmin && activeTab !== 'coefficient' && (
           <button
             type="button"
             onClick={() => handleOpenAddModal()}
@@ -540,7 +540,7 @@ export default function AdminMasterPage() {
               {activeTab === 'academic_year' && 'Tambah Tahun'}
               {activeTab === 'department' && 'Tambah Jurusan'}
               {activeTab === 'class' && 'Tambah Kelas'}
-              {activeTab === 'period' && 'Tambah Periode PKL (Admin)'}
+              {activeTab === 'period' && 'Tambah Periode PKL'}
             </span>
           </button>
         )}
@@ -734,23 +734,25 @@ export default function AdminMasterPage() {
                         )}
 
                         <td className="p-4 text-right space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(item)}
-                            className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
-                            title="Ubah Data"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          {(activeTab !== 'period' || isAdmin) && (
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(item.id, displayStr)}
-                              className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
-                              title="Hapus Data"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                          {isAdmin && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(item)}
+                                className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                                title="Ubah Data"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(item.id, displayStr)}
+                                className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                                title="Hapus Data"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
                         </td>
                       </tr>
