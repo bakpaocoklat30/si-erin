@@ -78,6 +78,55 @@ export default function PokjaStudentsPage() {
   const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
   const [activePreviewTitle, setActivePreviewTitle] = useState<string>('');
 
+  // State Mapping Manual
+  const [mappingModalOpen, setMappingModalOpen] = useState(false);
+  const [mappingIndustryId, setMappingIndustryId] = useState('');
+  const [mappingPeriodId, setMappingPeriodId] = useState('');
+  const [mappingStatus, setMappingStatus] = useState('DISETUJUI_INDUSTRI');
+  const [availableIndustries, setAvailableIndustries] = useState<any[]>([]);
+  const [availablePeriods, setAvailablePeriods] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (mappingModalOpen) {
+      fetch('/api/pokja/industries').then(r => r.json()).then(d => { if(d.success) setAvailableIndustries(d.data) });
+      fetch('/api/pokja/periods').then(r => r.json()).then(d => { if(d.success) setAvailablePeriods(d.data) });
+    }
+  }, [mappingModalOpen]);
+
+  const handleManualMapping = async () => {
+    if (!mappingIndustryId || !mappingPeriodId || !mappingStatus) {
+      alert("Harap pilih industri, periode, dan status");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/pokja/students/mapping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentIds: selectedStudentIds,
+          industryId: mappingIndustryId,
+          periodId: mappingPeriodId,
+          status: mappingStatus
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMsg(data.message || 'Mapping berhasil!');
+        setMappingModalOpen(false);
+        fetchStudents();
+        setSelectedStudentIds([]);
+      } else {
+        alert(data.error || 'Gagal melakukan mapping');
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+
   // State Modal Reset Password Tunggal
   const [targetStudentForReset, setTargetStudentForReset] = useState<any | null>(null);
   const [useDefaultNis, setUseDefaultNis] = useState(true);
@@ -1234,7 +1283,7 @@ export default function PokjaStudentsPage() {
                   disabled={submitting}
                   className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition-all shadow-lg flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> /> : <KeyRound className="w-4 h-4" />}
                   <span>Reset Password Sekarang</span>
                 </button>
               </div>
@@ -1329,7 +1378,7 @@ export default function PokjaStudentsPage() {
                   disabled={submitting}
                   className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> /> : <KeyRound className="w-4 h-4" />}
                   <span>Reset {selectedStudentIds.length} Password</span>
                 </button>
               </div>
@@ -1338,6 +1387,67 @@ export default function PokjaStudentsPage() {
         </div>
       )}
 
+
+
+      {mappingModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-lg rounded-3xl border shadow-2xl overflow-hidden ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="p-6 border-b border-inherit flex justify-between items-center bg-blue-500/10">
+              <h3 className="font-bold text-base text-blue-500 flex items-center space-x-2">
+                <Building2 className="w-5 h-5" />
+                <span>Mapping PKL Manual ({selectedStudentIds.length} Siswa)</span>
+              </h3>
+              <button onClick={() => setMappingModalOpen(false)} className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block mb-2 font-bold">Pilih Industri Tujuan:</label>
+                <select value={mappingIndustryId} onChange={e => setMappingIndustryId(e.target.value)} className={`w-full p-3 rounded-xl border ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'} outline-none`}>
+                  <option value="">-- Pilih Industri --</option>
+                  {availableIndustries.map(ind => (
+                    <option key={ind.id} value={ind.id}>{ind.name} - {ind.address}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block mb-2 font-bold">Pilih Periode PKL:</label>
+                <select value={mappingPeriodId} onChange={e => setMappingPeriodId(e.target.value)} className={`w-full p-3 rounded-xl border ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'} outline-none`}>
+                  <option value="">-- Pilih Periode --</option>
+                  {availablePeriods.map(per => (
+                    <option key={per.id} value={per.id}>{per.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block mb-2 font-bold">Status Awal:</label>
+                <select value={mappingStatus} onChange={e => setMappingStatus(e.target.value)} className={`w-full p-3 rounded-xl border ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'} outline-none`}>
+                  <option value="DISETUJUI_INDUSTRI">Disetujui Industri (Siap Penerjunan)</option>
+                  <option value="AKTIF">Aktif PKL</option>
+                  <option value="COMPLETED">Selesai PKL</option>
+                  <option value="PENGAJUAN_DIKIRIM">Pengajuan (Belum Verifikasi)</option>
+                </select>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <button onClick={() => setMappingModalOpen(false)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-white font-bold">Batal</button>
+                <button onClick={handleManualMapping} disabled={submitting} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold flex gap-2 items-center">
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  Simpan Mapping
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
