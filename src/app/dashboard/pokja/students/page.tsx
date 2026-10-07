@@ -1350,35 +1350,6 @@ export default function PokjaStudentsPage() {
           </div>
         </div>
       )}
-
-
-
-      {mappingModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className={`w-full max-w-lg rounded-3xl border shadow-2xl overflow-hidden ${
-            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className="p-6 border-b border-inherit flex justify-between items-center bg-blue-500/10">
-              <h3 className="font-bold text-base text-blue-500 flex items-center space-x-2">
-                <Building2 className="w-5 h-5" />
-                <span>Mapping PKL Manual ({selectedStudentIds.length} Siswa)</span>
-              </h3>
-              <button onClick={() => setMappingModalOpen(false)} className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-4 text-xs">
-              <div>
-                <label className="block mb-2 font-bold">Pilih Industri Tujuan:</label>
-                <select value={mappingIndustryId} onChange={e => setMappingIndustryId(e.target.value)} className={`w-full p-3 rounded-xl border ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'} outline-none`}>
-                  <option value="">-- Pilih Industri --</option>
-                  {availableIndustries.map(ind => (
-                    <option key={ind.id} value={ind.id}>{ind.name} - {ind.address}</option>
-                  ))}
-                </select>
-              </div>
-
-    </div>
-  );
+      </div>
+    );
 }
