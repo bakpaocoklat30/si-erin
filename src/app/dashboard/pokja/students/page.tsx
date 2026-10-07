@@ -1379,42 +1379,6 @@ export default function PokjaStudentsPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block mb-2 font-bold">Pilih Periode PKL:</label>
-                <select value={mappingPeriodId} onChange={e => setMappingPeriodId(e.target.value)} className={`w-full p-3 rounded-xl border ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'} outline-none`}>
-                  <option value="">-- Pilih Periode --</option>
-                  {availablePeriods.map(per => (
-                    <option key={per.id} value={per.id}>{per.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block mb-2 font-bold">Status Awal:</label>
-                <select value={mappingStatus} onChange={e => setMappingStatus(e.target.value)} className={`w-full p-3 rounded-xl border ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'} outline-none`}>
-                  <option value="DISETUJUI_INDUSTRI">Disetujui Industri (Siap Penerjunan)</option>
-                  <option value="AKTIF">Aktif PKL</option>
-                  <option value="COMPLETED">Selesai PKL</option>
-                  <option value="PENGAJUAN_DIKIRIM">Pengajuan (Belum Verifikasi)</option>
-                </select>
-              </div>
-              
-              <div className="flex justify-end space-x-3 pt-4">
-                <button onClick={() => setMappingModalOpen(false)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-white font-bold">Batal</button>
-                <button onClick={handleManualMapping} disabled={submitting} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold flex gap-2 items-center">
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  Simpan Mapping
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
-
-
-
-
