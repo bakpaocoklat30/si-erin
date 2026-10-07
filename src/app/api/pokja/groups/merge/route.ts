@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       await prisma.internshipPlacement.updateMany({
         where: { 
           industryId: targetPlacement.industryId,
-          periodId: targetPlacement.periodId,
+
           letterNumber: targetPlacement.letterNumber,
           groupId: null
         },

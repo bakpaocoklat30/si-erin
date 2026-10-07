@@ -143,6 +143,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
       items: [
         { name: 'Verifikasi Pengajuan PKL', href: '/dashboard/pokja/verifikasi', icon: UserCheck },
         { name: 'Kelompok Prakerin & Pembimbing', href: '/dashboard/pokja/kelompok', icon: Users },
+          { name: 'Penempatan PKL Manual', href: '/dashboard/pokja/placements/manual', icon: ShieldCheck },
         { name: 'Jadwal & Tugas Monitoring', href: '/dashboard/pokja/monitoring', icon: ClipboardCheck },
         { name: 'Manajemen Data Siswa', href: '/dashboard/pokja/students', icon: GraduationCap },
       ]

@@ -91,43 +91,7 @@ export default function PokjaStudentsPage() {
       fetch('/api/pokja/industries').then(r => r.json()).then(d => { if(d.success) setAvailableIndustries(d.data) });
       fetch('/api/pokja/periods').then(r => r.json()).then(d => { if(d.success) setAvailablePeriods(d.data) });
     }
-  }, [mappingModalOpen]);
-
-  const handleManualMapping = async () => {
-    if (!mappingIndustryId || !mappingPeriodId || !mappingStatus) {
-      alert("Harap pilih industri, periode, dan status");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch('/api/pokja/students/mapping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentIds: selectedStudentIds,
-          industryId: mappingIndustryId,
-          periodId: mappingPeriodId,
-          status: mappingStatus
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMsg(data.message || 'Mapping berhasil!');
-        setMappingModalOpen(false);
-        fetchStudents();
-        setSelectedStudentIds([]);
-      } else {
-        alert(data.error || 'Gagal melakukan mapping');
-      }
-    } catch (e: any) {
-      alert(e.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-
-  // State Modal Reset Password Tunggal
+  }, [mappingModalOpen]);// State Modal Reset Password Tunggal
   const [targetStudentForReset, setTargetStudentForReset] = useState<any | null>(null);
   const [useDefaultNis, setUseDefaultNis] = useState(true);
   const [customPasswordInput, setCustomPasswordInput] = useState('');
@@ -1450,4 +1414,7 @@ export default function PokjaStudentsPage() {
     </div>
   );
 }
+
+
+
 
