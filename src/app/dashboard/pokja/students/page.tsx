@@ -1283,7 +1283,7 @@ export default function PokjaStudentsPage() {
                   disabled={submitting}
                   className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition-all shadow-lg flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> /> : <KeyRound className="w-4 h-4" />}
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
                   <span>Reset Password Sekarang</span>
                 </button>
               </div>
@@ -1378,7 +1378,7 @@ export default function PokjaStudentsPage() {
                   disabled={submitting}
                   className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> /> : <KeyRound className="w-4 h-4" />}
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
                   <span>Reset {selectedStudentIds.length} Password</span>
                 </button>
               </div>
