@@ -1,123 +1,50 @@
-<div align="center">
+# SI-ERIN v3.0
 
-# 🚀 SI-ERIN v3.0
-**Sistem Informasi Praktik Kerja Lapangan Digital & Terintegrasi**
+Sistem Informasi Praktik Kerja Lapangan (PKL) Digital & Terintegrasi.
+Aplikasi ini memfasilitasi dan mengotomatisasi proses pelaksanaan Praktik Kerja Lapangan / Prakerin di Sekolah Menengah Kejuruan.
 
-Portal resmi pengelolaan Praktik Kerja Lapangan (PKL/Prakerin). Menghubungkan Siswa, Guru Pembimbing, Tim Pokja, dan Mitra Industri DUDI secara akurat & transparan.
+## Fitur Utama
 
-![Next.js](https://img.shields.io/badge/Next.js-14.2-blue?style=flat-square&logo=nextdotjs)
-![Prisma](https://img.shields.io/badge/Prisma-ORM-1B222D?style=flat-square&logo=prisma)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-DB-4169E1?style=flat-square&logo=postgresql)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=flat-square&logo=tailwind-css)
+- **Pengajuan Online & Mandiri (Siswa)**
+  Siswa dapat mengajukan lokasi PKL mitra DUDI secara online dengan fitur pengecekan kuota secara real-time.
+- **Verifikasi Berjenjang (Pokja/Hubin)**
+  Tim Pokja dapat memverifikasi berkas, melakukan plotting tempat PKL secara manual maupun mandiri, dan mencetak surat-surat terkait seperti Surat Pengantar, Surat Tugas, dll.
+- **Monitoring & Jurnal (Guru Pembimbing & Siswa)**
+  Guru Pembimbing dapat memantau kehadiran, laporan harian siswa (jurnal), dan mengisi nilai siswa. Siswa dapat mengisi jurnal secara berkala.
+- **Manajemen Akun Terintegrasi**
+  Mendukung role Siswa, Guru Pembimbing, Pokja (Hubin), dan Admin dengan akses dashboard yang dibedakan.
+- **Pencetakan Berkas TTE (Tanda Tangan Elektronik)**
+  Mendukung pencetakan berkas PDF dengan Tanda Tangan Elektronik dari Kepala Sekolah menggunakan e-materai/TTE pada SPPD, Surat Tugas, dan Sertifikat.
+- **Backup Otomatis ke Google Drive**
+  Seluruh data laporan kegiatan, surat permohonan, surat balasan, surat tugas, dan surat izin akan ter-backup otomatis ke folder Google Drive yang terstruktur dan teratur.
+- **Integrasi Maps dan Pencarian Lokasi Industri**
+  Pencarian koordinat tempat industri yang akurat menggunakan layanan Nominatim (seperti Google Maps) untuk memudahkan mapping tempat PKL.
 
-</div>
+## Cara Instalasi & Deploy
 
----
+Untuk melakukan instalasi di server Linux (Rocky Linux / Ubuntu) atau VPS Anda:
 
-## 🌟 Fitur Utama (v3.0)
-
-SI-ERIN v3.0 telah diupgrade dengan fitur-fitur kelas enterprise yang dirancang khusus untuk memenuhi standar industri dan mempermudah administrasi sekolah.
-
-### 🛡️ 1. Multi-Role Authentication & Dashboard
-Sistem mengadopsi struktur berbasis peran (RBAC - Role Based Access Control) dengan 4 akses level utama:
-- **👨‍🎓 Siswa**: Dapat membuat pengajuan tempat PKL (DUDI), memantau status pengajuan, serta melengkapi profil dan dokumen persyaratan (CV, BPJS).
-- **👨‍🏫 Guru Pembimbing**: Memantau progress siswa yang ditugaskan kepadanya, serta mengakses jadwal monitoring.
-- **🏢 Pokja Hubin**: Tim verifikator yang menyetujui pengajuan, menerbitkan surat pengantar, mendistribusikan jam bimbingan, dan menempatkan kelompok PKL.
-- **🔑 Administrator**: Kontrol penuh atas master data (Siswa, Guru, DUDI), manajemen akun, pengaturan identitas sekolah, dan utilitas *backup*.
-
-### 🗺️ 2. Smart Geocoding & Pemetaan DUDI
-- **Pencarian Koordinat Cerdas**: Mengintegrasikan API OpenStreetMap Nominatim dengan metode *cascading search* yang tahan terhadap kegagalan pencarian.
-- **Dukungan Link Google Maps**: Pengguna cukup mem-*paste* tautan Google Maps (termasuk *shortlink* `goo.gl` atau `maps.app.goo.gl`) dan sistem akan mengekstrak koordinat garis lintang dan garis bujur secara otomatis.
-- **Smart Postal Code Filler**: Secara otomatis mendeteksi kode pos berdasarkan kecamatan dan desa/kelurahan yang dipilih.
-
-### ☁️ 3. Universal Backup System & Google Drive Sync
-Fitur *Disaster Recovery* dan pengarsipan yang sangat handal:
-- **SQL Data Dump Otomatis**: Mendukung backup seluruh skema database (termasuk relasi ganda) murni melalui Prisma, bahkan di *environment* tanpa aplikasi pg_dump CLI.
-- **Pengarsipan Dokumen Otomatis**: Semua dokumen PKL penting yang diunggah akan di-*push* ke Google Drive sekolah dengan struktur yang terorganisir rapi:
-  - `[Tahun Pelajaran] / [Periode Prakerin] / Pengajuan / [Nama Industri].pdf`
-  - `[Tahun Pelajaran] / [Periode Prakerin] / Jawaban / [Nama Industri].pdf`
-  - `[Tahun Pelajaran] / [Periode Prakerin] / Penugasan / [Jenis Penugasan] / File Asli / [Nama Surat Tugas].pdf`
-  - `[Tahun Pelajaran] / [Periode Prakerin] / Penugasan / [Jenis Penugasan] / Laporan Kegiatan / [Nama Laporan].pdf`
-  - `[Tahun Pelajaran] / [Periode Prakerin] / Surat Izin / [Nama Event] / Surat_Izin_[Nama_Siswa].pdf`
-- **Dokumen Personal Siswa**: Melakukan *sync* CV dan Kartu BPJS Siswa.
-
-### 📝 4. Manajemen Persuratan & Agenda Canggih
-- **Otomatisasi Surat Menyurat**: Pembuatan dokumen SPPD, Surat Penugasan Pokja, Surat Penarikan, dan Surat Pengantar secara langsung dari aplikasi berbasis *template* DOCX.
-- **Validasi Dokumen Dua Arah**: Pengecekan Surat Pengajuan yang dikirim sekolah dan Surat Balasan/Jawaban dari pihak Industri.
-- **Sistem Cuti & Surat Izin (Event)**: Integrasi khusus bagi siswa PKL yang harus mengikuti kegiatan / event sekolah di luar area industri.
-
----
-
-## 🛠️ Stack Teknologi
-
-- **Framework**: Next.js 14.x (App Router)
-- **Database**: PostgreSQL
-- **ORM**: Prisma
-- **Styling**: Tailwind CSS
-- **Authentication**: NextAuth.js
-- **Map & Geocoding**: Leaflet.js & OpenStreetMap (via Internal Proxy)
-- **Cloud Storage**: Google Drive API (v3)
-
----
-
-## ⚙️ Panduan Instalasi (Development)
-
-1. **Kloning Repository**
+1. **Clone/Pull dari repositori Git:**
    ```bash
-   git clone https://github.com/bakpaocoklat30/si-erin.git
-   cd si-erin
+   git pull origin main
    ```
-
-2. **Instalasi Dependensi**
+2. **Install dependensi & ekstensi (termasuk modul optimasi gambar/sharp):**
    ```bash
    npm install
    ```
-
-3. **Pengaturan Environment Variables**
-   Buat file `.env` di *root directory* dan masukkan kredensial berikut:
-   ```env
-   DATABASE_URL="postgresql://username:password@localhost:5432/sierin"
-   NEXTAUTH_SECRET="your_super_secret_key"
-   NEXTAUTH_URL="http://localhost:3000"
-   
-   # Untuk Fitur Sync Backup (Google Drive)
-   GDRIVE_CLIENT_EMAIL="your-service-account@project.iam.gserviceaccount.com"
-   GDRIVE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
-   GDRIVE_ROOT_FOLDER_ID="your_drive_folder_id"
-   ```
-
-4. **Migrasi Skema Database**
+3. **Build aplikasi Next.js:**
    ```bash
-   npx prisma generate
-   npx prisma db push
+   npm run build
    ```
-
-5. **Menjalankan Server Mode Development**
+4. **Jalankan melalui PM2:**
    ```bash
-   npm run dev
+   pm2 restart si-erin
    ```
 
-6. **Akses Aplikasi**
-   Buka `http://localhost:3000` di *browser* Anda.
+## Catatan Rilis (Changelog v3.0)
 
----
-
-## 🚀 Deployment (Production)
-
-Gunakan perintah build standar Next.js untuk menyiapkan aplikasi Anda ke *server production* (misal: VPS Rocky Linux, Ubuntu, atau Vercel/Railway).
-
-```bash
-npm run build
-npm run start
-```
-Atau manfaatkan *process manager* seperti **PM2**:
-```bash
-pm2 start npm --name "si-erin" -- start
-pm2 save
-```
-
----
-
-<div align="center">
-Made with ❤️ by Tekad.Dev SMKN 1 Adiwerna for Indonesian Vocational Education
-</div>
+- **Optimasi Kecepatan & Responsivitas:** Mengaktifkan optimasi gambar bawaan Next.js dan modul `sharp` agar tidak membebani penggunaan resource server/bandwidth di IP publik.
+- **Desain Landing Page Ultra-Modern:** Peningkatan tampilan UI/UX portal SI-ERIN dengan performa maksimal.
+- **Perbaikan Maps Koordinat:** Pencarian lokasi industri yang jauh lebih akurat.
+- **Pemisahan Backup Google Drive:** Pengelolaan backup yang rapi ke berbagai sub-folder dalam Google Drive.
+- **Perbaikan Surat Permohonan Pokja:** Fix list surat permohonan agar siswa yang ditempatkan secara paksa (manual) tidak muncul lagi di menu persuratan permohonan.
