@@ -100,7 +100,7 @@ export default function ManualPlacementPage() {
       
       setSuccessMsg('Kelompok berhasil dibuat!');
       setShowGroupForm(false);
-      setFormInd(''); setFormPeriod(''); setFormStart(''); setFormEnd('');
+      setFormInd(''); setFormPeriod(''); setFormStart(''); setFormEnd(''); setSearchIndTerm('');
       fetchGroups();
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -261,7 +261,7 @@ export default function ManualPlacementPage() {
                       className={`px-4 py-2 cursor-pointer ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} ${formInd === ind.id ? 'font-bold text-indigo-500' : ''}`}
                       onClick={() => {
                         setFormInd(ind.id);
-                        setSearchIndTerm('');
+                        setSearchIndTerm(ind.name);
                         setShowIndDropdown(false);
                       }}
                     >

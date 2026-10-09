@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { saveBase64ToFile } from '@/lib/file-utils';
 
 // Helper terisolasi untuk mendeteksi instance model InternshipPlacement secara presisi
 function getPlacementClient() {
@@ -597,6 +598,8 @@ export async function PATCH(request: Request) {
     if (!suratBalasanUrl) {
       return NextResponse.json({ error: 'File surat balasan wajib diunggah.' }, { status: 400 });
     }
+    
+    const cleanSuratBalasanUrl = saveBase64ToFile(suratBalasanUrl.trim(), 'surat_balasan', 'balasan');
 
     const updates = Array.isArray(memberStatuses) && memberStatuses.length > 0
       ? memberStatuses
@@ -611,7 +614,7 @@ export async function PATCH(request: Request) {
       if (item.placementId) {
         if (placementClient && typeof placementClient.update === 'function') {
           const updateData: any = {
-            suratBalasanUrl: suratBalasanUrl,
+            suratBalasanUrl: cleanSuratBalasanUrl,
             status: targetStatus,
             updatedAt: new Date()
           };
@@ -626,7 +629,7 @@ export async function PATCH(request: Request) {
         }
       } else if (item.studentId) {
         const updateData: any = {
-          suratBalasanUrl: suratBalasanUrl,
+          suratBalasanUrl: cleanSuratBalasanUrl,
           status: targetStatus,
           updatedAt: new Date()
         };
@@ -675,7 +678,7 @@ export async function PATCH(request: Request) {
             data: {
               startDate: newStartDate,
               endDate: newEndDate,
-              suratBalasanUrl: suratBalasanUrl,
+              suratBalasanUrl: cleanSuratBalasanUrl,
               status: 'DISETUJUI_INDUSTRI',
               updatedAt: new Date()
             }

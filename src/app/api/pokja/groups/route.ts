@@ -18,6 +18,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { saveBase64ToFile } from '@/lib/file-utils';
 
 // List Role yang Berhak Mengakses Data Kelompok & Persuratan
 const ALLOWED_ROLES = ['POKJA', 'TIM_POKJA', 'ADMIN', 'TATA_USAHA', 'TU', 'SUPER_ADMIN'];
@@ -317,7 +318,7 @@ export async function PUT(request: Request) {
     }
 
     if (suratTugasUrl) {
-      const cleanSuratUrl = suratTugasUrl.trim();
+      const cleanSuratUrl = saveBase64ToFile(suratTugasUrl.trim(), 'surat_tugas', 'tugas');
       const uploadTimestamp = (letterDate && !isNaN(new Date(letterDate).getTime()))
         ? new Date(letterDate)
         : new Date();
@@ -333,7 +334,7 @@ export async function PUT(request: Request) {
     if (suratBalasanUrl) {
       updateData = {
         ...updateData,
-        suratBalasanUrl: suratBalasanUrl.trim(),
+        suratBalasanUrl: saveBase64ToFile(suratBalasanUrl.trim(), 'surat_balasan', 'balasan'),
         status: 'DISETUJUI_INDUSTRI',
         suratBalasanStatus: 'DITERIMA'
       };
