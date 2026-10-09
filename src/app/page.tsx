@@ -102,7 +102,7 @@ export default function LandingPage() {
 
       {/* 🔮 AMBIENT GLOW DEKORATIF BACKGROUND */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-tr from-indigo-600/20 via-purple-600/15 to-emerald-500/20 blur-[140px] pointer-events-none rounded-full" />
-      <div className="absolute top-[800px] -right-40 w-[600px] h-[600px] bg-indigo-500/10 blur-[160px] pointer-events-none rounded-full" />
+      <div className="absolute top-[800px] -right-40 w-[600px] h-[600px] bg-blue-500/10 blur-[160px] pointer-events-none rounded-full" />
 
       {/* 🌐 FLOATING GLASSMORPHISM NAVBAR */}
       <header className="sticky top-0 z-50 px-4 sm:px-8 py-4">
@@ -131,10 +131,10 @@ export default function LandingPage() {
             <div>
               <div className="flex items-center space-x-1.5">
                 <span className="font-black text-base tracking-tight leading-none">
-                  SI-<span className="text-indigo-600 dark:text-indigo-400">ERIN</span>
+                  SI-<span className="text-blue-600 dark:text-blue-400">ERIN</span>
                 </span>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                  v2.0
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                  v3.0
                 </span>
               </div>
               <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[200px] sm:max-w-xs mt-0.5">
@@ -163,7 +163,7 @@ export default function LandingPage() {
             {status === 'authenticated' ? (
               <Link
                 href={getUserDashboardRoute()}
-                className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 flex items-center space-x-2 transition-all cursor-pointer active:scale-95"
+                className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 flex items-center space-x-2 transition-all cursor-pointer active:scale-95"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="hidden sm:inline">Buka Dashboard</span>
@@ -171,7 +171,7 @@ export default function LandingPage() {
             ) : (
               <Link
                 href="/login"
-                className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 flex items-center space-x-2 transition-all cursor-pointer active:scale-95"
+                className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 flex items-center space-x-2 transition-all cursor-pointer active:scale-95"
               >
                 <LogIn className="w-4 h-4" />
                 <span>Masuk Portal</span>
@@ -196,7 +196,7 @@ export default function LandingPage() {
           <div className="space-y-4 max-w-4xl mx-auto">
             <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-tight sm:leading-none">
               Sistem Informasi Praktik Kerja Lapangan{' '}
-              <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
                 Digital & Terintegrasi
               </span>
             </h1>
@@ -210,7 +210,7 @@ export default function LandingPage() {
             {status === 'authenticated' ? (
               <Link
                 href={getUserDashboardRoute()}
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-3 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-3 transition-all cursor-pointer hover:scale-105 active:scale-95"
               >
                 <LayoutDashboard className="w-5 h-5" />
                 <span>Masuk ke Dashboard Saya</span>
@@ -219,7 +219,7 @@ export default function LandingPage() {
             ) : (
               <Link
                 href="/login"
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-3 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-3 transition-all cursor-pointer hover:scale-105 active:scale-95"
               >
                 <LogIn className="w-5 h-5" />
                 <span>Masuk ke Portal SI-ERIN</span>
@@ -235,7 +235,7 @@ export default function LandingPage() {
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
             >
-              <Sparkles className="w-4 h-4 text-indigo-500" />
+              <Sparkles className="w-4 h-4 text-blue-500" />
               <span>Jelajahi Fitur Utama</span>
             </a>
           </div>
@@ -257,15 +257,15 @@ export default function LandingPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <span className="text-xs font-black text-indigo-500 uppercase tracking-wider">Instansi Penyelenggara</span>
+                <span className="text-xs font-black text-blue-500 uppercase tracking-wider">Instansi Penyelenggara</span>
                 <h3 className="text-lg font-black">{schoolInfo.name}</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed flex items-center space-x-1">
                   <MapPin className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
                   <span>{schoolInfo.address}</span>
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-3 pt-1">
-                  <span className="flex items-center space-x-1"><Phone className="w-3 h-3 text-indigo-400" /> <span>{schoolInfo.phone}</span></span>
-                  <span className="flex items-center space-x-1"><Mail className="w-3 h-3 text-indigo-400" /> <span>{schoolInfo.email}</span></span>
+                  <span className="flex items-center space-x-1"><Phone className="w-3 h-3 text-blue-400" /> <span>{schoolInfo.phone}</span></span>
+                  <span className="flex items-center space-x-1"><Mail className="w-3 h-3 text-blue-400" /> <span>{schoolInfo.email}</span></span>
                 </p>
               </div>
             </div>
@@ -291,7 +291,7 @@ export default function LandingPage() {
             <div className={`p-6 rounded-3xl border shadow-xl space-y-4 transition-all hover:-translate-y-1 group ${
               theme === 'dark' ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
             }`}>
-              <div className="p-3.5 rounded-2xl bg-indigo-500/10 text-indigo-500 w-fit border border-indigo-500/20 group-hover:scale-110 transition-transform">
+              <div className="p-3.5 rounded-2xl bg-blue-500/10 text-blue-500 w-fit border border-blue-500/20 group-hover:scale-110 transition-transform">
                 <GraduationCap className="w-6 h-6" />
               </div>
               <div className="space-y-1">
@@ -301,7 +301,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="pt-2 border-t border-inherit">
-                <span className="text-[11px] font-bold text-indigo-500 flex items-center space-x-1">
+                <span className="text-[11px] font-bold text-blue-500 flex items-center space-x-1">
                   <span>Login NIS / Password</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </span>
@@ -381,7 +381,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto space-y-12">
           
           <div className="text-center space-y-2">
-            <span className="text-xs font-black text-indigo-500 uppercase tracking-widest">Fitur Unggulan</span>
+            <span className="text-xs font-black text-blue-500 uppercase tracking-widest">Fitur Unggulan</span>
             <h2 className="text-2xl sm:text-3xl font-black">Alur Kerja Praktis & Transparan</h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-xl mx-auto">
               Meminimalkan birokrasi manual dengan sistem verifikasi digital otomatis.
@@ -455,7 +455,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-white">{schoolInfo.name}</h3>
-                  <p className="text-[11px] font-bold text-emerald-400">SI-ERIN (Sistem Informasi Prakerin v2.0)</p>
+                  <p className="text-[11px] font-bold text-emerald-400">SI-ERIN (Sistem Informasi Prakerin v3.0)</p>
                 </div>
               </div>
               <p className="text-xs text-slate-400 max-w-md leading-relaxed">
@@ -467,11 +467,11 @@ export default function LandingPage() {
             <div className="md:col-span-6 space-y-2 text-xs">
               <h4 className="text-xs font-black uppercase tracking-wider text-white">Kontak Resmi Sekolah</h4>
               <p className="flex items-center space-x-2 text-slate-400">
-                <Phone className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <Phone className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                 <span>{schoolInfo.phone}</span>
               </p>
               <p className="flex items-center space-x-2 text-slate-400">
-                <Mail className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                 <span>{schoolInfo.email}</span>
               </p>
               <p className="flex items-center space-x-2 text-slate-400 pt-1">
@@ -493,3 +493,6 @@ export default function LandingPage() {
     </div>
   );
 }
+
+
+
