@@ -1,0 +1,1 @@
+﻿const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function main() { try { const e = await prisma.schoolEvent.update({ where: { id: 'cmuy7ipat00008l4850a8mv0f' }, data: { location: 'Test' } }); console.log('UPDATED:', !!e); } catch (e) { console.error('ERROR:', e); } finally { await prisma.$disconnect(); } } main();

@@ -1,6 +1,5 @@
 import cron from 'node-cron';
 import { db } from './db';
-import { executeFullBackupSystem } from './backup-service';
 
 const globalForCron = global as unknown as { 
   isCronStarted: boolean;
@@ -64,6 +63,7 @@ export function startAutoBackupCron() {
         globalForCron.isBackupRunning = true;
 
         try {
+          const { executeFullBackupSystem } = await import('./backup-service');
           const result = await executeFullBackupSystem({ isCron: true });
           globalForCron.lastBackupDate = todayDateStr;
           console.log(`✅ [CRON SUCCESS] Auto Backup Berhasil:`, result.message);

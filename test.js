@@ -1,0 +1,1 @@
+﻿const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function main() { try { const event = await prisma.schoolEvent.findFirst(); console.log('EVENT ID:', event.id); } catch (e) { console.error('ERROR:', e); } finally { await prisma.$disconnect(); } } main();

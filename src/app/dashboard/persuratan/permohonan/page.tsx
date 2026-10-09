@@ -283,6 +283,8 @@ export default function PermohonanSuratKelompokPage() {
   // Filter Search, Filter Jurusan Dinamis, dan FILTER STATUS SURAT
   const filteredGroups = useMemo(() => {
     return verifiedGroups.filter((g) => {
+      const isAdvancedStatus = ['DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'DITERIMA', 'COMPLETED', 'SELESAI_PKL'].includes(g.status || '');
+      if (isAdvancedStatus) return false;
       const groupDept = g.departmentName || (g.students?.[0]?.department) || '';
       const matchDept = selectedDepartmentFilter === 'SEMUA' || groupDept.toLowerCase() === selectedDepartmentFilter.toLowerCase();
         const matchPeriodFilter = selectedPeriodFilter === 'SEMUA' || (g.periodName && g.periodName.toLowerCase() === selectedPeriodFilter.toLowerCase());
