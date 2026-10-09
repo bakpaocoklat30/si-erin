@@ -16,7 +16,7 @@ import { db } from '@/lib/db';
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'POKJA', 'PEMBIMBING'].includes((session.user as any)?.role)) {
+    if (!session || !['ADMIN', 'POKJA', 'TIM_POKJA', 'PEMBIMBING'].includes((session.user as any)?.role)) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'POKJA'].includes((session.user as any)?.role)) {
+    if (!session || !['ADMIN', 'POKJA', 'TIM_POKJA'].includes((session.user as any)?.role)) {
       return NextResponse.json({ error: 'Unauthorized - Akses khusus Admin & Pokja' }, { status: 401 });
     }
 
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'POKJA'].includes((session.user as any)?.role)) {
+    if (!session || !['ADMIN', 'POKJA', 'TIM_POKJA'].includes((session.user as any)?.role)) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 

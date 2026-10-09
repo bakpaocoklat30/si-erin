@@ -17,8 +17,9 @@ import bcrypt from 'bcryptjs';
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized - Akses khusus Admin' }, { status: 401 });
+    const userRole = (session?.user as any)?.role;
+    if (!session || !['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA'].includes(userRole)) {
+      return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 
     // 1. Ambil seluruh akun user dari tabel User (Hanya field resmi model User)

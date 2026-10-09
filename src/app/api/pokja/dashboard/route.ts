@@ -16,16 +16,16 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+    const userRole = (session?.user as any)?.role;
+    if (!session || !['ADMIN', 'POKJA', 'TIM_POKJA', 'SUPER_ADMIN'].includes(userRole)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const userDepartment = (session.user as any)?.department || '';
-    const userRole = (session.user as any)?.role;
-
+    
     // Filter dasar untuk jurusan
     let studentWhere: any = {};
-    if (userRole === 'POKJA' && userDepartment) {
+    if (['POKJA', 'TIM_POKJA'].includes(userRole) && userDepartment) {
       studentWhere.department = {
         contains: userDepartment,
         mode: 'insensitive'
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     // 3. Hitung Pengajuan Pending khusus siswa murni
     const pendingVerifications = await db.internshipPlacement.count({
       where: {
-        status: { in: ['PENDING', 'Menunggu', 'SUBMITTED'] },
+        status: { in: ['PENDING', 'Menunggu', 'SUBMITTED', 'PEMBUATAN_SURAT'] },
         student: studentWhere
       }
     });
@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     // 4. Hitung Penempatan Disetujui khusus siswa murni
     const approvedPlacements = await db.internshipPlacement.count({
       where: {
-        status: { in: ['APPROVED', 'ACCEPTED', 'Diterima', 'Disetujui'] },
+        status: { in: ['DISETUJUI_INDUSTRI', 'SURAT_DITERBITKAN', 'MENUNGGU_PEMBERANGKATAN', 'MENUNGGU_PENARIKAN', 'APPROVED', 'ACCEPTED', 'Diterima', 'Disetujui'] },
         student: studentWhere
       }
     });

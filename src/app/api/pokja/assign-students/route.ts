@@ -15,7 +15,7 @@ import { db } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'POKJA'].includes((session.user as any)?.role)) {
+    if (!session || !['ADMIN', 'POKJA', 'TIM_POKJA'].includes((session.user as any)?.role)) {
       return NextResponse.json({ error: 'Akses ditolak - Unauthorized' }, { status: 403 });
     }
 

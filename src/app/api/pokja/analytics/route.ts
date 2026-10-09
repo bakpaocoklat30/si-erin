@@ -49,6 +49,9 @@ export async function GET(request: Request) {
       select: {
         id: true,
         name: true,
+        address: true,
+        phone: true,
+        contactPerson: true,
         totalQuota: true,
         placements: {
           where: placementCondition,
@@ -59,6 +62,8 @@ export async function GET(request: Request) {
 
     let totalQuotaAvailable = 0;
     let totalQuotaUsed = 0;
+
+    const incompleteIndustriesList = industries.filter((ind: any) => !ind.address || !ind.phone || !ind.contactPerson).map((ind:any) => ind.name);
 
     const topIndustries = industries.map((ind: any) => {
       // NOTE: jika difilter per kelas, kuota terpakai yang dihitung HANYA anak kelas tersebut!
@@ -108,6 +113,9 @@ export async function GET(request: Request) {
       orderBy: { className: 'asc' }
     });
 
+    const studentsNoCvList = exportData.filter((s: any) => !s.cvUrl && s.cvStatus !== 'UPLOADED').map((s:any) => s.name);
+    const studentsNoIndustryList = exportData.filter((s: any) => !s.placement || ['DITOLAK', 'DITOLAK_INDUSTRI', 'DITOLAK_POKJA'].includes(s.placement.status)).map((s:any) => s.name);
+
     // Catat Log Akses Analytics
     await createAuditLog({
       userId: (session.user as any)?.id,
@@ -122,6 +130,11 @@ export async function GET(request: Request) {
       success: true,
       analytics: {
         availableClasses: classes.map((c: any) => c.name),
+        issues: {
+          studentsNoCv: studentsNoCvList,
+          studentsNoIndustry: studentsNoIndustryList,
+          incompleteIndustries: incompleteIndustriesList
+        },
         metrics: {
           totalStudents,
           totalIndustries,

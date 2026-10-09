@@ -21,6 +21,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function AdminDashboardPage() {
   const { data: session, status } = useSession();
@@ -32,6 +33,7 @@ export default function AdminDashboardPage() {
     totalPending: 0,
     totalAccepted: 0
   });
+  const [departmentStats, setDepartmentStats] = useState<any[]>([]);
   const [recentApplications, setRecentApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -50,14 +52,56 @@ export default function AdminDashboardPage() {
           // Filter siswa (mengabaikan perbedaan huruf kapital role)
           const students = usersData.filter((u: any) => u.role?.toUpperCase() === 'SISWA');
           
-          // Hitung penempatan berdasarkan status
+          // Hitung penempatan berdasarkan status (mengakomodasi enum database dan format UI)
+          const acceptedStatuses = ['DISETUJUI', 'BERJALAN', 'DISETUJUI_INDUSTRI', 'SURAT_DITERBITKAN', 'MENUNGGU_PEMBERANGKATAN', 'MENUNGGU_PENARIKAN', 'SELESAI'];
+          const pendingStatuses = ['PENDING', 'MENGAJUKAN', 'PEMBUATAN_SURAT'];
+          const prosesStatuses = ['MENUNGGU_INDUSTRI'];
+
           const acceptedCount = students.filter(
-            (s: any) => s.placementStatus?.toUpperCase() === 'DISETUJUI' || s.placementStatus?.toUpperCase() === 'BERJALAN' || s.bpjsStatus?.toUpperCase() === 'DISETUJUI'
+            (s: any) => acceptedStatuses.includes(s.placementStatus?.toUpperCase()) || s.bpjsStatus?.toUpperCase() === 'DISETUJUI'
           ).length;
 
           const pendingCount = students.filter(
-            (s: any) => s.placementStatus?.toUpperCase() === 'PENDING' || s.placementStatus?.toUpperCase() === 'MENGAJUKAN'
+            (s: any) => pendingStatuses.includes(s.placementStatus?.toUpperCase()) || prosesStatuses.includes(s.placementStatus?.toUpperCase())
           ).length;
+
+          // Hitung statistik per jurusan
+          const deptMap: Record<string, { total: number, diterima: number, proses: number, mengajukan: number, belum: number }> = {};
+          
+          students.forEach((s: any) => {
+            const dept = s.department && s.department !== 'Belum Diatur' ? s.department : 'Lainnya';
+            if (!deptMap[dept]) {
+              deptMap[dept] = { total: 0, diterima: 0, proses: 0, mengajukan: 0, belum: 0 };
+            }
+            deptMap[dept].total += 1;
+            
+            const status = s.placementStatus?.toUpperCase();
+            if (acceptedStatuses.includes(status) || s.bpjsStatus?.toUpperCase() === 'DISETUJUI') {
+              deptMap[dept].diterima += 1;
+            } else if (prosesStatuses.includes(status)) {
+              deptMap[dept].proses += 1;
+            } else if (pendingStatuses.includes(status)) {
+              deptMap[dept].mengajukan += 1;
+            } else {
+              deptMap[dept].belum += 1;
+            }
+          });
+
+          const deptStatsArray = Object.keys(deptMap).map(dept => {
+            const data = deptMap[dept];
+            return {
+              department: dept,
+              data: [
+                { name: 'Diterima', value: data.diterima, color: '#10b981' }, // emerald
+                { name: 'Proses Industri', value: data.proses, color: '#3b82f6' }, // blue
+                { name: 'Mengajukan (Pending)', value: data.mengajukan, color: '#f59e0b' }, // amber
+                { name: 'Belum Mengajukan', value: data.belum, color: '#ef4444' } // red
+              ].filter(d => d.value > 0), // sembunyikan jika 0
+              total: data.total
+            };
+          }).sort((a, b) => b.total - a.total);
+
+          setDepartmentStats(deptStatsArray);
 
           setStats({
             totalStudents: students.length,
@@ -233,6 +277,63 @@ export default function AdminDashboardPage() {
           <FileText className="w-12 h-12 mx-auto opacity-40" />
           <p className="text-xs font-semibold">Belum ada pengajuan penempatan PKL saat ini.</p>
         </div>
+      </div>
+
+      {/* STATISTIK JURUSAN SECTION */}
+      <div className={`border rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 ${
+        theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
+        <div className="border-b pb-4 border-inherit">
+          <h3 className="text-lg font-bold">Statistik Penempatan per Jurusan</h3>
+          <p className="text-xs text-slate-400">Persentase status penempatan peserta didik per program keahlian.</p>
+        </div>
+
+        {departmentStats.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+            {departmentStats.map((dept, idx) => (
+              <div key={idx} className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <h4 className="text-center font-bold text-sm mb-4 text-indigo-500 dark:text-indigo-400">{dept.department}</h4>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={dept.data}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={75}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {dept.data.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: theme === 'dark' ? '#0f172a' : '#fff', 
+                          borderRadius: '8px',
+                          border: 'none',
+                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
+                        }}
+                        itemStyle={{ color: theme === 'dark' ? '#fff' : '#000', fontSize: '12px', fontWeight: 'bold' }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '11px', fontWeight: '500' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-2 pt-2 border-t border-inherit text-center text-xs text-slate-500 font-semibold">
+                  Total: {dept.total} Siswa Terdaftar
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 text-center text-xs font-semibold text-slate-400 flex flex-col items-center space-y-2">
+            <Activity className="w-8 h-8 opacity-40" />
+            <p>Belum ada data jurusan yang tersedia.</p>
+          </div>
+        )}
       </div>
 
     </div>

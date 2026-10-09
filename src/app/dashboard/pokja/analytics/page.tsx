@@ -220,6 +220,82 @@ export default function PokjaAnalyticsPage() {
 
       </div>
 
+      {/* ISSUES / ACTION REQUIRED SECTION */}
+      {/* ISSUES / ACTION REQUIRED SECTION */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* 1. Belum Upload CV */}
+        <div className={`p-5 rounded-3xl border shadow-lg space-y-4 ${
+          theme === 'dark' ? 'bg-rose-950/20 border-rose-900/50' : 'bg-rose-50/50 border-rose-200'
+        }`}>
+          <div className="flex items-center space-x-2 text-rose-500 pb-2 border-b border-rose-500/20">
+            <ShieldAlert className="w-5 h-5" />
+            <h3 className="font-extrabold text-sm uppercase tracking-wider">Siswa Belum Upload CV</h3>
+          </div>
+          <div className="h-40 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+            {analytics?.issues?.studentsNoCv?.length > 0 ? (
+              analytics.issues.studentsNoCv.map((name: string, i: number) => (
+                <div key={i} className="text-xs font-bold py-2 px-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-500/20 text-slate-700 dark:text-slate-300 shadow-sm truncate" title={name}>
+                  {name}
+                </div>
+              ))
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-rose-500/50 space-y-2">
+                <Check className="w-8 h-8" />
+                <p className="text-xs font-bold">Semua Aman / Loading...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2. Belum Diterima Industri */}
+        <div className={`p-5 rounded-3xl border shadow-lg space-y-4 ${
+          theme === 'dark' ? 'bg-amber-950/20 border-amber-900/50' : 'bg-amber-50/50 border-amber-200'
+        }`}>
+          <div className="flex items-center space-x-2 text-amber-500 pb-2 border-b border-amber-500/20">
+            <ShieldAlert className="w-5 h-5" />
+            <h3 className="font-extrabold text-sm uppercase tracking-wider">Siswa Belum Diterima DUDI</h3>
+          </div>
+          <div className="h-40 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+            {analytics?.issues?.studentsNoIndustry?.length > 0 ? (
+              analytics.issues.studentsNoIndustry.map((name: string, i: number) => (
+                <div key={i} className="text-xs font-bold py-2 px-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-500/20 text-slate-700 dark:text-slate-300 shadow-sm truncate" title={name}>
+                  {name}
+                </div>
+              ))
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-amber-500/50 space-y-2">
+                <Check className="w-8 h-8" />
+                <p className="text-xs font-bold">Semua Aman / Loading...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 3. Industri Belum Lengkap */}
+        <div className={`p-5 rounded-3xl border shadow-lg space-y-4 ${
+          theme === 'dark' ? 'bg-orange-950/20 border-orange-900/50' : 'bg-orange-50/50 border-orange-200'
+        }`}>
+          <div className="flex items-center space-x-2 text-orange-500 pb-2 border-b border-orange-500/20">
+            <ShieldAlert className="w-5 h-5" />
+            <h3 className="font-extrabold text-sm uppercase tracking-wider">Profil DUDI Tidak Lengkap</h3>
+          </div>
+          <div className="h-40 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+            {analytics?.issues?.incompleteIndustries?.length > 0 ? (
+              analytics.issues.incompleteIndustries.map((name: string, i: number) => (
+                <div key={i} className="text-xs font-bold py-2 px-3 rounded-xl bg-white dark:bg-slate-900 border border-orange-500/20 text-slate-700 dark:text-slate-300 shadow-sm truncate" title={name}>
+                  {name}
+                </div>
+              ))
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-orange-500/50 space-y-2">
+                <Check className="w-8 h-8" />
+                <p className="text-xs font-bold">Semua Aman / Loading...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* ANALYTICS CHARTS SECTION DENGAN RECHARTS */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         

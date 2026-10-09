@@ -458,7 +458,7 @@ export default function PokjaTeacherHoursPage() {
                   </div>
 
                   <div className="space-y-2 relative z-10 text-xs">
-                    <p className="text-slate-400">Guru Pembimbing: <strong className="text-white">{classAllocations.length} Orang</strong></p>
+                    <p className="text-slate-400">Guru Pembimbing: <strong className={theme === 'dark' ? 'text-white' : 'text-slate-900'}>{classAllocations.length} Orang</strong></p>
                     <p className="text-slate-400">Total Alokasi Jam: <strong className="text-emerald-400">{totalHours} Jam</strong></p>
                   </div>
 
@@ -603,7 +603,7 @@ export default function PokjaTeacherHoursPage() {
                                       className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
                                     />
                                     <div className="space-y-0.5">
-                                      <span className="text-xs font-bold text-white">{t.name} <span className="opacity-60 uppercase text-[10px]">({t.role})</span></span>
+                                      <span className={`text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{t.name} <span className="opacity-60 uppercase text-[10px]">({t.role})</span></span>
                                       {isAlreadyInClass && (
                                         <p className="text-[10px] font-semibold text-emerald-400">✓ Sudah ada di kelas ini</p>
                                       )}
@@ -667,7 +667,7 @@ export default function PokjaTeacherHoursPage() {
                           }`}>
                             <div className="flex justify-between items-start gap-4">
                               <div>
-                                <p className="font-extrabold text-sm text-white">{alloc.teacher?.name || 'Guru Pembimbing'}</p>
+                                <p className={`font-extrabold text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{alloc.teacher?.name || 'Guru Pembimbing'}</p>
                                 <p className="text-[11px] text-slate-400">Tahun Pelajaran: {alloc.academicYear} • <strong className="text-indigo-400">{assignedStudentsCount} Siswa Bimbingan</strong></p>
                               </div>
                               <div className="flex items-center space-x-2 shrink-0">
@@ -794,7 +794,7 @@ export default function PokjaTeacherHoursPage() {
                           />
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center justify-between">
-                              <p className="text-xs font-bold text-white">{s.name} <span className="text-[10px] text-slate-400 font-normal">({s.nis})</span></p>
+                              <p className={`text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{s.name} <span className="text-[10px] text-slate-400 font-normal">({s.nis})</span></p>
                               
                               {/* BADGE INDUSTRI TEMPAT PKL */}
                               {industryName ? (

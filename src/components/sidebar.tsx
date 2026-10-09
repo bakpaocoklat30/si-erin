@@ -121,10 +121,10 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
   const persuratanMenuItems: MenuItem[] = [
     { name: 'Surat Permohonan', href: '/dashboard/persuratan/permohonan', icon: FileText },
     { name: 'Surat Penerjunan', href: '/dashboard/persuratan/penerjunan', icon: Truck },
-    { name: 'Surat Monitoring', href: '/dashboard/persuratan/coming-soon?title=Surat%20Monitoring', icon: Search },
+    { name: 'Surat Tugas & SPPD', href: '/dashboard/persuratan/sppd', icon: Search },
     { name: 'Surat Penarikan', href: '/dashboard/persuratan/penarikan', icon: Award },
-    { name: 'Template Surat', href: '/dashboard/persuratan/coming-soon?title=Template%20Surat', icon: FileSpreadsheet },
-    { name: 'Pengaturan Kepsek & TTD', href: '/dashboard/persuratan/coming-soon?title=Pengaturan%20Kepsek%20%26%20TTD', icon: UserCheck },
+    
+    
   ];
 
   // ----------------------------------------------------------------------
@@ -144,6 +144,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
         { name: 'Verifikasi Pengajuan PKL', href: '/dashboard/pokja/verifikasi', icon: UserCheck },
         { name: 'Kelompok Prakerin & Pembimbing', href: '/dashboard/pokja/kelompok', icon: Users },
           { name: 'Penempatan PKL Manual', href: '/dashboard/pokja/placements/manual', icon: ShieldCheck },
+        { name: 'Perizinan Kegiatan Sekolah', href: '/dashboard/pokja/events', icon: Calendar },
         { name: 'Jadwal & Tugas Monitoring', href: '/dashboard/pokja/monitoring', icon: ClipboardCheck },
         { name: 'Manajemen Data Siswa', href: '/dashboard/pokja/students', icon: GraduationCap },
       ]
@@ -176,6 +177,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
           { name: 'Lengkapi Data Industri', href: '/dashboard/students/industry-edit', icon: Building2 }
         ] : []),
         { name: 'Teman Satu Kelompok', href: '/dashboard/students/kelompok', icon: Users },
+        { name: 'Dokumen Persuratan', href: '/dashboard/students/surat-izin', icon: FileText },
       ]
     },
     {

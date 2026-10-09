@@ -1499,171 +1499,150 @@ export default function PokjaMonitoringPage() {
                       </td>
 
                       {/* Dokumen & Cetak */}
-                      <td className="py-4 px-6 text-center">
-                        <div className="flex items-center justify-center space-x-1.5 flex-wrap gap-y-1.5">
-                          {/* Tombol Surat Tugas (Pratinjau) */}
-                          <button
-                            onClick={() =>
-                              setPreviewModal({
-                                isOpen: true,
-                                type: 'SURAT_TUGAS',
-                                assignment,
-                                useTteTags: true,
-                              })
-                            }
-                            className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-blue-600/15 hover:bg-blue-600 text-blue-400 hover:text-white text-xs font-bold border border-blue-500/30 transition-all cursor-pointer shadow-sm"
-                            title="Pratinjau & Cetak Surat Perintah Tugas"
-                          >
-                            <FileSignature className="w-3.5 h-3.5" />
-                            <span>Surat Tugas</span>
-                          </button>
-
-                          {/* Tombol Unduh DOCX Surat Tugas */}
-                          <a
-                            href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=tugas&tte=true`}
-                            download
-                            className="p-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 transition-all cursor-pointer"
-                            title="Unduh File DOCX Surat Tugas"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </a>
-
-                          {/* Tombol SPPD (Pratinjau) */}
-                          <button
-                            onClick={() =>
-                              setPreviewModal({
-                                isOpen: true,
-                                type: 'SPPD',
-                                assignment,
-                                useTteTags: true,
-                              })
-                            }
-                            className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-purple-600/15 hover:bg-purple-600 text-purple-400 hover:text-white text-xs font-bold border border-purple-500/30 transition-all cursor-pointer shadow-sm"
-                            title="Pratinjau & Cetak SPPD TTE Jateng"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            <span>SPPD</span>
-                          </button>
-
-                          {/* Tombol Unduh DOCX SPPD */}
-                          <a
-                            href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=sppd&tte=true`}
-                            download
-                            className="p-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-600 text-purple-400 hover:text-white border border-purple-500/20 transition-all cursor-pointer"
-                            title="Unduh File DOCX SPPD"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </a>
-
-                          {/* 🌟 Tombol Pratinjau & Unduh Laporan Hasil Kegiatan (2 Macam: Tanpa TTE bila nomor surat tugas terisi, atau dengan TTE dari Tata Usaha) */}
-                          {(() => {
-                            const hasLetterNumber = Boolean(
-                              assignment.letterNumber &&
-                              assignment.letterNumber.trim() !== '' &&
-                              assignment.letterNumber.trim() !== '${nomor_naskah}'
-                            );
-                            const canAccessLaporan =
-                              hasLetterNumber ||
-                              Boolean(assignment.suratTugasUrl) ||
-                              Boolean(assignment.sppdUrl) ||
-                              Boolean(assignment.laporanUrl) ||
-                              assignment.status === 'SELESAI_TTE' ||
-                              assignment.status === 'TERBIT_TTE';
-
-                            if (canAccessLaporan) {
-                              return (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setPreviewModal({
-                                        isOpen: true,
-                                        type: 'LAPORAN',
-                                        assignment,
-                                        useTteTags: false, // Default: Tanpa TTE (Lengkap nama Kepala Sekolah, nomor, dan tanggal)
-                                      })
-                                    }
-                                    className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-xs font-bold border border-amber-500/30 transition-all cursor-pointer shadow-sm"
-                                    title="Pratinjau & Cetak Lembar Laporan Hasil Kegiatan (Nama Kepala Sekolah & Nomor Surat Lengkap)"
-                                  >
-                                    <FileText className="w-3.5 h-3.5" />
-                                    <span>Lap. Kegiatan</span>
-                                  </button>
-
-                                  {/* Tombol Unduh DOCX Laporan (Tanpa TTE: Lengkap Nama Kepala Sekolah) */}
-                                  <a
-                                    href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=laporan&tte=false`}
-                                    download
-                                    className="p-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-600 text-amber-500 hover:text-white border border-amber-500/20 transition-all cursor-pointer"
-                                    title="Unduh Berkas Word Laporan Hasil Kegiatan (Lengkap Nama Kepsek & Nomor)"
-                                  >
-                                    <Download className="w-3.5 h-3.5" />
-                                  </a>
-                                </>
-                              );
-                            }
-
-                            return (
+                                            <td className="py-4 px-6">
+                        <div className="flex flex-col space-y-3">
+                          {/* 1. Surat Tugas */}
+                          <div className="flex flex-col space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">1. Surat Tugas</span>
+                            <div className="flex items-center space-x-1.5">
                               <button
-                                type="button"
-                                disabled
-                                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 text-xs font-semibold border border-slate-200 dark:border-slate-800 cursor-not-allowed opacity-60"
-                                title="Menunggu nomor Surat Tugas diisi oleh Tata Usaha"
+                                onClick={() => setPreviewModal({ isOpen: true, type: 'SURAT_TUGAS', assignment, useTteTags: true })}
+                                className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-blue-600/15 hover:bg-blue-600 text-blue-400 hover:text-white text-[10px] font-bold border border-blue-500/30 transition-all cursor-pointer"
+                                title="Pratinjau"
                               >
-                                <FileText className="w-3.5 h-3.5" />
-                                <span>Lap. Kegiatan</span>
+                                <Eye className="w-3 h-3" /> <span>Preview</span>
                               </button>
-                            );
-                          })()}
+                              <a
+                                href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=tugas&tte=true`}
+                                download
+                                className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-600 text-blue-400 hover:text-white text-[10px] font-bold border border-blue-500/20 transition-all cursor-pointer"
+                                title="Unduh DOCX"
+                              >
+                                <Download className="w-3 h-3" /> <span>DOCX</span>
+                              </a>
+                              {assignment.suratTugasUrl && (
+                                <a
+                                  href={assignment.suratTugasUrl} target="_blank" rel="noreferrer"
+                                  className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-600 text-emerald-400 hover:text-white text-[10px] font-bold border border-emerald-500/30 transition-all cursor-pointer"
+                                  title="Lihat PDF TTE"
+                                >
+                                  <ShieldCheck className="w-3 h-3" /> <span>Hasil TTE</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
 
-                          {/* 🌟 Tautan PDF TTE Surat Tugas Terbit */}
-                          {assignment.suratTugasUrl && (
-                            <a
-                              href={assignment.suratTugasUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-bold border border-emerald-500/30 transition-all cursor-pointer shadow-sm"
-                              title="Buka / Unduh Berkas PDF Surat Tugas TTE Resmi yang Terbit"
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                              <span>PDF Tugas TTE</span>
-                            </a>
-                          )}
+                          {/* 2. SPPD */}
+                          <div className="flex flex-col space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">2. SPPD</span>
+                            <div className="flex items-center space-x-1.5">
+                              <button
+                                onClick={() => setPreviewModal({ isOpen: true, type: 'SPPD', assignment, useTteTags: true })}
+                                className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-purple-600/15 hover:bg-purple-600 text-purple-400 hover:text-white text-[10px] font-bold border border-purple-500/30 transition-all cursor-pointer"
+                                title="Pratinjau"
+                              >
+                                <Eye className="w-3 h-3" /> <span>Preview</span>
+                              </button>
+                              <a
+                                href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=sppd&tte=true`}
+                                download
+                                className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-600 text-purple-400 hover:text-white text-[10px] font-bold border border-purple-500/20 transition-all cursor-pointer"
+                                title="Unduh DOCX"
+                              >
+                                <Download className="w-3 h-3" /> <span>DOCX</span>
+                              </a>
+                              {assignment.sppdUrl && (
+                                <a
+                                  href={assignment.sppdUrl} target="_blank" rel="noreferrer"
+                                  className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-teal-500/15 hover:bg-teal-600 text-teal-400 hover:text-white text-[10px] font-bold border border-teal-500/30 transition-all cursor-pointer"
+                                  title="Lihat PDF TTE"
+                                >
+                                  <ShieldCheck className="w-3 h-3" /> <span>Hasil TTE</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
 
-                          {/* 🌟 Tautan PDF TTE SPPD Terbit */}
-                          {assignment.sppdUrl && (
-                            <a
-                              href={assignment.sppdUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-600 text-teal-400 hover:text-white text-xs font-bold border border-teal-500/30 transition-all cursor-pointer shadow-sm"
-                              title="Buka / Unduh Berkas PDF SPPD TTE Resmi yang Terbit"
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                              <span>PDF SPPD TTE</span>
-                            </a>
-                          )}
-
-                          {/* 🌟 Tautan PDF TTE Laporan Terbit */}
-                          {assignment.laporanUrl && (
-                            <a
-                              href={assignment.laporanUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-xs font-bold border border-amber-500/30 transition-all cursor-pointer shadow-sm"
-                              title="Buka / Unduh Berkas PDF Dokumen Gabungan Hasil Kunjungan"
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                              <span>Dokumen Hasil</span>
-                            </a>
-                          )}
+                          {/* 3. Laporan Kegiatan */}
+                          <div className="flex flex-col space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">3. Laporan Kunjungan</span>
+                            <div className="flex items-center space-x-1.5">
+                                {(() => {
+                                  const hasLetterNumber = Boolean(assignment.letterNumber && assignment.letterNumber.trim() !== '' && assignment.letterNumber.trim() !== '${nomor_naskah}');
+                                  const canAccessLaporan = hasLetterNumber || Boolean(assignment.suratTugasUrl) || Boolean(assignment.sppdUrl) || Boolean(assignment.laporanUrl) || assignment.status === 'SELESAI_TTE' || assignment.status === 'TERBIT_TTE';
+                                if (canAccessLaporan) {
+                                  return (
+                                    <>
+                                      <button
+                                        onClick={() => setPreviewModal({ isOpen: true, type: 'LAPORAN', assignment, useTteTags: false })}
+                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/30 transition-all cursor-pointer"
+                                        title="Pratinjau"
+                                      >
+                                        <Eye className="w-3 h-3" /> <span>Preview</span>
+                                      </button>
+                                      <a
+                                        href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=laporan&tte=false`}
+                                        download
+                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/20 transition-all cursor-pointer"
+                                        title="Unduh DOCX"
+                                      >
+                                        <Download className="w-3 h-3" /> <span>DOCX</span>
+                                      </a>
+                                    </>
+                                  );
+                                }
+                                return (
+                                  <button disabled className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 text-[10px] font-semibold border border-slate-200 dark:border-slate-800 cursor-not-allowed opacity-60">
+                                    <Eye className="w-3 h-3" /> <span>Preview</span>
+                                  </button>
+                                );
+                              })()}
+                              {assignment.laporanUrl && (
+                                <a
+                                  href={assignment.laporanUrl} target="_blank" rel="noreferrer"
+                                  className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/30 transition-all cursor-pointer"
+                                  title="Lihat Dokumen Hasil"
+                                >
+                                  <ShieldCheck className="w-3 h-3" /> <span>Hasil Kegiatan</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </td>
 
                       {/* Aksi Edit & Hapus */}
                       <td className="py-4 px-4 text-right">
                         <div className="flex items-center justify-end space-x-1.5">
+                                                    <button
+                            onClick={() =>
+                              setUploadModal({
+                                isOpen: true,
+                                assignmentId: assignment.id!,
+                                industryName: assignment.industry.name,
+                                teacherName: assignment.teacher.name,
+                                type: 'LAPORAN',
+                                uploading: false,
+                              })
+                            }
+                            className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-sm border border-slate-200 dark:border-slate-700"
+                            title="Unggah Hasil Penugasan"
+                          >
+                            <Upload className="w-4 h-4" />
+                          </button>
                           
+                          {assignment.laporanUrl && (
+                            <a
+                              href={assignment.laporanUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-600 text-amber-500 hover:text-white transition-all cursor-pointer shadow-sm border border-amber-500/20"
+                              title="Lihat Pratinjau Laporan (Hasil Upload)"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
+
                           {assignment.status !== 'MENUNGGU_TTE' &&
                             assignment.status !== 'PROSES_TTE' &&
                             assignment.status !== 'SELESAI_TTE' &&
@@ -1671,22 +1650,6 @@ export default function PokjaMonitoringPage() {
                             !assignment.suratTugasUrl &&
                             !assignment.sppdUrl && (
                             <>
-                              <button
-                                onClick={() =>
-                                  setUploadModal({
-                                    isOpen: true,
-                                    assignmentId: assignment.id!,
-                                    industryName: assignment.industry.name,
-                                    teacherName: assignment.teacher.name,
-                                    type: 'LAPORAN',
-                                    uploading: false,
-                                  })
-                                }
-                                className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-sm border border-slate-200 dark:border-slate-700"
-                                title="Unggah Hasil Scan Kunjungan"
-                              >
-                                <Upload className="w-4 h-4" />
-                              </button>
   
                               <button
                                 onClick={async () => {
@@ -2543,3 +2506,7 @@ export default function PokjaMonitoringPage() {
 </div>
   );
 }
+
+
+
+

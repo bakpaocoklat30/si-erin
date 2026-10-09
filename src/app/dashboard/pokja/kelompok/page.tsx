@@ -1896,220 +1896,284 @@ export default function PokjaKelompokPrakerinPage() {
                     })}                    </div>
                   </div>
 
-                  {/* TOMBOL REQUEST FOOTER */}
-                  <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 flex flex-wrap items-center justify-end gap-3 rounded-b-3xl mt-0">
-                    {(group.suratPengantaranUrl || (group.placements && group.placements.some(p => p.suratPengantaranUrl))) && (() => {
-                      const pengantaranUrl = group.suratPengantaranUrl || group.placements?.find(p => p.suratPengantaranUrl)?.suratPengantaranUrl;
-                      return (
+                  {/* TOMBOL REQUEST FOOTER RESTRUCTURED */}
+                  <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 flex flex-col gap-4 rounded-b-3xl mt-0">
+                    
+                    {/* SECTION 1: AKSI KELOMPOK */}
+                    <div className="w-full flex flex-col gap-2">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>Aksi Kelompok & Kelola</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Detail */}
                         <button
                           type="button"
-                          onClick={() => {
-                            handleOpenPdf(pengantaranUrl || null, `Surat Penerjunan/Pengantaran - ${group.industryName}`);
-                          }}
-                          className={`px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer ${
+                          onClick={() => setDetailModalGroup(group)}
+                          className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
                             theme === 'dark'
-                              ? 'bg-teal-900/30 hover:bg-teal-800/40 text-teal-400 border-teal-800'
-                              : 'bg-teal-50 hover:bg-teal-100 text-teal-700 border-teal-200 shadow-sm'
+                              ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300'
                           }`}
-                          title="Lihat / Unduh Surat Penerjunan dari Tata Usaha"
                         >
-                          <FileCheck2 className="w-4 h-4 text-teal-600 dark:text-teal-500" />
-                          <span>Unduh Penerjunan</span>
+                          <Eye className="w-4 h-4 text-indigo-600 dark:text-indigo-500" />
+                          <span>Detail</span>
                         </button>
-                      );
-                    })()}
 
-                    {(group.suratPenarikanUrl || (group.placements && group.placements.some(p => p.suratPenarikanUrl))) && (() => {
-                      const penarikanUrl = group.suratPenarikanUrl || group.placements?.find(p => p.suratPenarikanUrl)?.suratPenarikanUrl;
-                      return (
+                        {/* Export */}
+                        <button
+                          type="button"
+                          onClick={() => handleExportGroupToNewTab(group)}
+                          className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                            theme === 'dark'
+                              ? 'bg-emerald-900/30 hover:bg-emerald-800/40 text-emerald-400 border-emerald-800'
+                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                          }`}
+                          title="Export Kelompok ke Spreadsheet"
+                        >
+                          <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                          <span>Export</span>
+                        </button>
+
+                        {/* Edit Periode */}
                         <button
                           type="button"
                           onClick={() => {
-                            handleOpenPdf(penarikanUrl || null, `Surat Penarikan - ${group.industryName}`);
+                            setEditPeriodGroup(group);
+                            setEditStartDate(group.startDate ? new Date(group.startDate).toISOString().split('T')[0] : '');
+                            setEditEndDate(group.endDate ? new Date(group.endDate).toISOString().split('T')[0] : '');
                           }}
-                          className={`px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer ${
+                          className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
                             theme === 'dark'
                               ? 'bg-orange-900/30 hover:bg-orange-800/40 text-orange-400 border-orange-800'
-                              : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200 shadow-sm'
+                              : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200'
                           }`}
-                          title="Lihat / Unduh Surat Penarikan dari Tata Usaha"
+                          title="Edit Periode Prakerin"
                         >
-                          <FileCheck2 className="w-4 h-4 text-orange-600 dark:text-orange-500" />
-                          <span>Unduh Penarikan</span>
+                          <Edit3 className="w-4 h-4 text-orange-600 dark:text-orange-500" />
+                          <span>Edit Periode</span>
                         </button>
-                      );
-                    })()}
-  
-<button
-                      type="button"
-                      onClick={() => setDetailModalGroup(group)}
-                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                        theme === 'dark'
-                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300'
-                      }`}
-                    >
-                      <Eye className="w-4 h-4 text-indigo-600 dark:text-indigo-500" />
-                      <span>Detail</span>
-                    </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleExportGroupToNewTab(group)}
-                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                        theme === 'dark'
-                          ? 'bg-emerald-900/30 hover:bg-emerald-800/40 text-emerald-400 border-emerald-800'
-                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                      }`}
-                      title="Export Kelompok ke Spreadsheet"
-                    >
-                      <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
-                      <span>Export</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditPeriodGroup(group);
-                        setEditStartDate(group.startDate ? new Date(group.startDate).toISOString().split('T')[0] : '');
-                        setEditEndDate(group.endDate ? new Date(group.endDate).toISOString().split('T')[0] : '');
-                      }}
-                      className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                        theme === 'dark'
-                          ? 'bg-orange-900/30 hover:bg-orange-800/40 text-orange-400 border-orange-800'
-                          : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200'
-                      }`}
-                      title="Edit Periode Prakerin"
-                    >
-                      <Edit3 className="w-4 h-4 text-orange-600 dark:text-orange-500" />
-                      <span>Edit Periode</span>
-                    </button>
-
-                    {/* 🌟 TOMBOL PRATINJAU SURAT PERMOHONAN (DOCX) */}
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDocxPreview(group)}
-                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 border-indigo-500"
-                      title="Lihat Pratinjau Surat Permohonan PKL (Format Resmi A4 DOCX & TTE)"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span>Preview Surat (DOCX)</span>
-                    </button>
-
-                    {/* 🌟 TOMBOL GENERATE SURAT PERMOHONAN (DOCX) */}
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadSingleDocx(group)}
-                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 border-blue-500"
-                      title={`Generate & Unduh Surat Permohonan PKL Format Resmi (DOCX & ${useTteMode ? 'TTE' : 'Cetak'})`}
-                    >
-                      <FileText className="w-4 h-4" />
-                      <span>Surat Permohonan (DOCX)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTargetGroup(group);
-                        setInputLetterNumber(group.letterNumber || '');
-                        setInputLetterDate(formatDateIndonesia(group.letterUploadedAt) !== '-' ? formatDateIndonesia(group.letterUploadedAt) : formatDateIndonesia(new Date().toISOString()));
-                        setDateDetectedNotice('');
-                        setSuratBase64('');
-                        setSelectedFileName('');
-                      }}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/30 cursor-pointer"
-                    >
-                      <Upload className="w-4 h-4" />
-                      <span>{hasSurat ? 'Ganti Surat & Nomor' : 'Upload Surat'}</span>
-                    </button>
-
-                    {/* 🌟 TOMBOL GENERATOR LEMBAR KONFIRMASI (BALASAN DUDI) - HANYA SAAT hasSurat = true */}
-                    {hasSurat && (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenConfirmationModal(group)}
-                        className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30 border-purple-500"
-                        title="Cetak Format Balasan / Lembar Konfirmasi DUDI"
-                      >
-                        <FileSignature className="w-4 h-4" />
-                        <span>Format Balasan DUDI</span>
-                      </button>
-                    )}
-
-                    {/* 🌟 TOMBOL UPLOAD BALASAN INDUSTRI */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTargetGroupBalasan(group);
-                        setBalasanBase64('');
-                        setBalasanFileName('');
-                      }}
-                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 border-emerald-500"
-                      title="Upload Balasan Resmi dari Industri"
-                    >
-                      <Upload className="w-4 h-4" />
-                      <span>{group.suratBalasanUrl ? 'Ganti Balasan Industri' : 'Upload Balasan'}</span>
-                    </button>
-
-                    {/* 🌟 TOMBOL GABUNG KELOMPOK */}
-                    <button
-                      type="button"
-                      onClick={() => setMergeSourceGroup(group)}
-                      className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 border-blue-500"
-                      title="Gabungkan kelompok ini ke kelompok lain"
-                    >
-                      <Layers className="w-4 h-4" />
-                      <span>Gabung Kelompok</span>
-                    </button>
-
-                    {/* 🌟 TOMBOL HAPUS KELOMPOK */}
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTargetGroup(group)}
-                      className="px-4 py-2.5 rounded-2xl text-xs font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm"
-                      title="Hapus Kelompok & Reset Status Penempatan Siswa"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Hapus Kelompok</span>
-                    </button>
-
-                    
-                    {/* TOMBOL REQUEST PENERJUNAN */}
-                      {group.placements?.some(p => ['DISETUJUI_INDUSTRI', 'MENUNGGU_PENERJUNAN'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
+                        {/* Gabung Kelompok */}
                         <button
                           type="button"
-                          onClick={() => handleRequestPenerjunan(group)}
-                          className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-teal-600 hover:bg-teal-500 text-white shadow-lg shadow-teal-600/30 border-teal-500"
-                          title="Request Pembuatan Surat Pengantaran/Penerjunan ke Tata Usaha"
+                          onClick={() => setMergeSourceGroup(group)}
+                          className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 border-blue-500"
+                          title="Gabungkan kelompok ini ke kelompok lain"
                         >
-                          <Send className="w-4 h-4" />
-                          <span>Request Penerjunan</span>
+                          <Layers className="w-4 h-4" />
+                          <span>Gabung Kelompok</span>
                         </button>
-                      )}
-                      {group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
-                        <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center space-x-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Menunggu Surat Penerjunan</span>
-                        </span>
-                      )}
 
-                        {group.placements?.some(p => ['MENUNGGU_PEMBERANGKATAN', 'COMPLETED', 'SELESAI_PKL'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
-                          <button
-                            type="button"
-                            onClick={() => handleRequestPenarikan(group)}
-                            className="px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/30 border-orange-500"
-                            title="Request Pembuatan Surat Penarikan ke Tata Usaha"
-                          >
-                            <Send className="w-4 h-4" />
-                            <span>Request Penarikan</span>
-                          </button>
-                        )}
-                        {group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
-                          <span className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-orange-500/10 text-orange-600 border border-orange-500/20 flex items-center space-x-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Menunggu Surat Penarikan</span>
-                          </span>
-                        )}
+                        {/* Hapus Kelompok */}
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTargetGroup(group)}
+                          className="px-4 py-2.5 rounded-2xl text-xs font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm"
+                          title="Hapus Kelompok & Reset Status Penempatan Siswa"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Hapus Kelompok</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECTION 2: DOKUMEN & PERSURATAN LIST */}
+                    <div className="w-full flex flex-col gap-3 pt-3 border-t border-slate-200 dark:border-slate-800/60">
+                      <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Daftar Dokumen & Persuratan</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                        {/* 1. Surat Permohonan */}
+                        <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                          <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">1. Surat Permohonan PKL</h5>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Surat Permohonan (DOCX) */}
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadSingleDocx(group)}
+                              className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-sm border-blue-500"
+                              title="Generate & Unduh DOCX"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>DOCX</span>
+                            </button>
+
+                            {/* Preview Surat (DOCX) */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDocxPreview(group)}
+                              className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm border-indigo-500"
+                              title="Preview Surat Permohonan"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Preview</span>
+                            </button>
+
+                            {/* Hasil TTE / Upload */}
+                            {hasSurat && group.suratTugasUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPdf(group.suratTugasUrl || null, `Surat Permohonan PKL (No: ${group.letterNumber || '-'}) - ${group.industryName}`)}
+                                  className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border-emerald-500"
+                                >
+                                  <FileCheck2 className="w-3.5 h-3.5" />
+                                  <span>Hasil TTE / PDF</span>
+                                </button>
+                            )}
+
+                            {/* Upload / Ganti */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTargetGroup(group);
+                                setInputLetterNumber(group.letterNumber || '');
+                                setInputLetterDate(formatDateIndonesia(group.letterUploadedAt) !== '-' ? formatDateIndonesia(group.letterUploadedAt) : formatDateIndonesia(new Date().toISOString()));
+                                setDateDetectedNotice('');
+                                setSuratBase64('');
+                                setSelectedFileName('');
+                              }}
+                              className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer border ${
+                                theme === 'dark' ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-300'
+                              }`}
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>{hasSurat ? 'Ganti' : 'Upload'}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 2. Surat Balasan Industri */}
+                        <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                          <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">2. Surat Balasan Industri</h5>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Format Balasan DUDI */}
+                            {hasSurat && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenConfirmationModal(group)}
+                                className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-purple-600 hover:bg-purple-500 text-white shadow-sm border-purple-500"
+                              >
+                                <FileSignature className="w-3.5 h-3.5" />
+                                <span>Format Balasan</span>
+                              </button>
+                            )}
+                            
+                            {/* Preview Balasan */}
+                            {(group.suratBalasanUrl || (group.placements && group.placements.some(p => p.suratBalasanUrl))) && (() => {
+                              const balasanUrl = group.suratBalasanUrl || group.placements?.find(p => p.suratBalasanUrl)?.suratBalasanUrl;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPdf(balasanUrl || null, `Surat Balasan Industri - ${group.industryName}`)}
+                                  className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm border-indigo-500"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>Preview</span>
+                                </button>
+                              );
+                            })()}
+
+                            {/* Upload Balasan */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTargetGroupBalasan(group);
+                                setBalasanBase64('');
+                                setBalasanFileName('');
+                              }}
+                              className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer border ${
+                                theme === 'dark' ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-300'
+                              }`}
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>{group.suratBalasanUrl ? 'Ganti Balasan' : 'Upload'}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 3. Surat Penerjunan */}
+                        <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                          <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">3. Surat Penerjunan</h5>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Request Penerjunan */}
+                            {group.placements?.some(p => ['DISETUJUI_INDUSTRI', 'MENUNGGU_PENERJUNAN'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
+                              <button
+                                type="button"
+                                onClick={() => handleRequestPenerjunan(group)}
+                                className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-teal-600 hover:bg-teal-500 text-white shadow-sm border-teal-500"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                <span>Request</span>
+                              </button>
+                            )}
+                            {group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
+                              <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center space-x-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Menunggu</span>
+                              </span>
+                            )}
+                            
+                            {/* Preview / Download Penerjunan */}
+                            {(group.suratPengantaranUrl || (group.placements && group.placements.some(p => p.suratPengantaranUrl))) && (() => {
+                              const pengantaranUrl = group.suratPengantaranUrl || group.placements?.find(p => p.suratPengantaranUrl)?.suratPengantaranUrl;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPdf(pengantaranUrl || null, `Surat Penerjunan/Pengantaran - ${group.industryName}`)}
+                                  className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border-emerald-500"
+                                >
+                                  <FileCheck2 className="w-3.5 h-3.5" />
+                                  <span>Preview / Unduh</span>
+                                </button>
+                              );
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* 4. Surat Penarikan */}
+                        <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                          <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">4. Surat Penarikan</h5>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Request Penarikan */}
+                            {group.placements?.some(p => ['MENUNGGU_PEMBERANGKATAN', 'COMPLETED', 'SELESAI_PKL'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
+                              <button
+                                type="button"
+                                onClick={() => handleRequestPenarikan(group)}
+                                className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-orange-600 hover:bg-orange-500 text-white shadow-sm border-orange-500"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                <span>Request</span>
+                              </button>
+                            )}
+                            {group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
+                              <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-orange-500/10 text-orange-600 border border-orange-500/20 flex items-center space-x-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Menunggu</span>
+                              </span>
+                            )}
+                            
+                            {/* Preview / Download Penarikan */}
+                            {(group.suratPenarikanUrl || (group.placements && group.placements.some(p => p.suratPenarikanUrl))) && (() => {
+                              const penarikanUrl = group.suratPenarikanUrl || group.placements?.find(p => p.suratPenarikanUrl)?.suratPenarikanUrl;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPdf(penarikanUrl || null, `Surat Penarikan - ${group.industryName}`)}
+                                  className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border-emerald-500"
+                                >
+                                  <FileCheck2 className="w-3.5 h-3.5" />
+                                  <span>Preview / Unduh</span>
+                                </button>
+                              );
+                            })()}
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
                   </div>
                 </div>
               );

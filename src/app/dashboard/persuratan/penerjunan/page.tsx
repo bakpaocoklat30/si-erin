@@ -335,7 +335,7 @@ export default function SuratPenerjunanPage() {
       const res = await fetch('/api/pokja/groups?department=Semua Jurusan');
       const json = await res.json();
       if (json.success) {
-        const acceptedStatuses = ['REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN'];
+        const acceptedStatuses = ['DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN'];
         const acceptedGroups = json.data.filter((group: any) => 
           group.students.some((s: any) => acceptedStatuses.includes(s.status))
         ).map((group: any) => {
@@ -423,7 +423,8 @@ export default function SuratPenerjunanPage() {
     const matchSearch = g.industryName.toLowerCase().includes(searchQuery.toLowerCase()) || g.departmentName.toLowerCase().includes(searchQuery.toLowerCase());
     
     // Check status
-    const isPending = g.students.some((s: any) => s.status === 'REQUEST_PENGANTARAN');
+    const pendingList = ['DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'REQUEST_PENGANTARAN'];
+    const isPending = g.students.some((s: any) => pendingList.includes(s.status));
     const isPublished = g.students.some((s: any) => s.status === 'MENUNGGU_PEMBERANGKATAN');
     
     let matchStatus = true;

@@ -42,8 +42,15 @@ export async function GET(request: Request) {
     const selectedPeriodId = searchParams.get('periodId');
     const selectedStatus = searchParams.get('status');
 
-    // Ambil daftar seluruh periode untuk pilihan filter di frontend
+    // Ambil daftar seluruh periode (Tanpa memuat kolom JSON activeIndustries yang sangat berat)
     const periods = await db.internshipPeriod.findMany({
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        startDate: true,
+        endDate: true
+      },
       orderBy: { startDate: 'desc' }
     });
 
@@ -91,18 +98,41 @@ export async function GET(request: Request) {
       where: placementWhere,
       include: {
         student: {
-          include: {
+          select: {
+            id: true,
+            nis: true,
+            name: true,
+            className: true,
+            department: true,
+            phone: true,
+            parentPhone: true,
             teacher: {
               select: { id: true, name: true, username: true }
             }
           }
         },
-        industry: true
+        industry: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            rt: true,
+            rw: true,
+            dusun: true,
+            desaKelurahan: true,
+            subDistrict: true,
+            regency: true,
+            postalCode: true,
+            province: true,
+            phone: true,
+          }
+        }
       },
       orderBy: { updatedAt: 'desc' }
     });
 
     const classRooms = await db.classRoom.findMany({ include: { period: true } });
+    const placementGroups = await db.placementGroup.findMany();
 
     const groupedMap: Record<string, any> = {};
 
@@ -110,10 +140,17 @@ export async function GET(request: Request) {
       const student = placement.student;
       const industry = placement.industry;
 
-      const matchedClass = classRooms.find(c => c.name.toLowerCase() === student?.className?.toLowerCase());
-      const matchedPeriod = matchedClass?.period || 
-                            periods.find(p => p.department.toLowerCase().includes((student?.department || '').toLowerCase())) || 
-                            periods[0];
+      const manualGroup = placement.groupId ? placementGroups.find(g => g.id === placement.groupId) : null;
+      let matchedPeriod = null;
+      
+      if (manualGroup) {
+        matchedPeriod = periods.find(p => p.id === manualGroup.periodId);
+      } else {
+        const matchedClass = classRooms.find(c => c.name.toLowerCase() === student?.className?.toLowerCase());
+        matchedPeriod = matchedClass?.period || 
+                        periods.find(p => p.department.toLowerCase().includes((student?.department || '').toLowerCase())) || 
+                        periods[0];
+      }
 
       const periodId = matchedPeriod ? matchedPeriod.id : 'PERIODE_DEFAULT';
       const periodName = matchedPeriod ? matchedPeriod.name : 'Periode Prakerin Standar';
@@ -181,7 +218,7 @@ export async function GET(request: Request) {
           letterUploadedBy: placement.letterUploadedBy || null,
           letterUploadedAt: placement.letterUploadedAt || null,
           placements: [],
-          students: []
+          
         };
       }
 
@@ -216,7 +253,7 @@ export async function GET(request: Request) {
         student: formattedStudent
       });
 
-      groupedMap[groupKey].students.push(formattedStudent);
+      
     });
 
     return NextResponse.json({

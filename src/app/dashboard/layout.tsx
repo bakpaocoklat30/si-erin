@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/sidebar';
 import { Menu } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
@@ -26,6 +26,7 @@ export default function DashboardLayout({
   const status = sessionState?.status || 'loading';
 
   const router = useRouter();
+  const pathname = usePathname();
   const { theme } = useTheme();
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -79,6 +80,12 @@ export default function DashboardLayout({
   }
 
   const initial = liveName ? liveName.charAt(0).toUpperCase() : 'U';
+  
+  const isPrintPage = pathname?.includes('/print');
+  
+  if (isPrintPage) {
+    return <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>{children}</div>;
+  }
 
   return (
     <div className={`min-h-screen flex transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
@@ -92,27 +99,27 @@ export default function DashboardLayout({
       />
 
       {/* Main Content Wrapper dengan margin responsif */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 relative z-0 ${
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${
         isCollapsed ? 'lg:pl-20' : 'lg:pl-72'
       }`}>
         
         {/* Top Header Navbar */}
-        <header className={`h-20 border-b px-6 sm:px-10 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md transition-colors ${
+        <header className={`h-14 border-b px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md transition-colors ${
           theme === 'dark' ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200 shadow-sm'
         }`}>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className={`lg:hidden p-2 rounded-xl border cursor-pointer ${
+              className={`lg:hidden p-1.5 rounded-lg border cursor-pointer ${
                 theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-200 text-slate-800'
               }`}
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-4 h-4" />
             </button>
-            <div className="text-xs sm:text-sm font-medium">
-              <span className="text-slate-400">Portal Aktif: </span>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+            <div className="text-xs font-medium">
+              <span className="text-slate-400 hidden sm:inline">Portal Aktif: </span>
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                 userRole === 'ADMIN' || userRole === 'POKJA' 
                   ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' 
                   : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
@@ -128,19 +135,19 @@ export default function DashboardLayout({
               <p className={`text-sm font-bold leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                 {liveName}
               </p>
-              <p className="text-[10px] text-emerald-500 font-semibold uppercase tracking-wider mt-0.5 flex items-center justify-end space-x-1">
+              <p className="text-[9px] text-emerald-500 font-semibold uppercase tracking-wider mt-0.5 flex items-center justify-end space-x-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                 <span>ONLINE</span>
               </p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center shadow-lg shadow-indigo-600/30 text-sm">
+            <div className="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md shadow-indigo-600/30 text-xs">
               {initial}
             </div>
           </div>
         </header>
 
         {/* Page Content Viewport */}
-        <main className="flex-1 relative z-0 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6">
           {children}
         </main>
       </div>

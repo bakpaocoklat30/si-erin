@@ -47,6 +47,7 @@ import {
 , UploadCloud, Download} from 'lucide-react';
 
 interface StudentItem {
+  student?: any;
   id?: string;
   placementId?: string;
   name?: string;
@@ -137,6 +138,7 @@ export default function PermohonanSuratKelompokPage() {
   const [verifiedGroups, setVerifiedGroups] = useState<GroupItem[]>([]);
   const [dbDepartments, setDbDepartments] = useState<DepartmentItem[]>([]);
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState<string>('SEMUA');
+  const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('SEMUA');
   
   // 🌟 FITUR BARU: STATE FILTER STATUS SURAT PERMOHONAN ('ALL' | 'PENDING' | 'PUBLISHED')
   const [letterStatusFilter, setLetterStatusFilter] = useState<'ALL' | 'PENDING' | 'PUBLISHED'>('PENDING');
@@ -203,7 +205,14 @@ export default function PermohonanSuratKelompokPage() {
       const json = await res.json();
 
       if (res.ok && json.success) {
-        setVerifiedGroups(json.data && json.data.length > 0 ? json.data : FALLBACK_GROUPS);
+        
+          // EXCLUDE MANUAL GROUPS (manual assignments like "tempatkan paksa" don't need Surat Permohonan)
+          // Dynamic groups have '___' in their groupId/groupKey. Manual groups have 'group_man_...' or CUID.
+          let validGroups = json.data || [];
+          if (Array.isArray(validGroups)) {
+             validGroups = validGroups.filter((g: any) => g.groupId && g.groupId.includes('___'));
+          }
+          setVerifiedGroups(json.data && json.data.length > 0 ? (validGroups.length > 0 ? validGroups : []) : FALLBACK_GROUPS);
         if (json.departments && Array.isArray(json.departments)) {
           setDbDepartments(json.departments);
         }
@@ -223,6 +232,15 @@ export default function PermohonanSuratKelompokPage() {
   }, [fetchVerifiedGroups]);
 
   // Ekstrak Daftar Jurusan Unik dari Data Kelompok jika Database Department belum terisi
+  
+  const availablePeriods = useMemo(() => {
+    const periods = new Set<string>();
+    verifiedGroups.forEach(g => {
+      if (g.periodName) periods.add(g.periodName);
+    });
+    return Array.from(periods).sort();
+  }, [verifiedGroups]);
+
   const availableDepartments = useMemo(() => {
     const setJur = new Set<string>();
     verifiedGroups.forEach((g) => {
@@ -267,6 +285,7 @@ export default function PermohonanSuratKelompokPage() {
     return verifiedGroups.filter((g) => {
       const groupDept = g.departmentName || (g.students?.[0]?.department) || '';
       const matchDept = selectedDepartmentFilter === 'SEMUA' || groupDept.toLowerCase() === selectedDepartmentFilter.toLowerCase();
+        const matchPeriodFilter = selectedPeriodFilter === 'SEMUA' || (g.periodName && g.periodName.toLowerCase() === selectedPeriodFilter.toLowerCase());
 
       // Filter Berdasarkan Status Surat
       const hasSurat = Boolean(g.suratTugasUrl);
@@ -296,9 +315,9 @@ export default function PermohonanSuratKelompokPage() {
         );
       });
 
-      return matchDept && matchStatus && (matchInd || matchPeriod || matchSurat || matchStudent);
+      return matchDept && matchStatus && matchPeriodFilter && (matchInd || matchPeriod || matchSurat || matchStudent);
     });
-  }, [verifiedGroups, searchTerm, selectedDepartmentFilter, letterStatusFilter]);
+  }, [verifiedGroups, searchTerm, selectedDepartmentFilter, selectedPeriodFilter, letterStatusFilter]);
 
   // Handler Pilih File Surat Permohonan
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -645,7 +664,14 @@ export default function PermohonanSuratKelompokPage() {
     try {
       const selectedGroups = verifiedGroups.filter(g => selectedGroupIds.includes(g.groupId || ''));
       
-      let sourcePdf: PDFDocument | null = null;
+      const toBase64 = (arr: Uint8Array) => {
+          let binary = '';
+          for (let i = 0; i < arr.byteLength; i++) {
+            binary += String.fromCharCode(arr[i]);
+          }
+          return window.btoa(binary);
+        };
+        let sourcePdf: PDFDocument | null = null;
       if (pdfPageCount > 1) {
          sourcePdf = await PDFDocument.load(bulkPdfBytes);
       }
@@ -661,13 +687,7 @@ export default function PermohonanSuratKelompokPage() {
            const [copiedPage] = await newPdf.copyPages(sourcePdf, [mappedPage - 1]);
            newPdf.addPage(copiedPage);
            const newBytes = await newPdf.save();
-           const toBase64 = (arr: Uint8Array) => {
-              let binary = '';
-              for (let i = 0; i < arr.byteLength; i++) {
-                binary += String.fromCharCode(arr[i]);
-              }
-              return window.btoa(binary);
-            };
+
 
             finalBase64 = 'data:application/pdf;base64,' + toBase64(newBytes);
           } else {
@@ -910,6 +930,47 @@ export default function PermohonanSuratKelompokPage() {
                 {letterStatusCounts.all}
               </span>
             </button>
+          </div>
+        </div>
+
+        {/* FILTER PERIODE DINAMIS */}
+        <div className={`lg:col-span-12 p-4 rounded-3xl border shadow-lg space-y-3 ${
+          theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center space-x-2 text-xs font-extrabold text-indigo-500">
+            <Layers className="w-4 h-4" />
+            <span>Filter Berdasarkan Periode Prakerin:</span>
+          </div>
+          <div className="flex items-center space-x-2 overflow-x-auto pb-1">
+            <button
+              type="button"
+              onClick={() => setSelectedPeriodFilter('SEMUA')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                selectedPeriodFilter === 'SEMUA'
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/30'
+                  : theme === 'dark'
+                  ? 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+              }`}
+            >
+              SEMUA
+            </button>
+            {availablePeriods.map((period) => (
+              <button
+                key={period}
+                type="button"
+                onClick={() => setSelectedPeriodFilter(period)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                  selectedPeriodFilter === period
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/30'
+                    : theme === 'dark'
+                    ? 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                }`}
+              >
+                {period}
+              </button>
+            ))}
           </div>
         </div>
 

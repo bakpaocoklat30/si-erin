@@ -470,7 +470,7 @@ export default function StudentPengajuanPage() {
       {/* PEMBERITAHUAN PENOLAKAN SISWA */}
       {!isAlreadyApplied && lastRejectedPlacement && (
         <div className="p-6 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-900 dark:text-rose-300 space-y-3 animate-in fade-in duration-300 shadow-md">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="p-3 rounded-2xl bg-rose-600 text-white shrink-0">
               <XCircle className="w-6 h-6" />
             </div>
@@ -574,7 +574,7 @@ export default function StudentPengajuanPage() {
               ? theme === 'dark' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
               : theme === 'dark' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-900'
           }`}>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-3 flex-wrap">
               {hasCv ? (
                 <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
               ) : (
@@ -688,8 +688,34 @@ export default function StudentPengajuanPage() {
                   }}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-emerald-600/20 cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Unduh Surat Tugas</span>
+                  <Download className="w-4 h-4 shrink-0" />
+                  <span className="whitespace-nowrap">Surat Tugas</span>
+                </button>
+              )}
+              {activePlacement.suratPengantaranUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActivePreviewUrl(activePlacement.suratPengantaranUrl);
+                    setActivePreviewTitle(`Surat Penerjunan PKL - ${activePlacement.industry?.name}`);
+                  }}
+                  className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-purple-600/20 cursor-pointer"
+                >
+                  <Download className="w-4 h-4 shrink-0" />
+                  <span className="whitespace-nowrap">Surat Penerjunan</span>
+                </button>
+              )}
+              {activePlacement.suratPenarikanUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActivePreviewUrl(activePlacement.suratPenarikanUrl);
+                    setActivePreviewTitle(`Surat Penarikan PKL - ${activePlacement.industry?.name}`);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/20 cursor-pointer"
+                >
+                  <Download className="w-4 h-4 shrink-0" />
+                  <span className="whitespace-nowrap">Surat Penarikan</span>
                 </button>
               )}
 

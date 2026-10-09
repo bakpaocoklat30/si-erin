@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
-// 📋 CHANGELOG:
-// ✅ Perubahan: Mengintegrasikan role TATA_USAHA dan melengkapi model `InternshipPlacement` untuk persuratan Tahap 3.
-// ✨ Fitur Baru: Persistent School Identity, Audit Log, Notification, & Dual-Authority Letter Issuance Fields.
+// ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ CHANGELOG:
+// ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Perubahan: Mengintegrasikan role TATA_USAHA dan melengkapi model `InternshipPlacement` untuk persuratan Tahap 3.
+// ÃƒÂ¢Ã…â€œÃ‚Â¨ Fitur Baru: Persistent School Identity, Audit Log, Notification, & Dual-Authority Letter Issuance Fields.
 // ----------------------------------------------------------------------
 
 datasource db {
@@ -13,13 +13,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// 🔑 ENUM: ROLE USER DALAM SISTEM SI-ERIN
+// ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Ëœ ENUM: ROLE USER DALAM SISTEM SI-ERIN
 enum Role {
   ADMIN
   POKJA
   PEMBIMBING
   SISWA
-  TATA_USAHA // 🌟 ROLE BARU: Persuratan & Tata Usaha Sekolah
+  TATA_USAHA // ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸ ROLE BARU: Persuratan & Tata Usaha Sekolah
 }
 
 model User {
@@ -84,14 +84,14 @@ model InternshipPeriod {
   academicYear          AcademicYear?          @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
   activeIndustries      Json?                  @default("[]")
   classes               ClassRoom[]
-  coefficient           InternshipCoefficient? // 🔑 Relasi 1-to-1 spesifik per periode
+  coefficient           InternshipCoefficient? // ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Ëœ Relasi 1-to-1 spesifik per periode
   monitoringAssignments MonitoringAssignment[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   PlacementGroup        PlacementGroup[]
 }
 
-// 🔑 MODEL: INTERNSHIP COEFFICIENT (Terikat spesifik ke periodId)
+// ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Ëœ MODEL: INTERNSHIP COEFFICIENT (Terikat spesifik ke periodId)
 model InternshipCoefficient {
   id            String           @id @default(cuid())
   periodId      String           @unique // Kunci unik agar tiap periode punya koefisien sendiri
@@ -149,31 +149,32 @@ model Industry {
 }
 
 model Student {
-  id             String               @id @default(cuid())
-  userId         String?              @unique
-  user           User?                @relation("StudentAccount", fields: [userId], references: [id], onDelete: Cascade)
-  nis            String               @unique
-  nisn           String?
-  name           String
-  className      String
-  department     String
-  phone          String
-  parentName     String?
-  parentRelation String?
-  parentPhone    String?
-  bpjsStatus     String?              @default("BELUM_UPLOAD")
-  bpjsUrl        String?
-  cvStatus       String?              @default("BELUM_UPLOAD")
-  cvUrl          String?
-  isAllowedPkl   Boolean              @default(false)
-  teacherId      String?
-  teacher        User?                @relation("TeacherStudents", fields: [teacherId], references: [id], onDelete: SetNull)
-  placement      InternshipPlacement?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  id               String               @id @default(cuid())
+  userId           String?              @unique
+  user             User?                @relation("StudentAccount", fields: [userId], references: [id], onDelete: Cascade)
+  nis              String               @unique
+  nisn             String?
+  name             String
+  className        String
+  department       String
+  phone            String
+  parentName       String?
+  parentRelation   String?
+  parentPhone      String?
+  bpjsStatus       String?              @default("BELUM_UPLOAD")
+  bpjsUrl          String?
+  cvStatus         String?              @default("BELUM_UPLOAD")
+  cvUrl            String?
+  isAllowedPkl     Boolean              @default(false)
+  teacherId        String?
+  teacher          User?                @relation("TeacherStudents", fields: [teacherId], references: [id], onDelete: SetNull)
+  placement        InternshipPlacement?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  EventParticipant EventParticipant[]
 }
 
-// 🌟 MODEL: INTERNSHIP PLACEMENT (DILENGKAPI FIELD PERSURATAN TAHAP 3 & DUAL-AUTHORITY TRACKING)
+// ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸ MODEL: INTERNSHIP PLACEMENT (DILENGKAPI FIELD PERSURATAN TAHAP 3 & DUAL-AUTHORITY TRACKING)
 model InternshipPlacement {
   id         String   @id @default(cuid())
   studentId  String   @unique
@@ -184,13 +185,13 @@ model InternshipPlacement {
   stage      Int      @default(1) // Tahap 1 s.d. 6
   notes      String?  @db.Text
 
-  // 📜 FIELD PERSURATAN PERMOHONAN PKL (TAHAP 3 -> TAHAP 4)
+  // ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…â€œ FIELD PERSURATAN PERMOHONAN PKL (TAHAP 3 -> TAHAP 4)
   letterNumber     String? // Nomor Surat Resmi dari TU / Pokja
   suratTugasUrl    String?   @db.Text // File Surat Permohonan/Tugas yang sudah di-TTD & Stempel
   letterUploadedBy String? // Identifier Pengunggah (misal: "Tata Usaha" atau "Tim Pokja")
   letterUploadedAt DateTime? // Timestamp waktu penerbitan surat
 
-  // 📑 FIELD BALASAN DUDI
+  // ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Ëœ FIELD BALASAN DUDI
   suratBalasanUrl    String? @db.Text
   suratBalasanStatus String? @default("BELUM_UPLOAD")
 
@@ -218,7 +219,7 @@ model TeacherHourAllocation {
   updatedAt    DateTime @updatedAt
 }
 
-// 🌟 MODEL: SCHOOL SETTING (PENGATURAN IDENTITAS & LOGO SEKOLAH PERSISTENT)
+// ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸ MODEL: SCHOOL SETTING (PENGATURAN IDENTITAS & LOGO SEKOLAH PERSISTENT)
 model SchoolSetting {
   id            String   @id @default(cuid())
   name          String   @default("SMK Negeri 1 Adiwerna")
@@ -235,7 +236,7 @@ model SchoolSetting {
 }
 
 // ======================================================================
-// 🌟 MODEL: AUDIT LOG (TRACKING SELURUH AKTIVITAS & PERUBAHAN DATA)
+// ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸ MODEL: AUDIT LOG (TRACKING SELURUH AKTIVITAS & PERUBAHAN DATA)
 // ======================================================================
 model AuditLog {
   id        String   @id @default(cuid())
@@ -255,7 +256,7 @@ model AuditLog {
 }
 
 // ======================================================================
-// 🌟 MODEL: NOTIFICATION (NOTIFIKASI REALTIME/IN-APP USER)
+// ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸ MODEL: NOTIFICATION (NOTIFIKASI REALTIME/IN-APP USER)
 // ======================================================================
 model Notification {
   id        String   @id @default(cuid())
@@ -295,7 +296,7 @@ model SystemSetting {
 }
 
 // ======================================================================
-// 🌟 MODEL: PENUGASAN MONITORING PRAKERIN (SURAT TUGAS & SPPD TTE JATENG)
+// ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸ MODEL: PENUGASAN MONITORING PRAKERIN (SURAT TUGAS & SPPD TTE JATENG)
 // ======================================================================
 model MonitoringAssignment {
   id                String            @id @default(cuid())
@@ -343,3 +344,31 @@ model PlacementGroup {
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 }
+
+model SchoolEvent {
+  id           String             @id @default(cuid())
+  name         String
+  startDate    DateTime
+  endDate      DateTime
+  location     String?
+  letterIntro  String?    @db.Text
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  participants EventParticipant[]
+}
+
+model EventParticipant {
+  id        String      @id @default(cuid())
+  eventId   String
+  event     SchoolEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startDate DateTime?
+  endDate   DateTime?
+  location  String?
+  letterUrl String?     @db.Text
+  createdAt DateTime    @default(now())
+
+  @@unique([eventId, studentId])
+}
+

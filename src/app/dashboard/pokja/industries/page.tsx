@@ -657,63 +657,75 @@ export default function PokjaIndustriesPage() {
     setIsMapSearching(true);
     setErrorMsg('');
 
+    // --- GOOGLE MAPS LINK PARSER ---
+    if (customQuery && (customQuery.includes('google.com/maps') || customQuery.includes('goo.gl') || customQuery.includes('maps.app.goo.gl'))) {
+      try {
+        let finalUrl = customQuery;
+        
+        // Resolve shortlinks (goo.gl / maps.app.goo.gl)
+        if (customQuery.includes('goo.gl')) {
+          const res = await fetch(`/api/resolve-url?url=${encodeURIComponent(customQuery)}`);
+          const data = await res.json();
+          if (data.success && data.finalUrl) {
+            finalUrl = data.finalUrl;
+          }
+        }
+
+        // Regex to extract @lat,lng
+        const coordRegex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+        const match = finalUrl.match(coordRegex);
+        
+        if (match) {
+          const lat = match[1];
+          const lng = match[2];
+          setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+          updateMapMarker(lat, lng);
+          setSuccessMsg('Koordinat akurat berhasil diekstrak dari link Google Maps!');
+          setIsMapSearching(false);
+          return;
+        } else {
+          setErrorMsg('Gagal menemukan koordinat dari link Google Maps. Pastikan link berisi koordinat yang valid atau coba ulangi.');
+          setIsMapSearching(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error parsing GMaps link:', err);
+      }
+    }
+    // -------------------------------
+
     // Buat urutan variasi pencarian dari yang paling spesifik ke yang paling umum
     const searchQueries: string[] = [];
 
-    if (customQuery) {
-      searchQueries.push(customQuery);
+    if (customQuery && typeof customQuery === 'string' && customQuery.trim() !== '') {
+      searchQueries.push(customQuery.trim());
     } else {
-      // Tier 1: Perusahaan + Alamat + Desa + Kecamatan + Kota + Provinsi
-      const tier1 = [
-        formData.name,
-        formData.address,
-        formData.desaKelurahan,
-        formData.subDistrict,
-        formData.regency,
-        formData.province,
-        'Indonesia'
-      ].filter(Boolean).join(', ');
+      const cleanRegency = (formData.regency || '').replace(/KABUPATEN\s+|KOTA\s+/ig, '').trim();
+      const cleanProv = (formData.province || '').replace(/PROVINSI\s+/ig, '').trim();
+      const tier1 = [formData.name, formData.desaKelurahan, cleanRegency].filter(Boolean).join(', ');
       if (tier1.trim()) searchQueries.push(tier1);
-
-      // Tier 2: Alamat Jalan + Desa + Kecamatan + Kota + Provinsi
-      const tier2 = [
-        formData.address,
-        formData.desaKelurahan,
-        formData.subDistrict,
-        formData.regency,
-        formData.province,
-        'Indonesia'
-      ].filter(Boolean).join(', ');
+      const tier2 = [formData.address, formData.desaKelurahan, formData.subDistrict, cleanRegency].filter(Boolean).join(', ');
       if (tier2.trim()) searchQueries.push(tier2);
-
-      // Tier 3: Desa + Kecamatan + Kota + Provinsi
-      const tier3 = [
-        formData.desaKelurahan,
-        formData.subDistrict,
-        formData.regency,
-        formData.province,
-        'Indonesia'
-      ].filter(Boolean).join(', ');
+      const tier3 = [formData.address, cleanRegency].filter(Boolean).join(', ');
       if (tier3.trim()) searchQueries.push(tier3);
-
-      // Tier 4: Kota + Provinsi
-      const tier4 = [
-        formData.regency,
-        formData.province,
-        'Indonesia'
-      ].filter(Boolean).join(', ');
+      const tier4 = [formData.desaKelurahan, formData.subDistrict, cleanRegency, cleanProv].filter(Boolean).join(', ');
       if (tier4.trim()) searchQueries.push(tier4);
+      const tier5 = [formData.subDistrict, cleanRegency, cleanProv, 'Indonesia'].filter(Boolean).join(', ');
+      if (tier5.trim()) searchQueries.push(tier5);
+      const tier6 = [cleanRegency, cleanProv, 'Indonesia'].filter(Boolean).join(', ');
+      if (tier6.trim()) searchQueries.push(tier6);
     }
 
     let foundResult = false;
 
     for (const query of searchQueries) {
       try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}`;
+        const url = `/api/nominatim?q=${encodeURIComponent(query)}`;
         const res = await fetch(url, { headers: { 'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8' } });
 
         if (res.ok) {
-          const results = await res.json();
+          const resultJson = await res.json();
+          const results = resultJson.data || resultJson;
           if (results && results.length > 0) {
             const match = results[0];
             const lat = parseFloat(match.lat).toFixed(7);
@@ -1518,13 +1530,19 @@ export default function PokjaIndustriesPage() {
           viewMode === 'grid' ? (
             /* 1. TAMPILAN KOTAK-KOTAK (GRID) */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredIndustries.map((ind) => (
+              {filteredIndustries.map((ind) => {
+                const isAddressIncomplete = !ind.address || !ind.phone || !ind.contactPerson || ind.address.toLowerCase() === 'alamat belum diisi';
+                return (
                 <div
                   key={ind.id}
                   className={`p-6 rounded-3xl border shadow-xl space-y-5 transition-all relative overflow-hidden flex flex-col justify-between ${
-                    isDark
-                      ? 'bg-slate-900 border-slate-800 text-slate-100 hover:border-slate-700'
-                      : 'bg-white border-slate-200/90 text-slate-900 shadow-slate-200/50 hover:border-indigo-300'
+                    isAddressIncomplete
+                      ? isDark 
+                        ? 'bg-rose-950/30 border-rose-500/50 text-slate-100 hover:border-rose-400' 
+                        : 'bg-rose-50 border-rose-300 text-slate-900 shadow-rose-200/50 hover:border-rose-400'
+                      : isDark
+                        ? 'bg-slate-900 border-slate-800 text-slate-100 hover:border-slate-700'
+                        : 'bg-white border-slate-200/90 text-slate-900 shadow-slate-200/50 hover:border-indigo-300'
                   }`}
                 >
                   <div className="space-y-4">
@@ -1564,16 +1582,6 @@ export default function PokjaIndustriesPage() {
                         </div>
                       </div>
 
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20 shrink-0 flex items-center space-x-1">
-                        {ind.totalQuota === -1 ? (
-                          <>
-                            <InfinityIcon className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-                            <span>Tanpa Batas</span>
-                          </>
-                        ) : (
-                          <span>Sisa: {ind.remainingQuota ?? ind.totalQuota}/{ind.totalQuota}</span>
-                        )}
-                      </span>
                     </div>
 
                     {/* ATRIBUT INFORMASI RINCI DAPODIK */}
@@ -1657,7 +1665,8 @@ export default function PokjaIndustriesPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             /* 2. TAMPILAN TABEL LIST */
@@ -1676,20 +1685,25 @@ export default function PokjaIndustriesPage() {
                       <th className="p-4">NIB & SEKTOR</th>
                       <th className="p-4">ALAMAT & KODE POS</th>
                       <th className="p-4">KONTAK & HRD</th>
-                      <th className="p-4 text-center">KUOTA PKL</th>
                       <th className="p-4 pr-6 text-right">AKSI</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y-2 ${
                     isDark ? 'divide-slate-800' : 'divide-slate-200'
                   }`}>
-                    {filteredIndustries.map((ind) => (
+                    {filteredIndustries.map((ind) => {
+                      const isAddressIncomplete = !ind.address || !ind.phone || !ind.contactPerson || ind.address.toLowerCase() === 'alamat belum diisi';
+                      return (
                       <tr 
                         key={ind.id}
                         className={`transition-colors ${
-                          isDark 
-                            ? 'hover:bg-slate-800/80 bg-slate-900' 
-                            : 'hover:bg-slate-100 bg-white'
+                          isAddressIncomplete
+                            ? isDark
+                              ? 'hover:bg-rose-900/50 bg-rose-950/30'
+                              : 'hover:bg-rose-100 bg-rose-50'
+                            : isDark 
+                              ? 'hover:bg-slate-800/80 bg-slate-900' 
+                              : 'hover:bg-slate-100 bg-white'
                         }`}
                       >
                         {/* 🏢 1. NAMA INDUSTRI & WEBSITE */}
@@ -1810,20 +1824,6 @@ export default function PokjaIndustriesPage() {
                           </div>
                         </td>
 
-                        {/* 📊 5. KUOTA PKL */}
-                        <td className="p-4 text-center">
-                          <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-950 dark:bg-indigo-500/20 dark:text-indigo-300 border-2 border-indigo-300 dark:border-indigo-500/40 shadow-sm">
-                            {ind.totalQuota === -1 ? (
-                              <>
-                                <InfinityIcon className="w-4 h-4 text-indigo-800 dark:text-indigo-300" />
-                                <span>Unlimited</span>
-                              </>
-                            ) : (
-                              <span>{ind.remainingQuota ?? ind.totalQuota} / {ind.totalQuota} Slot</span>
-                            )}
-                          </span>
-                        </td>
-
                         {/* ⚡ 6. TOMBOL AKSI */}
                         <td className="p-4 pr-6 text-right">
                           <div className="flex items-center justify-end space-x-2">
@@ -1847,7 +1847,8 @@ export default function PokjaIndustriesPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2426,7 +2427,7 @@ export default function PokjaIndustriesPage() {
                           executeSearchMapLocation(mapSearchQuery.trim());
                         }
                       }}
-                      placeholder='Cari manual: "Jl. Sudirman No.1, Jakarta" atau nama gedung...'
+                      placeholder='Paste Link Google Maps atau ketik alamat (Jl. Sudirman No.1)...'
                       className={`w-full pl-9 pr-4 py-2.5 rounded-2xl border outline-none font-semibold text-sm transition-colors ${
                         isDark
                           ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
@@ -2458,7 +2459,7 @@ export default function PokjaIndustriesPage() {
                   {/* BOTTOM FOOTER MAP */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
-                      💡 Otomatis mencari saat koordinat kosong · Ketik di kotak cari untuk pencarian manual · Geser/klik marker untuk presisi
+                      💡 Otomatis mencari saat koordinat kosong · Paste Link Google Maps untuk tingkat akurasi 100% atau ketik alamat · Geser/klik marker untuk presisi
                     </p>
                     <button
                       type="button"
@@ -2610,41 +2611,7 @@ export default function PokjaIndustriesPage() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="font-bold text-slate-700 dark:text-slate-300">Total Kuota PKL</label>
-                      
-                      <label className="flex items-center space-x-1.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.isUnlimited}
-                          onChange={(e) => setFormData({ ...formData, isUnlimited: e.target.checked })}
-                          className="w-3.5 h-3.5 accent-indigo-600 rounded cursor-pointer"
-                        />
-                        <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
-                          Tanpa Batas
-                        </span>
-                      </label>
-                    </div>
-
-                    {formData.isUnlimited ? (
-                      <div className="px-4 py-2.5 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 font-bold flex items-center space-x-2">
-                        <InfinityIcon className="w-5 h-5" />
-                        <span>Tanpa Batas (Unlimited Slot)</span>
-                      </div>
-                    ) : (
-                      <input
-                        type="number"
-                        value={formData.totalQuota}
-                        onChange={(e) => setFormData({ ...formData, totalQuota: e.target.value })}
-                        required
-                        min="1"
-                        className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-bold text-indigo-600 dark:text-indigo-400 ${
-                          isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'
-                        }`}
-                      />
-                    )}
-                  </div>
+                  {/* Kuota dihapus dari form master industri */}
                 </div>
               </div>
 
@@ -2796,3 +2763,6 @@ export default function PokjaIndustriesPage() {
     </div>
   );
 }
+
+
+

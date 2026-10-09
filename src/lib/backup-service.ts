@@ -343,6 +343,8 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     Notification: new Set(['id', 'userId', 'title', 'message', 'type', 'link', 'isRead', 'createdAt']),
     ErrorLog: new Set(['id', 'level', 'message', 'stack', 'path', 'method', 'userId', 'ip', 'createdAt']),
     AuditLog: new Set(['id', 'userId', 'username', 'userRole', 'action', 'module', 'details', 'ipAddress', 'userAgent', 'createdAt']),
+    SchoolEvent: new Set(['id', 'name', 'startDate', 'endDate', 'location', 'letterIntro', 'createdAt', 'updatedAt']),
+    EventParticipant: new Set(['id', 'eventId', 'studentId', 'startDate', 'endDate', 'location', 'letterUrl', 'createdAt']),
   };
 
   // Kueri murni tabel tanpa include relasi agar tidak menyisipkan kolom objek/array phantom
@@ -363,6 +365,8 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   const errorLogs = prisma.errorLog ? await prisma.errorLog.findMany() : [];
   const systemSettings = prisma.systemSetting ? await prisma.systemSetting.findMany() : [];
   const auditLogs = prisma.auditLog ? await prisma.auditLog.findMany() : [];
+    const schoolEvents = prisma.schoolEvent ? await prisma.schoolEvent.findMany() : [];
+    const eventParticipants = prisma.eventParticipant ? await prisma.eventParticipant.findMany() : [];
 
   function generateInsert(tableName: string, records: any[], conflictKey = 'id') {
     if (!records || records.length === 0) return '';
@@ -532,30 +536,18 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     }
   }) : [];
 
-  const detailedAssignments = prisma.monitoringAssignment ? await prisma.monitoringAssignment.findMany({
-    include: {
-      teacher: true,
-      industry: {
-        include: {
-          placements: {
-            include: {
-              student: {
-                select: { id: true, name: true, nis: true, className: true, department: true }
-              }
-            }
+  
+    
+    const detailedEventParticipants = prisma.eventParticipant ? await prisma.eventParticipant.findMany({
+      include: {
+        student: {
+          include: {
+            placement: true
           }
-        }
-      },
-      period: {
-        include: {
-          academicYear: true
-        }
+        },
+        event: true
       }
-    },
-    orderBy: {
-      monitoringDate: 'asc',
-    }
-  }) : [];
+    }) : [];
 
   // Analisis statistik ketersediaan berkas di database SI-ERIN
   const stats = {
@@ -787,7 +779,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       const penugasanFolderId = await getOrCreateFolder(drive, 'Penugasan', periodFolderId, folderCache);
       const tujuanFolderId = await getOrCreateFolder(drive, category, penugasanFolderId, folderCache);
       const fileAsliFolderId = await getOrCreateFolder(drive, 'File Asli', tujuanFolderId, folderCache);
-      const hasilKegiatanFolderId = await getOrCreateFolder(drive, 'Hasil Kegiatan', tujuanFolderId, folderCache);
+      const hasilKegiatanFolderId = await getOrCreateFolder(drive, 'Laporan Kegiatan', tujuanFolderId, folderCache);
 
       // 1. FILE ASLI - Surat Tugas Ber-TTE (hanya berkas resmi yang telah diunggah di aplikasi)
       if (assign.suratTugasUrl && String(assign.suratTugasUrl).trim() !== '') {
@@ -861,7 +853,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
             syncDetails.push({
               type: 'PENUGASAN_HASIL',
-              path: `${academicYearName}/${periodName}/Penugasan/${category}/Hasil Kegiatan`,
+              path: `${academicYearName}/${periodName}/Penugasan/${category}/Laporan Kegiatan`,
               fileName: fileName,
               action: uploadRes.action,
             });
@@ -870,7 +862,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           totalFailed++;
           syncDetails.push({
             type: 'PENUGASAN_HASIL',
-            path: `${academicYearName}/${periodName}/Penugasan/${category}/Hasil Kegiatan`,
+            path: `${academicYearName}/${periodName}/Penugasan/${category}/Laporan Kegiatan`,
             fileName: `Hasil_Kegiatan_${safeTeacherName}_${safeIndustryName}.pdf`,
             action: 'failed',
             error: err?.message || String(err),
@@ -898,9 +890,9 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   if (totalFailed > 0) {
     statusMessage = `Backup Sistem selesai: Arsip ZIP terunggah, ${successCount} dokumen disinkronkan, namun ada ${totalFailed} dokumen yang gagal diunggah ke Google Drive.`;
   } else if (successCount > 0) {
-    statusMessage = `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Surat Pengajuan, Jawaban, CV, BPJS, & Penugasan Monitoring/Perjalanan Dinas) telah disinkronkan ke folder Google Drive.`;
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Surat Pengajuan, Jawaban, CV, BPJS, Laporan Kegiatan, Surat Izin, & Penugasan) telah disinkronkan ke folder Google Drive.`;
   } else {
-    statusMessage = `Backup Sistem berhasil! Arsip ZIP terunggah ke Google Drive. Belum ada berkas unggahan (${stats.studentsWithCv} CV, ${stats.studentsWithBpjs} BPJS, ${stats.placementsWithSuratTugas} Pengajuan, ${stats.placementsWithSuratBalasan} Jawaban, ${stats.assignmentsWithTugas} Surat Tugas, ${stats.assignmentsWithSppd} SPPD, ${stats.assignmentsWithLaporan} Scan Hasil Kegiatan).`;
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP terunggah ke Google Drive. Belum ada berkas unggahan (${stats.studentsWithCv} CV, ${stats.studentsWithBpjs} BPJS, ${stats.placementsWithSuratTugas} Pengajuan, ${stats.placementsWithSuratBalasan} Jawaban, ${stats.assignmentsWithTugas} Surat Tugas, ${stats.assignmentsWithSppd} SPPD, ${stats.assignmentsWithLaporan} Laporan Kegiatan).`;
   }
 
   console.log(`[BACKUP SERVICE] 🏁 ${statusMessage}`);
@@ -911,4 +903,11 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     summary: summaryResult,
   };
 }
+
+
+
+
+
+
+
 
