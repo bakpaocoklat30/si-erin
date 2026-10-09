@@ -720,6 +720,7 @@ export default function PokjaIndustriesPage() {
 
     for (const query of searchQueries) {
       try {
+        await new Promise(resolve => setTimeout(resolve, 1500));
         const url = `/api/nominatim?q=${encodeURIComponent(query)}`;
         const res = await fetch(url, { headers: { 'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8' } });
 
@@ -2763,6 +2764,8 @@ export default function PokjaIndustriesPage() {
     </div>
   );
 }
+
+
 
 
 

@@ -72,7 +72,7 @@ export async function GET() {
           }
         }
       },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: 'desc' }, omit: { logoUrl: true }
     });
 
     // 2. Ambil master Kategori Industri untuk dropdown di frontend

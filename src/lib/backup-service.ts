@@ -875,6 +875,52 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     }
   }
 
+  // D. PROSES SURAT IZIN SISWA (EVENT PARTICIPANT)
+  for (const part of detailedEventParticipants) {
+    const student = part.student;
+    if (!student || !part.letterUrl || String(part.letterUrl).trim() === '') continue;
+
+    const academicYearName = defaultYearName;
+    const periodName = defaultPeriodName;
+
+    const safeClassName = sanitizeFolderName(student.className || 'Tanpa_Kelas');
+    const safeStudentName = sanitizeFolderName(student.name || 'Siswa').replace(/\s+/g, '_');
+    const safeEventName = sanitizeFolderName(part.event?.name || 'Kegiatan_Lainnya').replace(/\s+/g, '_');
+
+    try {
+      const yearFolderId = await getOrCreateFolder(drive, academicYearName, rootDriveFolderId, folderCache);
+      const periodFolderId = await getOrCreateFolder(drive, periodName, yearFolderId, folderCache);
+      const classFolderId = await getOrCreateFolder(drive, safeClassName, periodFolderId, folderCache);
+      const suratIzinFolderId = await getOrCreateFolder(drive, 'Surat Izin', classFolderId, folderCache);
+
+      const resolved = await resolveFileBuffer(part.letterUrl);
+      if (resolved) {
+        const fileName = "Surat_Izin_" + safeEventName + "_" + safeStudentName + ".pdf";
+        const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, 'application/pdf', resolved.buffer, suratIzinFolderId);
+        
+        if (uploadRes.action === 'created') totalSynced++;
+        else totalUpdated++;
+
+        syncDetails.push({
+          type: 'SURAT_IZIN',
+          path: academicYearName + '/' + periodName + '/' + safeClassName + '/Surat Izin',
+          fileName: fileName,
+          action: uploadRes.action,
+        });
+      }
+    } catch (err: any) {
+      totalFailed++;
+      syncDetails.push({
+        type: 'SURAT_IZIN',
+        path: academicYearName + '/' + periodName + '/' + safeClassName + '/Surat Izin',
+        fileName: "Surat_Izin_" + safeEventName + "_" + safeStudentName + ".pdf",
+        action: 'failed',
+        error: err?.message || String(err),
+      });
+      console.error("[BACKUP SERVICE] Gagal mengunggah Surat Izin siswa:", err?.message || err);
+    }
+  }
+
   const summaryResult: BackupSyncSummary = {
     zipFile: zipUploadResult,
     totalSynced,
@@ -903,6 +949,8 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     summary: summaryResult,
   };
 }
+
+
 
 
 
