@@ -335,7 +335,7 @@ export default function SuratPenerjunanPage() {
       const res = await fetch('/api/pokja/groups?department=Semua Jurusan');
       const json = await res.json();
       if (json.success) {
-        const acceptedStatuses = ['DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN'];
+        const acceptedStatuses = ['DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN'];
         const acceptedGroups = json.data.filter((group: any) => 
           group.students.some((s: any) => acceptedStatuses.includes(s.status))
         ).map((group: any) => {
@@ -345,9 +345,12 @@ export default function SuratPenerjunanPage() {
           };
         });
         setGroups(acceptedGroups);
+      } else {
+        alert('Gagal mengambil data: ' + json.error);
       }
     } catch (err) {
       console.error(err);
+      alert('Terjadi kesalahan jaringan.');
     } finally {
       setLoading(false);
     }

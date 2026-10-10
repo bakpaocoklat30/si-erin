@@ -21,7 +21,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { saveBase64ToFile } from '@/lib/file-utils';
 
 // List Role yang Berhak Mengakses Data Kelompok & Persuratan
-const ALLOWED_ROLES = ['POKJA', 'TIM_POKJA', 'ADMIN', 'TATA_USAHA', 'TU', 'SUPER_ADMIN'];
+const ALLOWED_ROLES = ['POKJA', 'TIM_POKJA', 'ADMIN', 'TATA_USAHA', 'TATA USAHA', 'TATAUSAHA', 'TU', 'SUPER_ADMIN'];
 
 // ----------------------------------------------------------------------
 // 1. GET: Ambil Kelompok Prakerin Sesuai Isolation Jurusan Pokja & Filter Periode
