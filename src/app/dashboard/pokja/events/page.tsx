@@ -142,6 +142,7 @@ export default function PokjaEventsPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingText, setLoadingText] = useState('Menginisialisasi...');
+  const [globalLoadingText, setGlobalLoadingText] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -190,7 +191,7 @@ export default function PokjaEventsPage() {
   const [dbGroups, setDbGroups] = useState<any[]>([]);
 
   const openSplitPdfModal = async () => {
-    setShowSplitPdf(true);
+    setGlobalLoadingText('Memuat data industri & kelompok...');
     setSplitPdfFile(null);
     setPdfPreviewUrl(null);
     setPdfPageCount(0);
@@ -215,6 +216,9 @@ export default function PokjaEventsPage() {
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setGlobalLoadingText('');
+      setShowSplitPdf(true);
     }
   };
 
@@ -483,6 +487,7 @@ export default function PokjaEventsPage() {
   };
 
   const loadEventStudents = async (ev: any) => {
+    setGlobalLoadingText('Memuat data siswa...');
     setSelectedEvent(ev);
     setLoadingStudents(true);
     setShowAddStudentForm(false);
@@ -495,6 +500,7 @@ export default function PokjaEventsPage() {
       console.error(e);
     } finally {
       setLoadingStudents(false);
+      setGlobalLoadingText('');
     }
   };
 
@@ -644,6 +650,14 @@ export default function PokjaEventsPage() {
     <div className={`min-h-screen p-6 sm:p-10 space-y-6 transition-colors duration-300 ${
       theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
+      {globalLoadingText && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-2xl flex flex-col items-center space-y-4">
+            <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-indigo-600 dark:text-indigo-400 font-medium animate-pulse">{globalLoadingText}</p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <Link href="/dashboard/pokja" className="inline-flex items-center text-sm text-indigo-500 hover:text-indigo-600 mb-2">
