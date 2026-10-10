@@ -12,7 +12,27 @@ export async function GET(
     const placements = await db.internshipPlacement.findMany({
       where: { groupId: id },
       include: {
-        student: true
+        student: {
+          select: {
+            id: true,
+            userId: true,
+            nis: true,
+            nisn: true,
+            name: true,
+            className: true,
+            department: true,
+            phone: true,
+            parentName: true,
+            parentRelation: true,
+            parentPhone: true,
+            bpjsStatus: true,
+            cvStatus: true,
+            isAllowedPkl: true,
+            teacherId: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        }
       }
     });
 

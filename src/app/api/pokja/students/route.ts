@@ -51,7 +51,24 @@ export async function GET(request: Request) {
     const students = await db.student.findMany({
       where: whereClause,
       orderBy: { name: 'asc' },
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        nis: true,
+        nisn: true,
+        name: true,
+        className: true,
+        department: true,
+        phone: true,
+        parentName: true,
+        parentRelation: true,
+        parentPhone: true,
+        bpjsStatus: true,
+        cvStatus: true,
+        isAllowedPkl: true,
+        teacherId: true,
+        createdAt: true,
+        updatedAt: true,
         placement: {
           include: {
             industry: { 

@@ -12,7 +12,15 @@ export async function GET(request: Request) {
 
     const groups = await db.placementGroup.findMany({
       include: {
-        industry: true,
+        industry: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            phone: true,
+            contactPerson: true
+          }
+        },
         period: true,
       },
       orderBy: { createdAt: 'desc' }
