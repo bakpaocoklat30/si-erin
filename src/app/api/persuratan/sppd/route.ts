@@ -19,9 +19,15 @@ export async function GET(request: Request) {
         },
         include: {
           industry: {
-            include: {
+            select: {
+              id: true, name: true, nib: true, sector: true, npwp: true, province: true,
+              regency: true, address: true, phone: true, contactPerson: true,
               placements: {
-                include: {
+                select: {
+                  id: true,
+                  studentId: true,
+                  status: true,
+                  stage: true,
                   student: {
                     select: { id: true, name: true, nis: true, className: true, department: true }
                   }
