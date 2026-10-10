@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // If it's a data URL (e.g. data:application/pdf;base64,...), return redirect or the base64 content
+    // If it's a data URL (e.g. data:application/pdf;base64,...)
     if (fileData.startsWith('data:')) {
       const arr = fileData.split(',');
       const mimeMatch = arr[0].match(/:(.*?);/);
@@ -53,6 +53,23 @@ export async function GET(request: Request) {
           'Content-Disposition': `inline; filename="${type}_${id}.pdf"`,
         },
       });
+    }
+
+    // If it's a raw base64 string (usually PDFs start with JVBERi0...)
+    // A quick check if it looks like base64 and not a URL
+    if (!fileData.startsWith('http') && !fileData.startsWith('/') && fileData.length > 500) {
+       const bstr = Buffer.from(fileData, 'base64');
+       return new NextResponse(bstr, {
+         headers: {
+           'Content-Type': 'application/pdf',
+           'Content-Disposition': `inline; filename="${type}_${id}.pdf"`,
+         },
+       });
+    }
+
+    // If it's a relative URL
+    if (fileData.startsWith('/')) {
+      return NextResponse.redirect(new URL(fileData, request.url));
     }
 
     // If it's just a regular string URL (e.g. from S3 or external)
