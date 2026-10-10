@@ -97,7 +97,17 @@ export async function GET(request: Request) {
     // Ambil data penempatan dari database Prisma
     const placements = await db.internshipPlacement.findMany({
       where: placementWhere,
-      include: {
+      select: {
+        id: true,
+        groupId: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        letterNumber: true,
+        letterUploadedBy: true,
+        letterUploadedAt: true,
+        nomorPengantaran: true,
+        nomorPenarikan: true,
         student: {
           select: {
             id: true,
@@ -137,6 +147,22 @@ export async function GET(request: Request) {
 
     const groupedMap: Record<string, any> = {};
 
+    const placementIds = placements.map(p => p.id);
+    let urlFlagsMap: Record<string, any> = {};
+    if (placementIds.length > 0) {
+      const idsForIn = placementIds.map(id => `'${id}'`).join(',');
+      const flags: any[] = await db.$queryRawUnsafe(`
+        SELECT id, 
+               ("suratTugasUrl" IS NOT NULL AND "suratTugasUrl" != '') as "hasSuratTugas",
+               ("suratBalasanUrl" IS NOT NULL AND "suratBalasanUrl" != '') as "hasSuratBalasan",
+               ("suratPengantaranUrl" IS NOT NULL AND "suratPengantaranUrl" != '') as "hasSuratPengantaran",
+               ("suratPenarikanUrl" IS NOT NULL AND "suratPenarikanUrl" != '') as "hasSuratPenarikan"
+        FROM "InternshipPlacement"
+        WHERE id IN (${idsForIn})
+      `);
+      flags.forEach(f => { urlFlagsMap[f.id] = f; });
+    }
+
     placements.forEach((placement: any) => {
       const student = placement.student;
       const industry = placement.industry;
@@ -173,12 +199,14 @@ export async function GET(request: Request) {
       const groupKey = placement.groupId || `${industryId}___${periodId}___${departmentName}___${savedLetterNumber || 'PENDING'}`;
 
 
-      const mapUrl = (val: string | null, type: string) => {
-        if (!val) return null;
-        if (val.startsWith('data:') && val.length > 500) {
-          return `/api/pokja/placements/surat?id=${placement.id}&type=${type}`;
-        }
-        return val;
+      const buildProxyUrl = (type: string, id: string) => {
+        let hasUrl = false;
+        if (type === 'tugas') hasUrl = urlFlagsMap[id]?.hasSuratTugas;
+        else if (type === 'balasan') hasUrl = urlFlagsMap[id]?.hasSuratBalasan;
+        else if (type === 'pengantaran') hasUrl = urlFlagsMap[id]?.hasSuratPengantaran;
+        else if (type === 'penarikan') hasUrl = urlFlagsMap[id]?.hasSuratPenarikan;
+        
+        return hasUrl ? `/api/pokja/placements/surat?id=${id}&type=${type}` : null;
       };
 
       if (!groupedMap[groupKey]) {
@@ -219,10 +247,10 @@ export async function GET(request: Request) {
           periodName: periodName,
           startDate: startDate,
           endDate: endDate,
-          suratTugasUrl: mapUrl(placement.suratTugasUrl, 'tugas'),
-            suratPengantaranUrl: mapUrl(placement.suratPengantaranUrl, 'pengantaran'),
-            suratPenarikanUrl: mapUrl(placement.suratPenarikanUrl, 'penarikan'),
-          suratBalasanUrl: mapUrl(placement.suratBalasanUrl, 'balasan'),
+          suratTugasUrl: buildProxyUrl('tugas', placement.id),
+            suratPengantaranUrl: buildProxyUrl('pengantaran', placement.id),
+            suratPenarikanUrl: buildProxyUrl('penarikan', placement.id),
+          suratBalasanUrl: buildProxyUrl('balasan', placement.id),
           letterNumber: savedLetterNumber, 
           letterUploadedBy: placement.letterUploadedBy || null,
           letterUploadedAt: placement.letterUploadedAt || null,
@@ -245,7 +273,7 @@ export async function GET(request: Request) {
         startDate: startDate,
         endDate: endDate,
         letterNumber: savedLetterNumber,
-        suratBalasanUrl: mapUrl(placement.suratBalasanUrl, 'balasan'),
+        suratBalasanUrl: buildProxyUrl('balasan', placement.id),
         nomorPengantaran: placement.nomorPengantaran || null,
         nomorPenarikan: placement.nomorPenarikan || null
       };
@@ -254,10 +282,10 @@ export async function GET(request: Request) {
         id: placement.id,
         placementId: placement.id,
         status: placement.status,
-        suratTugasUrl: mapUrl(placement.suratTugasUrl, 'tugas'),
-          suratPengantaranUrl: mapUrl(placement.suratPengantaranUrl, 'pengantaran'),
-          suratPenarikanUrl: mapUrl(placement.suratPenarikanUrl, 'penarikan'),
-        suratBalasanUrl: mapUrl(placement.suratBalasanUrl, 'balasan'),
+        suratTugasUrl: buildProxyUrl('tugas', placement.id),
+          suratPengantaranUrl: buildProxyUrl('pengantaran', placement.id),
+          suratPenarikanUrl: buildProxyUrl('penarikan', placement.id),
+        suratBalasanUrl: buildProxyUrl('balasan', placement.id),
         letterNumber: savedLetterNumber,
         student: formattedStudent
       });
