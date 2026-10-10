@@ -33,20 +33,12 @@ export async function GET(req: NextRequest) {
             subDistrict: true,
             regency: true,
             province: true,
-            placements: {
-              where: {
-                status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
-              },
+            province: true,
+            _count: {
               select: {
-                id: true,
-                status: true,
-                student: {
-                  select: {
-                    id: true,
-                    name: true,
-                    nis: true,
-                    className: true,
-                    department: true,
+                placements: {
+                  where: {
+                    status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
                   }
                 }
               }
@@ -82,20 +74,11 @@ export async function GET(req: NextRequest) {
     // 2. Ambil daftar industri mitra yang sedang memiliki penempatan aktif
     const industries = await prisma.industry.findMany({
       include: {
-        placements: {
-          where: {
-            status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
-          },
+        _count: {
           select: {
-            id: true,
-            status: true,
-            student: {
-              select: {
-                id: true,
-                name: true,
-                nis: true,
-                className: true,
-                department: true,
+            placements: {
+              where: {
+                status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
               }
             }
           }

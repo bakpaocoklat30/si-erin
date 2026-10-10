@@ -1404,7 +1404,7 @@ export default function PokjaMonitoringPage() {
                 </tr>
               ) : (
                 filteredAssignments.map((assignment, index) => {
-                  const studentCount = assignment.industry.placements?.length || 0;
+                  const studentCount = assignment.industry._count?.placements || 0;
                   const companionCount = Array.isArray(assignment.companionTeachers)
                     ? assignment.companionTeachers.length
                     : 0;
@@ -1813,7 +1813,7 @@ export default function PokjaMonitoringPage() {
                       </option>
                       {industries.map((ind) => (
                         <option key={ind.id} value={ind.id}>
-                          {ind.name} ({ind.placements?.length || 0} Siswa PKL)
+                          {ind.name} ({ind._count?.placements || 0} Siswa PKL)
                         </option>
                       ))}
                     </select>
