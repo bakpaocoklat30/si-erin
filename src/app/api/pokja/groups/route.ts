@@ -94,7 +94,7 @@ export async function GET(request: Request) {
       status: statusCondition
     };
 
-    // Ambil data penempatan dari database Prisma
+    // Ambil data penempatan dari database Prisma (TANPA menarik field surat*Url yang berisi base64 besar untuk mencegah OOM)
     const placements = await db.internshipPlacement.findMany({
       where: placementWhere,
       select: {
@@ -108,10 +108,7 @@ export async function GET(request: Request) {
         letterUploadedAt: true,
         nomorPengantaran: true,
         nomorPenarikan: true,
-        suratTugasUrl: true,
-        suratBalasanUrl: true,
-        suratPengantaranUrl: true,
-        suratPenarikanUrl: true,
+        // SURAT URL DIBLOKIR AGAR MEMORI SERVER TIDAK CRASH (OOM)
         student: {
           select: {
             id: true,
@@ -189,10 +186,25 @@ export async function GET(request: Request) {
 
       const buildProxyUrl = (type: string, placementItem: any) => {
         let hasUrl = false;
-        if (type === 'tugas') hasUrl = !!placementItem.suratTugasUrl;
-        else if (type === 'balasan') hasUrl = !!placementItem.suratBalasanUrl;
-        else if (type === 'pengantaran') hasUrl = !!placementItem.suratPengantaranUrl;
-        else if (type === 'penarikan') hasUrl = !!placementItem.suratPenarikanUrl;
+        const s = placementItem.status || '';
+        
+        // Kita tebak dari status karena field Base64 di-omit agar tidak OOM
+        if (type === 'tugas') {
+           const tugasStatuses = ['SURAT_DITERBITKAN', 'LETTER_ISSUED', 'KIRIM_SURAT', 'SENT_DUDI', 'DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'DITERIMA', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL'];
+           hasUrl = tugasStatuses.includes(s);
+        }
+        else if (type === 'balasan') {
+           const balasanStatuses = ['DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'DITERIMA', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL'];
+           hasUrl = balasanStatuses.includes(s);
+        }
+        else if (type === 'pengantaran') {
+           const pengantaranStatuses = ['MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'DITERIMA', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL'];
+           hasUrl = pengantaranStatuses.includes(s);
+        }
+        else if (type === 'penarikan') {
+           const penarikanStatuses = ['MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'COMPLETED', 'SELESAI_PKL'];
+           hasUrl = penarikanStatuses.includes(s);
+        }
         
         return hasUrl ? `/api/pokja/placements/surat?id=${placementItem.id}&type=${type}` : null;
       };
