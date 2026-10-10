@@ -20,10 +20,14 @@ export async function GET(
           include: {
             student: {
               include: {
-                user: true,
+                user: {
+                  select: { id: true, name: true, email: true }
+                },
                 placement: {
                   include: {
-                    industry: true
+                    industry: {
+                      select: { id: true, name: true, address: true }
+                    }
                   }
                 }
               }
