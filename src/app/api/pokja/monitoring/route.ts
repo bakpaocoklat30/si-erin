@@ -37,7 +37,9 @@ export async function GET(req: NextRequest) {
               where: {
                 status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
               },
-              include: {
+              select: {
+                id: true,
+                status: true,
                 student: {
                   select: {
                     id: true,
@@ -84,7 +86,9 @@ export async function GET(req: NextRequest) {
           where: {
             status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
           },
-          include: {
+          select: {
+            id: true,
+            status: true,
             student: {
               select: {
                 id: true,
