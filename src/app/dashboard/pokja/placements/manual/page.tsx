@@ -406,7 +406,23 @@ export default function ManualPlacementPage() {
                             <td className="px-4 py-2 text-center">
                               <input type="checkbox" checked={selectedStudentIds.includes(s.id)} readOnly className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"/>
                             </td>
-                            <td className="px-4 py-2 font-medium">{s.name} <br/><span className="text-xs text-slate-500">{s.nis}</span></td>
+                            <td className="px-4 py-2 font-medium">
+                              <div className="flex flex-col gap-1">
+                                <span>{s.name}</span>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-slate-500">{s.nis}</span>
+                                  {s.placement?.industryId ? (
+                                    <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
+                                      Sudah di {s.placement.industry?.name || 'PT'}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">
+                                      Belum ditempatkan
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
                             <td className="px-4 py-2">{s.className || '-'}</td>
                           </tr>
                         ))}
