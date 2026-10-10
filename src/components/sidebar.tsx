@@ -136,6 +136,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
       items: [
         { name: 'Dashboard Pokja', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Analytics & Ekspor Data', href: '/dashboard/pokja/analytics', icon: BarChart3 },
+        { name: 'Rekapitulasi Kelas', href: '/dashboard/pokja/rekap-kelas', icon: FileSpreadsheet },
       ]
     },
     {
