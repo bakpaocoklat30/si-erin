@@ -373,9 +373,9 @@ export default function SuratPenerjunanPage() {
       }
 
       if (json.success) {
-        const acceptedStatuses = ['DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA', 'SELESAI_PKL', 'COMPLETED'];
+        const acceptedStatuses = ['REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN'];
         const acceptedGroups = json.data.filter((group: any) => 
-          group.students.some((s: any) => acceptedStatuses.includes(s.status))
+          group.students && group.students.some((s: any) => acceptedStatuses.includes(s.status))
         ).map((group: any) => {
           return {
             ...group,
@@ -464,8 +464,8 @@ export default function SuratPenerjunanPage() {
     const matchSearch = g.industryName.toLowerCase().includes(searchQuery.toLowerCase()) || g.departmentName.toLowerCase().includes(searchQuery.toLowerCase());
     
     // Check status
-    const pendingList = ['DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'REQUEST_PENGANTARAN'];
-    const publishedList = ['MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA', 'SELESAI_PKL', 'COMPLETED'];
+    const pendingList = ['REQUEST_PENGANTARAN'];
+    const publishedList = ['MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN'];
     const isPending = g.students.some((s: any) => pendingList.includes(s.status));
     const isPublished = g.students.some((s: any) => publishedList.includes(s.status));
     
@@ -575,7 +575,7 @@ export default function SuratPenerjunanPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredGroups.map((group, idx) => {
-            const isPublished = group.students.some((s: any) => ['MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA', 'SELESAI_PKL', 'COMPLETED'].includes(s.status));
+            const isPublished = group.students.some((s: any) => ['MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN'].includes(s.status));
             return (
               <div key={idx} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden flex flex-col justify-between">
                 <div>
