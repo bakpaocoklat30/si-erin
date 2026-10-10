@@ -267,6 +267,7 @@ export async function GET(request: Request) {
           letterUploadedBy: placement.letterUploadedBy || null,
           letterUploadedAt: placement.letterUploadedAt || null,
           placements: [],
+          students: []
           
         };
       }
@@ -301,6 +302,8 @@ export async function GET(request: Request) {
         letterNumber: savedLetterNumber,
         student: formattedStudent
       });
+
+      groupedMap[groupKey].students.push(formattedStudent);
 
       
     });
