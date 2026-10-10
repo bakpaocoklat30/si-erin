@@ -615,6 +615,18 @@ export default function PokjaEventsPage() {
     return notInEvent && matchesNameNis && matchesClass;
   });
 
+  const isAllSelected = filteredAllStudents.length > 0 && filteredAllStudents.every(s => selectedStudentIds.includes(s.id));
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      const newIds = filteredAllStudents.map(s => s.id);
+      setSelectedStudentIds(Array.from(new Set([...selectedStudentIds, ...newIds])));
+    } else {
+      const visibleIds = filteredAllStudents.map(s => s.id);
+      setSelectedStudentIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   };
@@ -962,7 +974,14 @@ export default function PokjaEventsPage() {
                     <table className="w-full text-left text-sm">
                       <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 shadow-sm">
                         <tr>
-                          <th className="px-4 py-2 w-10 text-center"><CheckSquare className="w-4 h-4 mx-auto"/></th>
+                          <th className="px-4 py-2 w-10 text-center">
+                            <input 
+                              type="checkbox" 
+                              checked={isAllSelected} 
+                              onChange={handleSelectAll} 
+                              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                          </th>
                           <th className="px-4 py-2">Nama</th>
                           <th className="px-4 py-2">Kelas</th>
                           <th className="px-4 py-2">Industri Saat Ini</th>

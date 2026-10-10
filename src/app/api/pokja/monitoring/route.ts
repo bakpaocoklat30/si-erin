@@ -73,7 +73,11 @@ export async function GET(req: NextRequest) {
 
     // 2. Ambil daftar industri mitra yang sedang memiliki penempatan aktif
     const industries = await prisma.industry.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        regency: true,
         _count: {
           select: {
             placements: {
