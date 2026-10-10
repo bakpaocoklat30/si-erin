@@ -141,6 +141,7 @@ export default function PokjaEventsPage() {
 
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingText, setLoadingText] = useState('Menginisialisasi...');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -341,20 +342,25 @@ export default function PokjaEventsPage() {
   };
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/pokja/students').then(res => res.json())
-    ])
-    .then(([stuRes]) => {
-      if (stuRes.success) {
-        setAllStudents(stuRes.data.filter((s: any) => s.placement && s.placement.industryId));
+    const loadData = async () => {
+      try {
+        setLoadingText('Memuat data siswa (ini mungkin memakan waktu)...');
+        const stuRes = await fetch('/api/pokja/students').then(res => res.json());
+        if (stuRes.success) {
+          setAllStudents(stuRes.data.filter((s: any) => s.placement && s.placement.industryId));
+        }
+
+        setLoadingText('Memuat agenda kegiatan...');
+        await fetchEvents();
+      } catch (err) {
+        console.error(err);
+        setErrorMsg('Gagal memuat data awal.');
+      } finally {
+        setLoadingText('');
+        setLoading(false);
       }
-      fetchEvents();
-    })
-    .catch(err => {
-      console.error(err);
-      setErrorMsg('Gagal memuat data awal.');
-    })
-    .finally(() => setLoading(false));
+    };
+    loadData();
   }, []);
 
   const handleCreateEvent = async (e: React.FormEvent) => {
@@ -533,7 +539,14 @@ export default function PokjaEventsPage() {
     return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  if (loading) return <div className="p-10 text-center">Loading...</div>;
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <p className="text-indigo-600 font-medium animate-pulse">{loadingText}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className={`min-h-screen p-6 sm:p-10 space-y-6 transition-colors duration-300 ${

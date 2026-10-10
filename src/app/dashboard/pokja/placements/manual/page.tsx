@@ -15,6 +15,7 @@ export default function ManualPlacementPage() {
   const [groups, setGroups] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(true);
+  const [loadingText, setLoadingText] = useState('Menginisialisasi...');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -51,22 +52,33 @@ export default function ManualPlacementPage() {
   };
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/pokja/industries').then(res => res.json()),
-      fetch('/api/pokja/periods').then(res => res.json()),
-      fetch('/api/pokja/students').then(res => res.json())
-    ])
-    .then(([indRes, perRes, stuRes]) => {
-      if (indRes.success) setIndustries(indRes.data);
-      if (perRes.success) setPeriods(perRes.data);
-      if (stuRes.success) setAllStudents(stuRes.data);
-      fetchGroups();
-    })
-    .catch(err => {
-      console.error(err);
-      setErrorMsg('Gagal memuat data awal.');
-    })
-    .finally(() => setLoading(false));
+    const loadData = async () => {
+      try {
+        setLoadingText('Memuat data industri...');
+        const indRes = await fetch('/api/pokja/industries').then(res => res.json());
+        if (indRes.success) setIndustries(indRes.data);
+
+        setLoadingText('Memuat data periode...');
+        const perRes = await fetch('/api/pokja/periods').then(res => res.json());
+        if (perRes.success) setPeriods(perRes.data);
+
+        setLoadingText('Memuat data siswa...');
+        const stuRes = await fetch('/api/pokja/students').then(res => res.json());
+        if (stuRes.success) setAllStudents(stuRes.data);
+
+        setLoadingText('Memuat data kelompok...');
+        await fetchGroups();
+        
+      } catch (err) {
+        console.error(err);
+        setErrorMsg('Gagal memuat data awal.');
+      } finally {
+        setLoadingText('');
+        setLoading(false);
+      }
+    };
+    
+    loadData();
   }, []);
 
   const handlePeriodChange = (pid: string) => {
@@ -183,7 +195,14 @@ export default function ManualPlacementPage() {
     (s.nis && s.nis.toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
-  if (loading) return <div className="p-10 text-center">Loading...</div>;
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <p className="text-indigo-600 font-medium animate-pulse">{loadingText}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className={`min-h-screen p-6 sm:p-10 space-y-6 transition-colors duration-300 ${
