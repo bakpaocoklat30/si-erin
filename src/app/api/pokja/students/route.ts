@@ -70,7 +70,10 @@ export async function GET(request: Request) {
         createdAt: true,
         updatedAt: true,
         placement: {
-          include: {
+          select: {
+            id: true,
+            status: true,
+            industryId: true,
             industry: { 
               select: { 
                 id: true,

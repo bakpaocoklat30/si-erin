@@ -552,11 +552,49 @@ export default function PokjaMonitoringPage() {
     }
   };
   
+  const [loadingStage, setLoadingStage] = useState('Memuat awal...');
+
   const fetchData = async () => {
     setLoading(true);
+    setLoadingStage('Membangun koneksi ke server...');
     try {
       const res = await fetch('/api/pokja/monitoring', { cache: 'no-store' });
-      const json = await res.json();
+      if (!res.ok) throw new Error('HTTP error');
+
+      const total = parseInt(res.headers.get('content-length') || '0', 10);
+      const reader = res.body?.getReader();
+      let json;
+
+      if (!reader) {
+        setLoadingStage('Memproses JSON monitoring...');
+        json = await res.json();
+      } else {
+        let receivedLength = 0;
+        const chunks = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          receivedLength += value.length;
+          if (total) {
+            const percent = Math.round((receivedLength / total) * 100);
+            setLoadingStage(`Mengunduh data monitoring... ${percent}%`);
+          } else {
+            setLoadingStage(`Mengunduh data monitoring... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
+          }
+        }
+        setLoadingStage('Mengekstrak paket JSON monitoring...');
+        const chunksAll = new Uint8Array(receivedLength);
+        let position = 0;
+        for (let chunk of chunks) {
+          chunksAll.set(chunk, position);
+          position += chunk.length;
+        }
+        const result = new TextDecoder('utf-8').decode(chunksAll);
+        setLoadingStage('Parsing struktur data UI monitoring...');
+        json = JSON.parse(result);
+      }
+
       if (json.success && json.data) {
         setAssignments(json.data.assignments || []);
         setIndustries(json.data.industries || []);
@@ -569,6 +607,7 @@ export default function PokjaMonitoringPage() {
     } catch (err: any) {
       setMessage({ type: 'error', text: 'Terjadi kesalahan jaringan' });
     } finally {
+      setLoadingStage('');
       setLoading(false);
     }
   };
@@ -1032,6 +1071,24 @@ export default function PokjaMonitoringPage() {
     }
     return generateLaporanHasilKegiatanHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
   }, [previewModal, schoolSetting]);
+
+  if (loading && assignments.length === 0) {
+    return (
+      <div className={`min-h-screen p-8 flex flex-col justify-center items-center space-y-4 ${
+        theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      }`}>
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <div className="flex flex-col items-center">
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-300">
+            {loadingStage}
+          </p>
+          <p className="text-xs text-slate-500 mt-1 text-center max-w-sm">
+            Harap tunggu, sistem sedang memproses data...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">

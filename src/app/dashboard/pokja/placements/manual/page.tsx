@@ -62,9 +62,45 @@ export default function ManualPlacementPage() {
         const perRes = await fetch('/api/pokja/periods').then(res => res.json());
         if (perRes.success) setPeriods(perRes.data);
 
-        setLoadingText('Memuat data siswa...');
-        const stuRes = await fetch('/api/pokja/students').then(res => res.json());
-        if (stuRes.success) setAllStudents(stuRes.data);
+        setLoadingText('Membangun koneksi ke server untuk memuat data siswa...');
+        const stuResObj = await fetch('/api/pokja/students');
+        if (!stuResObj.ok) throw new Error('HTTP error when fetching students');
+
+        const stuTotal = parseInt(stuResObj.headers.get('content-length') || '0', 10);
+        const stuReader = stuResObj.body?.getReader();
+        let stuJson;
+
+        if (!stuReader) {
+          setLoadingText('Memproses JSON siswa (Stream tidak didukung)...');
+          stuJson = await stuResObj.json();
+        } else {
+          let receivedLength = 0;
+          const chunks = [];
+          while (true) {
+            const { done, value } = await stuReader.read();
+            if (done) break;
+            chunks.push(value);
+            receivedLength += value.length;
+            if (stuTotal) {
+              const percent = Math.round((receivedLength / stuTotal) * 100);
+              setLoadingText(`Mengunduh data siswa... ${percent}%`);
+            } else {
+              setLoadingText(`Mengunduh data siswa... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
+            }
+          }
+          setLoadingText('Mengekstrak paket JSON siswa...');
+          const chunksAll = new Uint8Array(receivedLength);
+          let position = 0;
+          for (let chunk of chunks) {
+            chunksAll.set(chunk, position);
+            position += chunk.length;
+          }
+          const result = new TextDecoder("utf-8").decode(chunksAll);
+          setLoadingText('Parsing struktur data UI siswa...');
+          stuJson = JSON.parse(result);
+        }
+
+        if (stuJson.success) setAllStudents(stuJson.data);
 
         setLoadingText('Memuat data kelompok...');
         await fetchGroups();
@@ -401,17 +437,19 @@ export default function ManualPlacementPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                        {filteredAllStudents.map(s => (
-                          <tr key={s.id} onClick={() => toggleStudent(s.id)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
+                        {filteredAllStudents.map(s => {
+                          const isPlaced = !!s.placement?.industryId;
+                          return (
+                          <tr key={s.id} onClick={() => !isPlaced && toggleStudent(s.id)} className={`${isPlaced ? 'opacity-60 bg-slate-100 dark:bg-slate-800 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
                             <td className="px-4 py-2 text-center">
-                              <input type="checkbox" checked={selectedStudentIds.includes(s.id)} readOnly className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"/>
+                              <input type="checkbox" disabled={isPlaced} checked={selectedStudentIds.includes(s.id)} readOnly className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"/>
                             </td>
                             <td className="px-4 py-2 font-medium">
                               <div className="flex flex-col gap-1">
                                 <span>{s.name}</span>
                                 <div className="flex items-center gap-2 text-xs">
                                   <span className="text-slate-500">{s.nis}</span>
-                                  {s.placement?.industryId ? (
+                                  {isPlaced ? (
                                     <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
                                       Sudah di {s.placement.industry?.name || 'PT'}
                                     </span>
@@ -425,7 +463,8 @@ export default function ManualPlacementPage() {
                             </td>
                             <td className="px-4 py-2">{s.className || '-'}</td>
                           </tr>
-                        ))}
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>

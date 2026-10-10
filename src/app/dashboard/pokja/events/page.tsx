@@ -331,11 +331,51 @@ export default function PokjaEventsPage() {
   };
 
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (showProgress: boolean = false) => {
     try {
+      if (showProgress) setLoadingText('Membangun koneksi ke server untuk memuat agenda...');
       const res = await fetch('/api/pokja/events');
-      const data = await res.json();
-      if(data.success) setEvents(data.data);
+      
+      if (showProgress) {
+        const contentLength = res.headers.get('content-length');
+        const total = contentLength ? parseInt(contentLength, 10) : 0;
+        const reader = res.body?.getReader();
+        let json;
+
+        if (!reader) {
+          setLoadingText('Memproses JSON agenda (Stream tidak didukung)...');
+          json = await res.json();
+        } else {
+          let receivedLength = 0;
+          const chunks = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            receivedLength += value.length;
+            if (total) {
+              const percent = Math.round((receivedLength / total) * 100);
+              setLoadingText(`Mengunduh agenda kegiatan... ${percent}%`);
+            } else {
+              setLoadingText(`Mengunduh agenda kegiatan... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
+            }
+          }
+          setLoadingText('Mengekstrak paket JSON agenda...');
+          const chunksAll = new Uint8Array(receivedLength);
+          let position = 0;
+          for (let chunk of chunks) {
+            chunksAll.set(chunk, position);
+            position += chunk.length;
+          }
+          const result = new TextDecoder("utf-8").decode(chunksAll);
+          setLoadingText('Parsing struktur data UI agenda...');
+          json = JSON.parse(result);
+        }
+        if(json.success) setEvents(json.data);
+      } else {
+        const data = await res.json();
+        if(data.success) setEvents(data.data);
+      }
     } catch(e) {
       console.error(e);
     }
@@ -344,14 +384,49 @@ export default function PokjaEventsPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoadingText('Memuat data siswa (ini mungkin memakan waktu)...');
-        const stuRes = await fetch('/api/pokja/students').then(res => res.json());
-        if (stuRes.success) {
-          setAllStudents(stuRes.data.filter((s: any) => s.placement && s.placement.industryId));
+        setLoadingText('Membangun koneksi ke server untuk memuat data siswa...');
+        const stuRes = await fetch('/api/pokja/students');
+        
+        const contentLength = stuRes.headers.get('content-length');
+        const total = contentLength ? parseInt(contentLength, 10) : 0;
+        const reader = stuRes.body?.getReader();
+        let stuJson;
+
+        if (!reader) {
+          setLoadingText('Memproses JSON siswa (Stream tidak didukung)...');
+          stuJson = await stuRes.json();
+        } else {
+          let receivedLength = 0;
+          const chunks = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            receivedLength += value.length;
+            if (total) {
+              const percent = Math.round((receivedLength / total) * 100);
+              setLoadingText(`Mengunduh data siswa... ${percent}%`);
+            } else {
+              setLoadingText(`Mengunduh data siswa... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
+            }
+          }
+          setLoadingText('Mengekstrak paket JSON siswa...');
+          const chunksAll = new Uint8Array(receivedLength);
+          let position = 0;
+          for (let chunk of chunks) {
+            chunksAll.set(chunk, position);
+            position += chunk.length;
+          }
+          const result = new TextDecoder("utf-8").decode(chunksAll);
+          setLoadingText('Parsing struktur data UI siswa...');
+          stuJson = JSON.parse(result);
         }
 
-        setLoadingText('Memuat agenda kegiatan...');
-        await fetchEvents();
+        if (stuJson.success) {
+          setAllStudents(stuJson.data.filter((s: any) => s.placement && s.placement.industryId));
+        }
+
+        await fetchEvents(true);
       } catch (err) {
         console.error(err);
         setErrorMsg('Gagal memuat data awal.');
