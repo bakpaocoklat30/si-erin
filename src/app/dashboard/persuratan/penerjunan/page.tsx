@@ -329,13 +329,51 @@ export default function SuratPenerjunanPage() {
   };
   
 
+  const [loadingStage, setLoadingStage] = useState('Memuat awal...');
+
   const fetchAcceptedGroups = async () => {
     setLoading(true);
+    setLoadingStage('Membangun koneksi ke server...');
     try {
       const res = await fetch('/api/pokja/groups?department=Semua Jurusan');
-      const json = await res.json();
+      if (!res.ok) throw new Error('HTTP error');
+      
+      const total = parseInt(res.headers.get('content-length') || '0', 10);
+      const reader = res.body?.getReader();
+      let json;
+
+      if (!reader) {
+        setLoadingStage('Memproses JSON Penerjunan...');
+        json = await res.json();
+      } else {
+        let receivedLength = 0;
+        const chunks = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          receivedLength += value.length;
+          if (total) {
+            const percent = Math.round((receivedLength / total) * 100);
+            setLoadingStage(`Mengunduh data penerjunan... ${percent}%`);
+          } else {
+            setLoadingStage(`Mengunduh data penerjunan... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
+          }
+        }
+        setLoadingStage('Mengekstrak paket JSON Penerjunan...');
+        const chunksAll = new Uint8Array(receivedLength);
+        let position = 0;
+        for (let chunk of chunks) {
+          chunksAll.set(chunk, position);
+          position += chunk.length;
+        }
+        const result = new TextDecoder('utf-8').decode(chunksAll);
+        setLoadingStage('Parsing struktur data UI...');
+        json = JSON.parse(result);
+      }
+
       if (json.success) {
-        const acceptedStatuses = ['DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN'];
+        const acceptedStatuses = ['DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA', 'SELESAI_PKL', 'COMPLETED'];
         const acceptedGroups = json.data.filter((group: any) => 
           group.students.some((s: any) => acceptedStatuses.includes(s.status))
         ).map((group: any) => {
@@ -427,8 +465,9 @@ export default function SuratPenerjunanPage() {
     
     // Check status
     const pendingList = ['DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'REQUEST_PENGANTARAN'];
+    const publishedList = ['MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA', 'SELESAI_PKL', 'COMPLETED'];
     const isPending = g.students.some((s: any) => pendingList.includes(s.status));
-    const isPublished = g.students.some((s: any) => s.status === 'MENUNGGU_PEMBERANGKATAN');
+    const isPublished = g.students.some((s: any) => publishedList.includes(s.status));
     
     let matchStatus = true;
     if (statusFilter === 'PENDING') matchStatus = isPending;
@@ -526,7 +565,7 @@ export default function SuratPenerjunanPage() {
       {loading ? (
         <div className="p-12 text-center">
           <Loader2 className="w-8 h-8 text-emerald-500 animate-spin mx-auto" />
-          <p className="text-sm font-semibold text-slate-400 mt-4">Memuat data kelompok...</p>
+          <p className="text-sm font-semibold text-slate-400 mt-4">{loadingStage}</p>
         </div>
       ) : filteredGroups.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 border-dashed">
@@ -536,7 +575,7 @@ export default function SuratPenerjunanPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredGroups.map((group, idx) => {
-            const isPublished = group.students.some((s: any) => s.status === 'MENUNGGU_PEMBERANGKATAN');
+            const isPublished = group.students.some((s: any) => ['MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA', 'SELESAI_PKL', 'COMPLETED'].includes(s.status));
             return (
               <div key={idx} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden flex flex-col justify-between">
                 <div>
