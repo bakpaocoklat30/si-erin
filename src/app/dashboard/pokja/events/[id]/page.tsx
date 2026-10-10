@@ -1039,9 +1039,9 @@ export default function PokjaEventDetailPage({ params }: { params: { id: string 
                 ) : eventStudents.length === 0 ? (
                   <p className="text-slate-500 text-sm">Belum ada siswa yang ditambahkan ke kegiatan ini.</p>
                 ) : (
-                  <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 dark:bg-slate-800">
+                  <div className="max-h-[500px] overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                    <table className="w-full text-left text-sm relative">
+                      <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-10 shadow-sm">
                         <tr>
                           <th className="px-4 py-3">Nama Siswa</th>
                           <th className="px-4 py-3">Kelas</th>
