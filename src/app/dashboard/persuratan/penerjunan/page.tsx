@@ -681,9 +681,9 @@ export default function SuratPenerjunanPage() {
                     {isPublished ? 'Ganti Surat' : 'Upload Pengantaran'}
                   </button>
                   
-                  {isPublished && group.students[0]?.suratPengantaranUrl && (
+                  {isPublished && group.suratPengantaranUrl && (
                     <button
-                      onClick={() => window.open(group.students[0].suratPengantaranUrl, '_blank')}
+                      onClick={() => window.open(group.suratPengantaranUrl, '_blank')}
                       className="p-2.5 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
                       title="Lihat Surat Pengantaran"
                     >
