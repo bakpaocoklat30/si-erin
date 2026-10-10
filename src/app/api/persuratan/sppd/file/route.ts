@@ -69,7 +69,10 @@ export async function GET(request: Request) {
 
     // If it's a relative URL
     if (fileData.startsWith('/')) {
-      return NextResponse.redirect(new URL(fileData, request.url));
+      const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+      const proto = request.headers.get('x-forwarded-proto') || (request.url.startsWith('https') ? 'https' : 'http');
+      const absoluteUrl = `${proto}://${host}${fileData}`;
+      return NextResponse.redirect(absoluteUrl);
     }
 
     // If it's just a regular string URL (e.g. from S3 or external)
