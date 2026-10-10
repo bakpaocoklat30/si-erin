@@ -68,6 +68,7 @@ export default function PersuratanSppdPage() {
   const { theme } = useTheme();
 
   const [loading, setLoading] = useState(true);
+  const [loadingStage, setLoadingStage] = useState('Memuat awal...');
   const [tasks, setTasks] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [schoolSetting, setSchoolSetting] = useState<any>(null);
@@ -178,15 +179,50 @@ export default function PersuratanSppdPage() {
 
   const fetchTasks = async () => {
     setLoading(true);
+    setLoadingStage('Membangun koneksi ke server...');
     try {
       const res = await fetch('/api/persuratan/sppd');
-      const json = await res.json();
+      if (!res.ok) throw new Error('HTTP error');
+      
+      const total = parseInt(res.headers.get('content-length') || '0', 10);
+      const reader = res.body?.getReader();
+      let json;
+
+      if (!reader) {
+        setLoadingStage('Memproses JSON SPPD...');
+        json = await res.json();
+      } else {
+        let receivedLength = 0;
+        const chunks = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          receivedLength += value.length;
+          if (total) {
+            const percent = Math.round((receivedLength / total) * 100);
+            setLoadingStage(`Mengunduh data surat tugas & SPPD... ${percent}%`);
+          } else {
+            setLoadingStage(`Mengunduh data surat tugas & SPPD... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
+          }
+        }
+        setLoadingStage('Mengekstrak paket JSON SPPD...');
+        const chunksAll = new Uint8Array(receivedLength);
+        let position = 0;
+        for (let chunk of chunks) {
+          chunksAll.set(chunk, position);
+          position += chunk.length;
+        }
+        const result = new TextDecoder('utf-8').decode(chunksAll);
+        setLoadingStage('Parsing struktur data UI...');
+        json = JSON.parse(result);
+      }
+
       if (json.success) {
         setTasks(json.data || []);
         if (json.departments) setDepartments(json.departments);
         if (json.schoolSetting) setSchoolSetting(json.schoolSetting);
 
-        // Initialize number map with current numbers
         const nMap: Record<string, { letterNumber: string; sppdNumber: string; isModified: boolean }> = {};
         (json.data || []).forEach((t: any) => {
           nMap[t.id] = {
@@ -1085,7 +1121,7 @@ export default function PersuratanSppdPage() {
         {loading ? (
           <div className="p-12 text-center">
             <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
-            <p className="text-sm font-semibold text-slate-400 mt-4">Memuat data penugasan persuratan...</p>
+            <p className="text-sm font-semibold text-slate-400 mt-4">{loadingStage}</p>
           </div>
         ) : filteredTasks.length === 0 ? (
           <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 border-dashed">
