@@ -173,6 +173,14 @@ export async function GET(request: Request) {
       const groupKey = placement.groupId || `${industryId}___${periodId}___${departmentName}___${savedLetterNumber || 'PENDING'}`;
 
 
+      const mapUrl = (val: string | null, type: string) => {
+        if (!val) return null;
+        if (val.startsWith('data:') && val.length > 500) {
+          return `/api/pokja/placements/surat?id=${placement.id}&type=${type}`;
+        }
+        return val;
+      };
+
       if (!groupedMap[groupKey]) {
         // Susun komponen alamat detail dan gabungan alamat lengkap
         const jalan = industry?.address || '-';
@@ -211,10 +219,10 @@ export async function GET(request: Request) {
           periodName: periodName,
           startDate: startDate,
           endDate: endDate,
-          suratTugasUrl: placement.suratTugasUrl || null,
-            suratPengantaranUrl: placement.suratPengantaranUrl || null,
-            suratPenarikanUrl: placement.suratPenarikanUrl || null,
-          suratBalasanUrl: placement.suratBalasanUrl || null,
+          suratTugasUrl: mapUrl(placement.suratTugasUrl, 'tugas'),
+            suratPengantaranUrl: mapUrl(placement.suratPengantaranUrl, 'pengantaran'),
+            suratPenarikanUrl: mapUrl(placement.suratPenarikanUrl, 'penarikan'),
+          suratBalasanUrl: mapUrl(placement.suratBalasanUrl, 'balasan'),
           letterNumber: savedLetterNumber, 
           letterUploadedBy: placement.letterUploadedBy || null,
           letterUploadedAt: placement.letterUploadedAt || null,
@@ -237,7 +245,7 @@ export async function GET(request: Request) {
         startDate: startDate,
         endDate: endDate,
         letterNumber: savedLetterNumber,
-        suratBalasanUrl: placement.suratBalasanUrl || null,
+        suratBalasanUrl: mapUrl(placement.suratBalasanUrl, 'balasan'),
         nomorPengantaran: placement.nomorPengantaran || null,
         nomorPenarikan: placement.nomorPenarikan || null
       };
@@ -246,10 +254,10 @@ export async function GET(request: Request) {
         id: placement.id,
         placementId: placement.id,
         status: placement.status,
-        suratTugasUrl: placement.suratTugasUrl,
-          suratPengantaranUrl: placement.suratPengantaranUrl,
-          suratPenarikanUrl: placement.suratPenarikanUrl,
-        suratBalasanUrl: placement.suratBalasanUrl,
+        suratTugasUrl: mapUrl(placement.suratTugasUrl, 'tugas'),
+          suratPengantaranUrl: mapUrl(placement.suratPengantaranUrl, 'pengantaran'),
+          suratPenarikanUrl: mapUrl(placement.suratPenarikanUrl, 'penarikan'),
+        suratBalasanUrl: mapUrl(placement.suratBalasanUrl, 'balasan'),
         letterNumber: savedLetterNumber,
         student: formattedStudent
       });
