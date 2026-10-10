@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { Calendar, Users, MapPin, Search, CheckCircle2, ChevronLeft, Save, Plus, Trash2, FileText, X, CheckSquare, Printer, Edit, Eye, Download } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { PDFDocument } from 'pdf-lib';
 
 
@@ -136,7 +135,7 @@ const generateSuratEventHtml = (data: any, useTte: boolean) => {
   return html;
 };
 
-export default function PokjaEventsPage() {
+export default function PokjaEventDetailPage({ params }: { params: { id: string } }) {
   const { status } = useSession();
   const { theme } = useTheme();
   const router = useRouter();
@@ -433,7 +432,17 @@ export default function PokjaEventsPage() {
           setAllStudents(stuJson.data.filter((s: any) => s.placement && s.placement.industryId));
         }
 
-        await fetchEvents(true);
+        setLoadingText('Memuat detail kegiatan...');
+        const evRes = await fetch(`/api/pokja/events/${params.id}`);
+        const evData = await evRes.json();
+        if (evData.success) {
+          setSelectedEvent(evData.data);
+          const stRes = await fetch(`/api/pokja/events/${params.id}/students`);
+          const stData = await stRes.json();
+          if (stData.success) {
+            setEventStudents(stData.data);
+          }
+        }
       } catch (err) {
         console.error(err);
         setErrorMsg('Gagal memuat data awal.');
@@ -488,9 +497,22 @@ export default function PokjaEventsPage() {
     }
   };
 
-  const loadEventStudents = (ev: any) => {
-    setGlobalLoadingText('Membuka detail kegiatan...');
-    router.push(`/dashboard/pokja/events/${ev.id}`);
+  const loadEventStudents = async (ev: any) => {
+    setGlobalLoadingText('Memuat data siswa...');
+    setSelectedEvent(ev);
+    setLoadingStudents(true);
+    setShowAddStudentForm(false);
+    setSelectedStudentIds([]);
+    try {
+      const res = await fetch(`/api/pokja/events/${ev.id}/students`);
+      const data = await res.json();
+      if(data.success) setEventStudents(data.data);
+    } catch(e) {
+      console.error(e);
+    } finally {
+      setLoadingStudents(false);
+      setGlobalLoadingText('');
+    }
   };
 
   const toggleStudent = (id: string) => {
@@ -752,9 +774,9 @@ export default function PokjaEventsPage() {
           </div>
         ) : (
           <div className={`p-6 rounded-2xl border shadow-sm ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <button onClick={() => setSelectedEvent(null)} className="mb-6 inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-slate-700 px-4 py-2 rounded-lg transition-colors">
+            <Link href="/dashboard/pokja/events" className="mb-6 inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-slate-700 px-4 py-2 rounded-lg transition-colors">
                <ChevronLeft className="w-4 h-4 mr-1"/> Kembali ke Daftar Kegiatan
-            </button>
+            </Link>
             <div>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
