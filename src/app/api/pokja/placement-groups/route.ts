@@ -26,12 +26,25 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Also get student counts for each group
-    const groupsWithCounts = await Promise.all(groups.map(async (g) => {
-      const count = await db.internshipPlacement.count({
-        where: { groupId: g.id }
-      });
-      return { ...g, studentCount: count };
+    // Also get student counts for each group in a single query
+    const placementCounts = await db.internshipPlacement.groupBy({
+      by: ['groupId'],
+      _count: {
+        groupId: true,
+      },
+      where: {
+        groupId: { not: null }
+      }
+    });
+
+    const countMap = new Map();
+    placementCounts.forEach(pc => {
+      if (pc.groupId) countMap.set(pc.groupId, pc._count.groupId);
+    });
+
+    const groupsWithCounts = groups.map(g => ({
+      ...g,
+      studentCount: countMap.get(g.id) || 0
     }));
 
     return NextResponse.json({ success: true, data: groupsWithCounts });
