@@ -42,9 +42,16 @@ export async function GET(request: Request) {
       db.schoolSetting.findFirst(),
     ]);
 
+    const mappedAssignments = assignments.map((a: any) => ({
+      ...a,
+      suratTugasUrl: a.suratTugasUrl ? `/api/persuratan/sppd/file?id=${a.id}&type=tugas` : null,
+      sppdUrl: a.sppdUrl ? `/api/persuratan/sppd/file?id=${a.id}&type=sppd` : null,
+      laporanUrl: a.laporanUrl ? `/api/persuratan/sppd/file?id=${a.id}&type=laporan` : null,
+    }));
+
     return NextResponse.json({
       success: true,
-      data: assignments,
+      data: mappedAssignments,
       departments,
       schoolSetting: schoolSetting || null,
     });
