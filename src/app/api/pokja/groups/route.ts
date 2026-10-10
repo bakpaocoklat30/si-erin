@@ -143,7 +143,19 @@ export async function GET(request: Request) {
       orderBy: { updatedAt: 'desc' }
     });
 
-    const classRooms = await db.classRoom.findMany({ include: { period: true } });
+    const classRooms = await db.classRoom.findMany({ 
+      include: { 
+        period: {
+          select: {
+            id: true,
+            name: true,
+            department: true,
+            startDate: true,
+            endDate: true
+          }
+        } 
+      } 
+    });
     const placementGroups = await db.placementGroup.findMany();
 
     const groupedMap: Record<string, any> = {};
