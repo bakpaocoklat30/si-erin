@@ -536,9 +536,19 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     }
   }) : [];
 
-  
-    
-    const detailedEventParticipants = prisma.eventParticipant ? await prisma.eventParticipant.findMany({
+  const detailedAssignments = prisma.monitoringAssignment ? await prisma.monitoringAssignment.findMany({
+    include: {
+      teacher: true,
+      industry: true,
+      period: {
+        include: {
+          academicYear: true
+        }
+      }
+    }
+  }) : [];
+
+  const detailedEventParticipants = prisma.eventParticipant ? await prisma.eventParticipant.findMany({
       include: {
         student: {
           include: {
