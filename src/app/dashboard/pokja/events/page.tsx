@@ -163,8 +163,9 @@ export default function PokjaEventsPage() {
   const [allStudents, setAllStudents] = useState<any[]>([]);
   const [showAddStudentForm, setShowAddStudentForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchClassTerm, setSearchClassTerm] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-    const [addingStudents, setAddingStudents] = useState(false);
+  const [addingStudents, setAddingStudents] = useState(false);
 
   const [editingParticipant, setEditingParticipant] = useState<any>(null);
   const [editPartStart, setEditPartStart] = useState('');
@@ -604,11 +605,15 @@ export default function PokjaEventsPage() {
     }
   };
 
-  const filteredAllStudents = allStudents.filter(s => 
-    !eventStudents.find(es => es.id === s.id) &&
-    (s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (s.nis && s.nis.toLowerCase().includes(searchTerm.toLowerCase())))
-  );
+  const uniqueClasses = Array.from(new Set(allStudents.map(s => s.className).filter(Boolean))).sort() as string[];
+
+  const filteredAllStudents = allStudents.filter(s => {
+    const notInEvent = !eventStudents.find(es => es.id === s.id);
+    const matchesNameNis = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           (s.nis && s.nis.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesClass = searchClassTerm === '' || s.className === searchClassTerm;
+    return notInEvent && matchesNameNis && matchesClass;
+  });
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -934,14 +939,26 @@ export default function PokjaEventsPage() {
 
               {showAddStudentForm && (
                 <div className={`mb-6 p-4 rounded-xl border ${theme === 'dark' ? 'border-indigo-900/50 bg-indigo-900/10' : 'border-indigo-100 bg-indigo-50/50'}`}>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                     <h3 className="font-bold">Pilih Siswa ({selectedStudentIds.length} terpilih)</h3>
-                    <div className="relative w-full sm:w-64">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="text" placeholder="Cari nama/NIS..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`w-full pl-9 pr-4 py-2 rounded-xl text-sm border ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'}`} />
+                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                      <div className="relative w-full sm:w-56">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input type="text" placeholder="Cari nama/NIS..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`w-full pl-9 pr-4 py-2 rounded-xl text-sm border ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'}`} />
+                      </div>
+                      <div className="relative w-full sm:w-40">
+                        <select 
+                          value={searchClassTerm} 
+                          onChange={e => setSearchClassTerm(e.target.value)} 
+                          className={`w-full px-3 py-2 rounded-xl text-sm border ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'}`}
+                        >
+                          <option value="">Semua Kelas</option>
+                          {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
                     </div>
                   </div>
-                  <div className="max-h-60 overflow-y-auto border rounded-xl mb-4 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                  <div className="max-h-96 overflow-y-auto border rounded-xl mb-4 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
                     <table className="w-full text-left text-sm">
                       <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 shadow-sm">
                         <tr>
