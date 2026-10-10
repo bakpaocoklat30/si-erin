@@ -63,7 +63,33 @@ export async function GET() {
 
     // 1. Ambil data industri DUDI beserta penempatannya
     const rawIndustries = await db.industry.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        nib: true,
+        sector: true,
+        npwp: true,
+        province: true,
+        regency: true,
+        address: true,
+        rt: true,
+        rw: true,
+        dusun: true,
+        desaKelurahan: true,
+        subDistrict: true,
+        postalCode: true,
+        latitude: true,
+        longitude: true,
+        contactPerson: true,
+        phone: true,
+        fax: true,
+        email: true,
+        website: true,
+        workType: true,
+        jobDescription: true,
+        totalQuota: true,
+        createdAt: true,
+        updatedAt: true,
         placements: {
           select: {
             id: true,
@@ -72,7 +98,7 @@ export async function GET() {
           }
         }
       },
-      orderBy: { updatedAt: 'desc' }, omit: { logoUrl: true }
+      orderBy: { updatedAt: 'desc' }
     });
 
     // 2. Ambil master Kategori Industri untuk dropdown di frontend
