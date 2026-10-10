@@ -76,7 +76,7 @@ export default function PersuratanSppdPage() {
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [purposeFilter, setPurposeFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('PROSES_TTE');
   const [departmentFilter, setDepartmentFilter] = useState('ALL');
 
   // Checklist Selection for Bulk Download
@@ -975,16 +975,19 @@ export default function PersuratanSppdPage() {
           </div>
 
           {/* 3. Filter Status */}
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3.5 py-2.5 rounded-xl border outline-none text-xs font-bold bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 cursor-pointer focus:border-blue-500"
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
+            <button
+              onClick={() => setStatusFilter('PROSES_TTE')}
+              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'PROSES_TTE' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <option value="ALL">Semua Status</option>
-              <option value="PROSES_TTE">Proses TTE (Menunggu)</option>
-              <option value="TERBIT_TTE">Terbit TTE (Selesai)</option>
-            </select>
+              Belum Terbit
+            </button>
+            <button
+              onClick={() => setStatusFilter('TERBIT_TTE')}
+              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === 'TERBIT_TTE' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Sudah Terbit
+            </button>
           </div>
         </div>
 
