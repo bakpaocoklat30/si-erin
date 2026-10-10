@@ -215,9 +215,12 @@ export default function PokjaKelompokPrakerinPage() {
     }
   };
 
+  const [loadingStage, setLoadingStage] = useState('Memuat awal...');
+
   // Fetch Data Kelompok dari API Pokja (Dukung query periodId & status)
   const fetchGroupsData = useCallback(async (periodId = selectedPeriodId, status = selectedStatus) => {
     setLoading(true);
+    setLoadingStage('Membangun koneksi ke server...');
     setErrorMsg('');
     try {
       const params = new URLSearchParams();
@@ -226,10 +229,54 @@ export default function PokjaKelompokPrakerinPage() {
       const queryString = params.toString();
       const url = queryString ? `/api/pokja/groups?${queryString}` : '/api/pokja/groups';
 
+      setLoadingStage('Meminta data kelompok dari database...');
       const res = await fetch(url);
-      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
 
-      if (res.ok && json.success) {
+      setLoadingStage('Mulai mengunduh data...');
+      const contentLength = res.headers.get('content-length');
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      
+      const reader = res.body?.getReader();
+      let json;
+      
+      if (!reader) {
+        setLoadingStage('Memproses JSON (Stream tidak didukung)...');
+        json = await res.json();
+      } else {
+        let receivedLength = 0;
+        const chunks = [];
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          receivedLength += value.length;
+          
+          if (total) {
+            const percent = Math.round((receivedLength / total) * 100);
+            setLoadingStage(`Mengunduh data kelompok... ${percent}%`);
+          } else {
+            setLoadingStage(`Mengunduh data kelompok... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
+          }
+        }
+        
+        setLoadingStage('Mengekstrak paket JSON...');
+        const chunksAll = new Uint8Array(receivedLength);
+        let position = 0;
+        for (let chunk of chunks) {
+          chunksAll.set(chunk, position);
+          position += chunk.length;
+        }
+        
+        const result = new TextDecoder("utf-8").decode(chunksAll);
+        setLoadingStage('Parsing struktur data UI...');
+        json = JSON.parse(result);
+      }
+
+      if (json.success) {
         setGroups(json.data || []);
         if (Array.isArray(json.periods)) {
           setPeriods(json.periods);
@@ -243,6 +290,7 @@ export default function PokjaKelompokPrakerinPage() {
       setErrorMsg('Terjadi kesalahan koneksi saat mengambil data kelompok.');
     } finally {
       setLoading(false);
+      setLoadingStage('Memuat awal...');
     }
   }, [selectedPeriodId, selectedStatus]);
 
@@ -1413,9 +1461,14 @@ export default function PokjaKelompokPrakerinPage() {
         theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
       }`}>
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-300">
-          Memuat data kelompok prakerin & nomor surat Pokja...
-        </p>
+        <div className="flex flex-col items-center">
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-300">
+            {loadingStage}
+          </p>
+          <p className="text-xs text-slate-500 mt-1 text-center max-w-sm">
+            Harap tunggu, sistem sedang memproses data kelompok dan surat Pokja...
+          </p>
+        </div>
       </div>
     );
   }
