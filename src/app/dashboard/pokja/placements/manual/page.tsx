@@ -13,6 +13,7 @@ export default function ManualPlacementPage() {
   const [industries, setIndustries] = useState<any[]>([]);
   const [periods, setPeriods] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
+  const [searchGroupTerm, setSearchGroupTerm] = useState('');
   
   const [loading, setLoading] = useState(true);
   const [loadingText, setLoadingText] = useState('Menginisialisasi...');
@@ -231,6 +232,11 @@ export default function ManualPlacementPage() {
     (s.nis && s.nis.toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
+  const filteredGroups = groups.filter(g =>
+    (g.industry?.name || '').toLowerCase().includes(searchGroupTerm.toLowerCase()) ||
+    (g.period?.name || '').toLowerCase().includes(searchGroupTerm.toLowerCase())
+  );
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-4">
@@ -368,12 +374,22 @@ export default function ManualPlacementPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Kiri: Daftar Kelompok */}
-        <div className={`p-5 rounded-2xl border shadow-sm ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} lg:col-span-1`}>
+        <div className={`p-5 rounded-2xl border shadow-sm ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} lg:col-span-1 flex flex-col`}>
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><FileText className="w-5 h-5 text-indigo-500" /> Daftar Kelompok</h2>
-          <div className="space-y-3">
-            {groups.length === 0 ? (
-              <p className="text-slate-500 text-center py-6">Belum ada kelompok. Buat baru di atas.</p>
-            ) : groups.map(g => (
+          <div className="relative mb-4 shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Cari industri/periode..." 
+              value={searchGroupTerm} 
+              onChange={e => setSearchGroupTerm(e.target.value)} 
+              className={`w-full pl-9 pr-4 py-2 rounded-xl text-sm border ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'}`} 
+            />
+          </div>
+          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+            {filteredGroups.length === 0 ? (
+              <p className="text-slate-500 text-center py-6">Kelompok tidak ditemukan.</p>
+            ) : filteredGroups.map(g => (
               <div key={g.id} onClick={() => loadGroupStudents(g)} className={`p-4 rounded-xl border cursor-pointer transition-all ${
                 selectedGroup?.id === g.id 
                   ? (theme === 'dark' ? 'border-indigo-500 bg-indigo-900/30' : 'border-indigo-500 bg-indigo-50') 
@@ -427,7 +443,7 @@ export default function ManualPlacementPage() {
                       <input type="text" placeholder="Cari nama/NIS..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`w-full pl-9 pr-4 py-2 rounded-xl text-sm border ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'}`} />
                     </div>
                   </div>
-                  <div className="max-h-60 overflow-y-auto border rounded-xl mb-4 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                  <div className="max-h-96 overflow-y-auto border rounded-xl mb-4 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
                     <table className="w-full text-left text-sm">
                       <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 shadow-sm">
                         <tr>
