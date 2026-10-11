@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { db } from '@/lib/db';
-import { getWahaConfig, getWahaSessionStatus, sendWhatsAppMessage } from '@/lib/whatsapp';
+import { getWahaConfig, getWahaSessionStatus, sendWhatsAppMessage, startWahaSession, stopWahaSession } from '@/lib/whatsapp';
 
 export async function GET() {
   try {
@@ -102,6 +102,28 @@ export async function PUT(request: Request) {
       return NextResponse.json({
         success: true,
         message: `Pesan uji coba berhasil dikirim ke ${testPhone}!`,
+      });
+    }
+
+    if (action === 'START_SESSION' || action === 'RESTART_SESSION') {
+      const res = await startWahaSession();
+      if (!res.success) {
+        return NextResponse.json({ error: res.error || 'Gagal memulai sesi WhatsApp' }, { status: 400 });
+      }
+      return NextResponse.json({
+        success: true,
+        message: 'Perintah memulai sesi WhatsApp berhasil dikirim ke WAHA!',
+      });
+    }
+
+    if (action === 'STOP_SESSION') {
+      const res = await stopWahaSession();
+      if (!res.success) {
+        return NextResponse.json({ error: res.error || 'Gagal menghentikan sesi WhatsApp' }, { status: 400 });
+      }
+      return NextResponse.json({
+        success: true,
+        message: 'Sesi WhatsApp berhasil dihentikan.',
       });
     }
 

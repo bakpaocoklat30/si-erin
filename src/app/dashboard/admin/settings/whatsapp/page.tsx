@@ -15,7 +15,7 @@ import { useState, useEffect } from 'react';
 import { useTheme } from '@/app/theme-provider';
 import { 
   MessageSquare, ShieldCheck, RefreshCw, Send, CheckCircle2, 
-  AlertCircle, QrCode, Phone, Globe, Key, Settings, Loader2, Sparkles, Check
+  AlertCircle, QrCode, Phone, Globe, Key, Settings, Loader2, Sparkles, Check, Play
 } from 'lucide-react';
 
 export default function WhatsAppSettingsPage() {
@@ -25,6 +25,7 @@ export default function WhatsAppSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [startingSession, setStartingSession] = useState(false);
 
   // Form State
   const [enabled, setEnabled] = useState(false);
@@ -143,6 +144,52 @@ export default function WhatsAppSettingsPage() {
     }
   };
 
+  const handleStartSession = async () => {
+    setStartingSession(true);
+    setNotification(null);
+    try {
+      const res = await fetch('/api/admin/settings/whatsapp', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'START_SESSION' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setNotification({ type: 'success', text: data.message || 'Sesi WAHA berhasil dimulai!' });
+        setTimeout(() => refreshStatus(), 1500);
+      } else {
+        setNotification({ type: 'error', text: data.error || 'Gagal memulai sesi WAHA' });
+      }
+    } catch {
+      setNotification({ type: 'error', text: 'Gagal menghubungi server' });
+    } finally {
+      setStartingSession(false);
+    }
+  };
+
+  const handleStopSession = async () => {
+    setStartingSession(true);
+    setNotification(null);
+    try {
+      const res = await fetch('/api/admin/settings/whatsapp', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'STOP_SESSION' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setNotification({ type: 'success', text: data.message || 'Sesi WAHA berhasil dihentikan.' });
+        setTimeout(() => refreshStatus(), 1000);
+      } else {
+        setNotification({ type: 'error', text: data.error || 'Gagal menghentikan sesi WAHA' });
+      }
+    } catch {
+      setNotification({ type: 'error', text: 'Gagal menghubungi server' });
+    } finally {
+      setStartingSession(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className={`min-h-[80vh] flex flex-col items-center justify-center space-y-4 ${
@@ -240,6 +287,24 @@ export default function WhatsAppSettingsPage() {
                     ID: {sessionStatus.name}
                   </p>
                 )}
+                <div className="pt-2 flex justify-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleStopSession}
+                    disabled={startingSession}
+                    className="px-3 py-1.5 rounded-xl border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 font-medium text-xs cursor-pointer transition-all"
+                  >
+                    {startingSession ? 'Memproses...' : 'Putuskan Sesi'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartSession}
+                    disabled={startingSession}
+                    className="px-3 py-1.5 rounded-xl border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-medium text-xs cursor-pointer transition-all"
+                  >
+                    {startingSession ? 'Memproses...' : 'Mulai Ulang'}
+                  </button>
+                </div>
               </div>
             ) : isScanQr ? (
               <div className="space-y-4">
@@ -263,6 +328,24 @@ export default function WhatsAppSettingsPage() {
                   <p>2. Tekan menu titik tiga / Pengaturan ➜ <b>Perangkat Tertaut</b></p>
                   <p>3. Arahkan kamera HP ke QR Code di atas</p>
                 </div>
+                <div className="pt-2 flex justify-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={refreshStatus}
+                    disabled={refreshing}
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs hover:bg-slate-700 cursor-pointer transition-all"
+                  >
+                    {refreshing ? 'Memperbarui...' : 'Segarkan QR'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartSession}
+                    disabled={startingSession}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-500 cursor-pointer transition-all"
+                  >
+                    {startingSession ? 'Memulai...' : 'Buat Ulang Sesi'}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
@@ -271,13 +354,25 @@ export default function WhatsAppSettingsPage() {
                 <p className="text-xs text-slate-400">
                   {sessionStatus?.message || 'Server WAHA belum mendeteksi sesi WhatsApp aktif. Pastikan container WAHA aktif di server.'}
                 </p>
-                <button
-                  type="button"
-                  onClick={refreshStatus}
-                  className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 cursor-pointer transition-all"
-                >
-                  Cek Ulang Sesi WAHA
-                </button>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleStartSession}
+                    disabled={startingSession}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 cursor-pointer transition-all flex items-center justify-center space-x-1.5"
+                  >
+                    {startingSession ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                    <span>{startingSession ? 'Memulai Sesi...' : 'Mulai Sesi (Start)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={refreshStatus}
+                    disabled={refreshing}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 cursor-pointer transition-all"
+                  >
+                    Cek Ulang Sesi
+                  </button>
+                </div>
               </div>
             )}
           </div>

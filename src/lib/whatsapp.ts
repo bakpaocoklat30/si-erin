@@ -147,6 +147,60 @@ export async function sendWhatsAppMessage(
 /**
  * Periksa Status Session WAHA & Dapatkan QR Code jika belum terhubung
  */
+export async function startWahaSession(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const config = await getWahaConfig();
+    const cleanBaseUrl = config.apiUrl.replace(/\/+$/, '');
+    const headers: Record<string, string> = {};
+    if (config.apiKey) headers['X-Api-Key'] = config.apiKey;
+
+    // Pastikan session sudah dibuat terlebih dahulu
+    await fetch(`${cleanBaseUrl}/api/sessions`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: config.sessionName }),
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => null);
+
+    const res = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/start`, {
+      method: 'POST',
+      headers,
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      return { success: false, error: err || `HTTP ${res.status}` };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Gagal menghubungi server WAHA' };
+  }
+}
+
+export async function stopWahaSession(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const config = await getWahaConfig();
+    const cleanBaseUrl = config.apiUrl.replace(/\/+$/, '');
+    const headers: Record<string, string> = {};
+    if (config.apiKey) headers['X-Api-Key'] = config.apiKey;
+
+    const res = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/stop`, {
+      method: 'POST',
+      headers,
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      return { success: false, error: err || `HTTP ${res.status}` };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Gagal menghubungi server WAHA' };
+  }
+}
+
 export async function getWahaSessionStatus(): Promise<{
   status: 'CONNECTED' | 'SCAN_QR' | 'STOPPED' | 'ERROR';
   qrCode?: string | null;
@@ -162,10 +216,17 @@ export async function getWahaSessionStatus(): Promise<{
     }
 
     // 1. Cek daftar sesi aktif
-    const sessionRes = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}`, {
+    let sessionRes = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}`, {
       headers,
       signal: AbortSignal.timeout(5000),
     }).catch(() => null);
+
+    if (sessionRes?.status === 401) {
+      return {
+        status: 'ERROR',
+        message: 'Otorisasi ditolak (HTTP 401 Unauthorized). Silakan masukkan API Key yang sesuai atau pastikan container WAHA berjalan dengan WAHA_NO_API_KEY=true.',
+      };
+    }
 
     if (!sessionRes || !sessionRes.ok) {
       // Coba inisiasi session baru jika belum ada
@@ -178,6 +239,12 @@ export async function getWahaSessionStatus(): Promise<{
 
       if (!startRes) {
         return { status: 'ERROR', message: `Server WAHA tidak dapat dihubungi di ${config.apiUrl}` };
+      }
+      if (startRes.status === 401) {
+        return {
+          status: 'ERROR',
+          message: 'Otorisasi ditolak (HTTP 401 Unauthorized). Periksa pengaturan API Key Anda.',
+        };
       }
     }
 
@@ -192,7 +259,17 @@ export async function getWahaSessionStatus(): Promise<{
     }
 
     const detailData = await detailRes.json();
-    const wahaStatus = String(detailData?.status || '').toUpperCase();
+    let wahaStatus = String(detailData?.status || '').toUpperCase();
+
+    // Jika status STOPPED, otomatis start sesi agar beralih ke STARTING -> SCAN_QR_CODE
+    if (wahaStatus === 'STOPPED') {
+      await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/start`, {
+        method: 'POST',
+        headers,
+        signal: AbortSignal.timeout(5000),
+      }).catch(() => null);
+      wahaStatus = 'STARTING';
+    }
 
     // Jika sudah WORKING/CONNECTED
     if (wahaStatus === 'WORKING' || wahaStatus === 'CONNECTED') {
@@ -211,10 +288,16 @@ export async function getWahaSessionStatus(): Promise<{
         signal: AbortSignal.timeout(5000),
       }).catch(() => null);
 
-      let qrImage = null;
+      let qrImage: string | null = null;
       if (qrRes && qrRes.ok) {
-        const qrJson = await qrRes.json().catch(() => null);
-        qrImage = qrJson?.qr || qrJson?.image || null;
+        const contentType = qrRes.headers.get('content-type') || '';
+        if (contentType.includes('image') || contentType.includes('png')) {
+          const buffer = await qrRes.arrayBuffer();
+          qrImage = `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`;
+        } else {
+          const qrJson = await qrRes.json().catch(() => null);
+          qrImage = qrJson?.qr || qrJson?.image || null;
+        }
       }
 
       return {
@@ -226,7 +309,7 @@ export async function getWahaSessionStatus(): Promise<{
 
     return {
       status: 'STOPPED',
-      message: `Status sesi: ${wahaStatus}. Klik mulai ulang sesi untuk menghubungkan kembali.`,
+      message: `Status sesi: ${wahaStatus}. Klik tombol mulai sesi untuk mengaktifkan kembali.`,
     };
   } catch (err: any) {
     return {
