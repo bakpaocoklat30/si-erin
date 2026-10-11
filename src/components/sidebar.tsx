@@ -222,11 +222,10 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
   // ----------------------------------------------------------------------
   const pembimbingGroups: MenuGroup[] = [
     {
-      groupLabel: 'Bimbingan & Tugas',
+      groupLabel: 'Bimbingan & Penugasan',
       items: [
-        { name: 'Dashboard Pembimbing', href: '/dashboard/pembimbing', icon: LayoutDashboard },
         { name: 'Siswa Bimbingan', href: '/dashboard/pembimbing', icon: Users },
-        { name: 'Penugasan', href: '/dashboard/pembimbing/penugasan', icon: ClipboardCheck },
+        { name: 'Penugasan Surat Tugas', href: '/dashboard/pembimbing/penugasan', icon: ClipboardCheck },
       ]
     },
     {
@@ -394,7 +393,16 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
                   const IconComponent = item.icon || LayoutDashboard;
                   
                   const itemBaseHref = item.href.split('?')[0];
-                  const isActive = pathname === item.href || (itemBaseHref !== '/dashboard' && pathname?.startsWith(itemBaseHref));
+                  const isActive = pathname === item.href || (
+                    itemBaseHref !== '/dashboard' &&
+                    itemBaseHref !== '/dashboard/pembimbing' &&
+                    itemBaseHref !== '/dashboard/pokja' &&
+                    itemBaseHref !== '/dashboard/admin' &&
+                    pathname?.startsWith(itemBaseHref + '/')
+                  ) || (
+                    itemBaseHref === '/dashboard/pembimbing' &&
+                    pathname?.startsWith('/dashboard/pembimbing/classes')
+                  );
 
                   return (
                     <Link
