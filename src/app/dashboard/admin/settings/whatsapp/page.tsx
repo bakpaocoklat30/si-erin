@@ -28,7 +28,7 @@ export default function WhatsAppSettingsPage() {
 
   // Form State
   const [enabled, setEnabled] = useState(false);
-  const [apiUrl, setApiUrl] = useState('http://localhost:7008');
+  const [apiUrl, setApiUrl] = useState('http://localhost:7005');
   const [sessionName, setSessionName] = useState('default');
   const [apiKey, setApiKey] = useState('');
   const [pokjaPhone, setPokjaPhone] = useState('');
@@ -358,14 +358,14 @@ export default function WhatsAppSettingsPage() {
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="http://localhost:7008 atau http://waha:3000"
+                placeholder="http://localhost:7005 atau http://waha:3000"
                 className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none transition-all ${
                   theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-emerald-600'
                 }`}
                 required
               />
               <p className="text-[11px] text-slate-500">
-                Gunakan <b>http://waha:3000</b> jika berjalan di dalam container Docker server Rocky Linux, atau <b>http://localhost:7008</b> saat pengujian lokal.
+                Gunakan <b>http://waha:3000</b> jika berjalan di dalam container Docker server Rocky Linux, atau <b>http://localhost:7005</b> saat pengujian lokal.
               </p>
             </div>
 

@@ -71,7 +71,7 @@ services:
       WAHA_ZIP_LOGS: "false"
       WAHA_DASHBOARD_ENABLED: "true"
     ports:
-      - "7008:3000" # 🔑 Host Port 7008 dipetakan ke Container Port 3000 (WAHA API & Dashboard)
+      - "7005:3000" # 🔑 Host Port 7005 dipetakan ke Container Port 3000 (WAHA API & Dashboard)
     volumes:
       - wahadata:/app/.sessions
     networks:

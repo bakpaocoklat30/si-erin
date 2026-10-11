@@ -69,8 +69,8 @@ export async function getWahaConfig(): Promise<{
 
     const map = new Map(settings.map((s) => [s.key, s.value]));
 
-    // WAHA URL default: di Docker internal adalah http://waha:3000, di lokal/dev adalah http://localhost:7008
-    const defaultUrl = process.env.WA_GATEWAY_URL || (process.env.NODE_ENV === 'production' ? 'http://waha:3000' : 'http://localhost:7008');
+    // WAHA URL default: di Docker internal adalah http://waha:3000, di lokal/dev adalah http://localhost:7005
+    const defaultUrl = process.env.WA_GATEWAY_URL || (process.env.NODE_ENV === 'production' ? 'http://waha:3000' : 'http://localhost:7005');
 
     return {
       enabled: map.get('WA_GATEWAY_ENABLED') === 'true',
@@ -83,7 +83,7 @@ export async function getWahaConfig(): Promise<{
     console.warn('[WAHA] Gagal membaca konfigurasi SystemSetting:', err);
     return {
       enabled: false,
-      apiUrl: 'http://localhost:7008',
+      apiUrl: 'http://localhost:7005',
       sessionName: 'default',
       apiKey: '',
       pokjaPhone: '',
