@@ -49,7 +49,11 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { enabled, apiUrl, sessionName, apiKey, pokjaPhone } = body;
+    const { 
+      enabled, apiUrl, sessionName, apiKey, pokjaPhone, tuPhone,
+      notifyPokjaNewApp, notifyStudentPermohonan, notifyStudentPenerjunan,
+      notifyStudentPenarikan, notifyTeacherMonitoring, notifyTuNewPermohonan
+    } = body;
 
     const upsertSetting = async (key: string, value: string) => {
       await db.systemSetting.upsert({
@@ -64,6 +68,13 @@ export async function POST(request: Request) {
     if (sessionName !== undefined) await upsertSetting('WA_GATEWAY_SESSION', String(sessionName).trim() || 'default');
     if (apiKey !== undefined) await upsertSetting('WA_GATEWAY_API_KEY', String(apiKey).trim());
     if (pokjaPhone !== undefined) await upsertSetting('WA_GATEWAY_POKJA_PHONE', String(pokjaPhone).trim());
+    if (tuPhone !== undefined) await upsertSetting('WA_GATEWAY_TU_PHONE', String(tuPhone).trim());
+    if (notifyPokjaNewApp !== undefined) await upsertSetting('WA_NOTIFY_POKJA_NEW_APP', notifyPokjaNewApp ? 'true' : 'false');
+    if (notifyStudentPermohonan !== undefined) await upsertSetting('WA_NOTIFY_STUDENT_PERMOHONAN', notifyStudentPermohonan ? 'true' : 'false');
+    if (notifyStudentPenerjunan !== undefined) await upsertSetting('WA_NOTIFY_STUDENT_PENERJUNAN', notifyStudentPenerjunan ? 'true' : 'false');
+    if (notifyStudentPenarikan !== undefined) await upsertSetting('WA_NOTIFY_STUDENT_PENARIKAN', notifyStudentPenarikan ? 'true' : 'false');
+    if (notifyTeacherMonitoring !== undefined) await upsertSetting('WA_NOTIFY_TEACHER_MONITORING', notifyTeacherMonitoring ? 'true' : 'false');
+    if (notifyTuNewPermohonan !== undefined) await upsertSetting('WA_NOTIFY_TU_NEW_PERMOHONAN', notifyTuNewPermohonan ? 'true' : 'false');
 
     return NextResponse.json({
       success: true,

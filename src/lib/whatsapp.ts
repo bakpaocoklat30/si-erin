@@ -45,13 +45,23 @@ export function toChatId(phone: string): string {
 /**
  * Ambil konfigurasi WAHA dari tabel SystemSetting
  */
-export async function getWahaConfig(): Promise<{
+export interface WahaConfig {
   enabled: boolean;
   apiUrl: string;
   sessionName: string;
   apiKey: string;
   pokjaPhone: string;
-}> {
+  tuPhone: string;
+  // Event Notification Toggles
+  notifyPokjaNewApp: boolean;
+  notifyStudentPermohonan: boolean;
+  notifyStudentPenerjunan: boolean;
+  notifyStudentPenarikan: boolean;
+  notifyTeacherMonitoring: boolean;
+  notifyTuNewPermohonan: boolean;
+}
+
+export async function getWahaConfig(): Promise<WahaConfig> {
   try {
     const settings = await db.systemSetting.findMany({
       where: {
@@ -62,6 +72,13 @@ export async function getWahaConfig(): Promise<{
             'WA_GATEWAY_SESSION',
             'WA_GATEWAY_API_KEY',
             'WA_GATEWAY_POKJA_PHONE',
+            'WA_GATEWAY_TU_PHONE',
+            'WA_NOTIFY_POKJA_NEW_APP',
+            'WA_NOTIFY_STUDENT_PERMOHONAN',
+            'WA_NOTIFY_STUDENT_PENERJUNAN',
+            'WA_NOTIFY_STUDENT_PENARIKAN',
+            'WA_NOTIFY_TEACHER_MONITORING',
+            'WA_NOTIFY_TU_NEW_PERMOHONAN',
           ],
         },
       },
@@ -72,12 +89,25 @@ export async function getWahaConfig(): Promise<{
     // WAHA URL default: di Docker internal adalah http://waha:3000, di lokal/dev adalah http://localhost:7005
     const defaultUrl = process.env.WA_GATEWAY_URL || (process.env.NODE_ENV === 'production' ? 'http://waha:3000' : 'http://localhost:7005');
 
+    // Default semua event adalah true jika belum disetting (agar out-of-the-box aktif saat WA Gateway dinyalakan)
+    const isEventActive = (key: string) => {
+      const val = map.get(key);
+      return val === undefined ? true : val === 'true';
+    };
+
     return {
       enabled: map.get('WA_GATEWAY_ENABLED') === 'true',
       apiUrl: map.get('WA_GATEWAY_URL') || defaultUrl,
       sessionName: map.get('WA_GATEWAY_SESSION') || 'default',
       apiKey: map.get('WA_GATEWAY_API_KEY') || '',
       pokjaPhone: map.get('WA_GATEWAY_POKJA_PHONE') || '',
+      tuPhone: map.get('WA_GATEWAY_POKJA_PHONE') ? (map.get('WA_GATEWAY_TU_PHONE') || '') : '',
+      notifyPokjaNewApp: isEventActive('WA_NOTIFY_POKJA_NEW_APP'),
+      notifyStudentPermohonan: isEventActive('WA_NOTIFY_STUDENT_PERMOHONAN'),
+      notifyStudentPenerjunan: isEventActive('WA_NOTIFY_STUDENT_PENERJUNAN'),
+      notifyStudentPenarikan: isEventActive('WA_NOTIFY_STUDENT_PENARIKAN'),
+      notifyTeacherMonitoring: isEventActive('WA_NOTIFY_TEACHER_MONITORING'),
+      notifyTuNewPermohonan: isEventActive('WA_NOTIFY_TU_NEW_PERMOHONAN'),
     };
   } catch (err) {
     console.warn('[WAHA] Gagal membaca konfigurasi SystemSetting:', err);
@@ -87,6 +117,13 @@ export async function getWahaConfig(): Promise<{
       sessionName: 'default',
       apiKey: '',
       pokjaPhone: '',
+      tuPhone: '',
+      notifyPokjaNewApp: true,
+      notifyStudentPermohonan: true,
+      notifyStudentPenerjunan: true,
+      notifyStudentPenarikan: true,
+      notifyTeacherMonitoring: true,
+      notifyTuNewPermohonan: true,
     };
   }
 }
@@ -366,9 +403,11 @@ export async function notifyPokjaNewApplication(params: {
   appliedDate?: string;
 }) {
   const config = await getWahaConfig();
-  if (!config.enabled || !config.pokjaPhone) return;
+  if (!config.enabled) return;
 
-  const text = 
+  // 1. Kirim ke Tim Pokja jika diaktifkan
+  if (config.notifyPokjaNewApp && config.pokjaPhone) {
+    const textPokja = 
 `🔔 *[SI-ERIN NOTIFIKASI]*
 📢 *Pengajuan Tempat PKL Baru Masuk!*
 
@@ -384,8 +423,28 @@ Silakan tinjau dan verifikasi pengajuan ini melalui sistem SI-ERIN:
 
 _Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`;
 
-  // Kirim ke nomor Pokja yang terdaftar
-  await sendWhatsAppMessage(config.pokjaPhone, text);
+    await sendWhatsAppMessage(config.pokjaPhone, textPokja);
+  }
+
+  // 2. Kirim ke Tata Usaha jika diaktifkan (opsional untuk TU mempersiapkan surat permohonan)
+  if (config.notifyTuNewPermohonan && config.tuPhone) {
+    const textTu =
+`📋 *[SI-ERIN NOTIFIKASI TU]*
+📢 *Pengajuan Baru Menunggu Surat Permohonan*
+
+Halo Tim Tata Usaha, terdapat pengajuan PKL baru yang memerlukan pembuatan Surat Permohonan:
+
+👤 *Siswa:* ${params.studentName} (${params.studentClass})
+🏢 *Industri Mitra:* ${params.industryName}
+📅 *Waktu:* ${params.appliedDate || new Date().toLocaleString('id-ID')}
+
+Silakan cek antrean persuratan pada sistem SI-ERIN:
+👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/tata-usaha
+
+_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`;
+
+    await sendWhatsAppMessage(config.tuPhone, textTu);
+  }
 }
 
 /**
@@ -399,14 +458,21 @@ export async function notifyStudentLetterIssued(params: {
   letterType?: 'PERMOHONAN' | 'PENERJUNAN' | 'PENARIKAN';
 }) {
   if (!params.studentPhone) return;
+  const config = await getWahaConfig();
+  if (!config.enabled) return;
+
+  const type = params.letterType || 'PERMOHONAN';
+  if (type === 'PERMOHONAN' && !config.notifyStudentPermohonan) return;
+  if (type === 'PENERJUNAN' && !config.notifyStudentPenerjunan) return;
+  if (type === 'PENARIKAN' && !config.notifyStudentPenarikan) return;
 
   let title = 'Surat Permohonan PKL';
   let instruksi = 'Silakan unduh dokumen surat tersebut melalui dashboard SI-ERIN Anda untuk diserahkan ke pihak industri mitra.';
 
-  if (params.letterType === 'PENERJUNAN') {
+  if (type === 'PENERJUNAN') {
     title = 'Surat Pengantar & Tugas Penerjunan PKL';
     instruksi = 'Surat pengantaran dan penerjunan ke industri telah siap. Silakan koordinasikan dengan Guru Pembimbing Anda.';
-  } else if (params.letterType === 'PENARIKAN') {
+  } else if (type === 'PENARIKAN') {
     title = 'Surat Penarikan Siswa PKL';
     instruksi = 'Surat penarikan dan ucapan terima kasih untuk industri mitra telah diterbitkan oleh sekolah.';
   }
@@ -443,6 +509,8 @@ export async function notifyTeacherMonitoringTte(params: {
   monitoringDate?: string;
 }) {
   if (!params.teacherPhone) return;
+  const config = await getWahaConfig();
+  if (!config.enabled || !config.notifyTeacherMonitoring) return;
 
   const text =
 `📝 *[SI-ERIN NOTIFIKASI]*

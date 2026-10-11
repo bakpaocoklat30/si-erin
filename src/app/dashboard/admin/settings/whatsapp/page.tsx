@@ -15,7 +15,8 @@ import { useState, useEffect } from 'react';
 import { useTheme } from '@/app/theme-provider';
 import { 
   MessageSquare, ShieldCheck, RefreshCw, Send, CheckCircle2, 
-  AlertCircle, QrCode, Phone, Globe, Key, Settings, Loader2, Sparkles, Check, Play
+  AlertCircle, QrCode, Phone, Globe, Key, Settings, Loader2, Sparkles, Check, Play,
+  Bell, FileText, UserCheck, GraduationCap, Building2, Users
 } from 'lucide-react';
 
 export default function WhatsAppSettingsPage() {
@@ -33,6 +34,15 @@ export default function WhatsAppSettingsPage() {
   const [sessionName, setSessionName] = useState('default');
   const [apiKey, setApiKey] = useState('');
   const [pokjaPhone, setPokjaPhone] = useState('');
+  const [tuPhone, setTuPhone] = useState('');
+
+  // Event Toggles
+  const [notifyPokjaNewApp, setNotifyPokjaNewApp] = useState(true);
+  const [notifyStudentPermohonan, setNotifyStudentPermohonan] = useState(true);
+  const [notifyStudentPenerjunan, setNotifyStudentPenerjunan] = useState(true);
+  const [notifyStudentPenarikan, setNotifyStudentPenarikan] = useState(true);
+  const [notifyTeacherMonitoring, setNotifyTeacherMonitoring] = useState(true);
+  const [notifyTuNewPermohonan, setNotifyTuNewPermohonan] = useState(true);
 
   // Status Sesi WAHA
   const [sessionStatus, setSessionStatus] = useState<any>(null);
@@ -52,7 +62,14 @@ export default function WhatsAppSettingsPage() {
           setApiUrl(data.config.apiUrl);
           setSessionName(data.config.sessionName);
           setApiKey(data.config.apiKey);
-          setPokjaPhone(data.config.pokjaPhone);
+          setPokjaPhone(data.config.pokjaPhone || '');
+          setTuPhone(data.config.tuPhone || '');
+          setNotifyPokjaNewApp(data.config.notifyPokjaNewApp !== false);
+          setNotifyStudentPermohonan(data.config.notifyStudentPermohonan !== false);
+          setNotifyStudentPenerjunan(data.config.notifyStudentPenerjunan !== false);
+          setNotifyStudentPenarikan(data.config.notifyStudentPenarikan !== false);
+          setNotifyTeacherMonitoring(data.config.notifyTeacherMonitoring !== false);
+          setNotifyTuNewPermohonan(data.config.notifyTuNewPermohonan !== false);
         }
         if (data.session) {
           setSessionStatus(data.session);
@@ -109,6 +126,13 @@ export default function WhatsAppSettingsPage() {
           sessionName,
           apiKey,
           pokjaPhone,
+          tuPhone,
+          notifyPokjaNewApp,
+          notifyStudentPermohonan,
+          notifyStudentPenerjunan,
+          notifyStudentPenarikan,
+          notifyTeacherMonitoring,
+          notifyTuNewPermohonan,
         }),
       });
       const data = await res.json();
@@ -512,24 +536,230 @@ export default function WhatsAppSettingsPage() {
               </div>
             </div>
 
-            {/* NOMOR WA TIM POKJA */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
-                <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Nomor WhatsApp Tujuan Tim Pokja Prakerin</span>
-              </label>
-              <input
-                type="text"
-                value={pokjaPhone}
-                onChange={(e) => setPokjaPhone(e.target.value)}
-                placeholder="Contoh: 08123456789 atau 628123456789"
-                className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none transition-all ${
-                  theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-emerald-600'
-                }`}
-              />
-              <p className="text-[11px] text-slate-500">
-                Nomor ini akan menerima pesan WhatsApp setiap kali ada siswa yang mengajukan permohonan tempat PKL baru.
-              </p>
+            {/* KONFIGURASI NOMOR TUJUAN PIC (POKJA & TATA USAHA) */}
+            <div className="pt-2 border-t border-inherit space-y-4">
+              <div>
+                <h3 className="text-sm font-bold flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-emerald-500" />
+                  <span>Nomor WhatsApp Tujuan Petugas (PIC Sekolah)</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Nomor resmi yang didaftarkan untuk menerima laporan dan peringatan langsung ke HP petugas.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* NOMOR WA TIM POKJA */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+                    <Phone className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>WhatsApp Tim Pokja Prakerin</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={pokjaPhone}
+                    onChange={(e) => setPokjaPhone(e.target.value)}
+                    placeholder="Contoh: 08123456789 atau 628123456789"
+                    className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none transition-all ${
+                      theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-emerald-600'
+                    }`}
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Menerima notifikasi setiap kali ada pengajuan tempat PKL baru dari siswa.
+                  </p>
+                </div>
+
+                {/* NOMOR WA TATA USAHA */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>WhatsApp Tata Usaha / Persuratan</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={tuPhone}
+                    onChange={(e) => setTuPhone(e.target.value)}
+                    placeholder="Contoh: 08123456789 atau 628123456789"
+                    className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none transition-all ${
+                      theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-emerald-600'
+                    }`}
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Menerima info jika ada berkas/surat permohonan baru yang perlu diproses.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* PREFERENSI JENIS PESAN & PENERIMA NOTIFIKASI */}
+            <div className="pt-4 border-t border-inherit space-y-4">
+              <div>
+                <h3 className="text-sm font-bold flex items-center space-x-2">
+                  <Bell className="w-4 h-4 text-emerald-500" />
+                  <span>Kriteria Notifikasi & Penerima Pesan</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Tentukan peristiwa apa saja yang akan memicu pengiriman pesan WhatsApp dan siapa target penerimanya.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {/* 1. PENGAJUAN BARU KE POKJA */}
+                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                  theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="space-y-1 pr-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/30">
+                        PENERIMA: TIM POKJA
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold">Pengajuan Tempat PKL Baru dari Siswa</p>
+                    <p className="text-xs text-slate-400">
+                      Kirim pesan otomatis ke HP Tim Pokja saat siswa memilih industri dan mengirim pengajuan tempat PKL.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={notifyPokjaNewApp}
+                      onChange={(e) => setNotifyPokjaNewApp(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                {/* 2. PENGAJUAN BARU KE TATA USAHA */}
+                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                  theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="space-y-1 pr-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                        PENERIMA: TATA USAHA
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold">Peringatan Pembuatan Surat Permohonan</p>
+                    <p className="text-xs text-slate-400">
+                      Beri tahu tim TU saat ada pengajuan baru yang siap dicetak/dibuatkan nomor surat permohonan PKL.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={notifyTuNewPermohonan}
+                      onChange={(e) => setNotifyTuNewPermohonan(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                {/* 3. SURAT PERMOHONAN KE SISWA */}
+                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                  theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="space-y-1 pr-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                        PENERIMA: SISWA
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold">Penerbitan Surat Permohonan PKL</p>
+                    <p className="text-xs text-slate-400">
+                      Kirim link dan pemberitahuan ke nomor WhatsApp siswa saat TU menerbitkan surat permohonan.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={notifyStudentPermohonan}
+                      onChange={(e) => setNotifyStudentPermohonan(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                {/* 4. SURAT PENERJUNAN / TUGAS KE SISWA */}
+                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                  theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="space-y-1 pr-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                        PENERIMA: SISWA
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold">Penerbitan Surat Tugas & Pengantar Penerjunan</p>
+                    <p className="text-xs text-slate-400">
+                      Kirim info surat penerjunan resmi dan instruksi koordinasi pembimbing langsung ke siswa.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={notifyStudentPenerjunan}
+                      onChange={(e) => setNotifyStudentPenerjunan(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                {/* 5. SURAT PENARIKAN KE SISWA */}
+                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                  theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="space-y-1 pr-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                        PENERIMA: SISWA
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold">Penerbitan Surat Penarikan Siswa PKL</p>
+                    <p className="text-xs text-slate-400">
+                      Kirim dokumen penarikan dan ucapan terima kasih kepada siswa saat masa PKL berakhir.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={notifyStudentPenarikan}
+                      onChange={(e) => setNotifyStudentPenarikan(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                {/* 6. SURAT TUGAS & SPPD TTE KE GURU PEMBIMBING */}
+                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                  theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="space-y-1 pr-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                        PENERIMA: GURU PEMBIMBING
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold">Surat Tugas & SPPD Monitoring TTE Siap Unduh</p>
+                    <p className="text-xs text-slate-400">
+                      Kirim pesan langsung ke WhatsApp Guru Pembimbing saat dokumen penugasan monitoring telah selesai di-TTE.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={notifyTeacherMonitoring}
+                      onChange={(e) => setNotifyTeacherMonitoring(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="pt-4 flex justify-end">
@@ -539,7 +769,7 @@ export default function WhatsAppSettingsPage() {
                 className="px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-lg shadow-emerald-600/30 transition-all flex items-center space-x-2 cursor-pointer"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                <span>{saving ? 'Menyimpan...' : 'Simpan Pengaturan WhatsApp'}</span>
+                <span>{saving ? 'Menyimpan...' : 'Simpan Semua Pengaturan WhatsApp'}</span>
               </button>
             </div>
           </form>
