@@ -28,16 +28,19 @@ else
     exit 1
 fi
 
-echo -e "${YELLOW}📥 [1/4] Menarik pembaruan kode terbaru dari GitHub (git pull origin main)...${NC}"
+echo -e "${YELLOW}📥 [1/5] Menarik pembaruan kode terbaru dari GitHub (git pull origin main)...${NC}"
 git pull origin main
 
-echo -e "${YELLOW}📦 [2/4] Membangun ulang (rebuild) image container 'app'...${NC}"
+echo -e "${YELLOW}📦 [2/5] Membangun ulang (rebuild) image container 'app'...${NC}"
 $DOCKER_COMPOSE build app
 
-echo -e "${YELLOW}🔄 [3/4] Me-restart container 'app' (Database PostgreSQL aman & tidak disentuh)...${NC}"
+echo -e "${YELLOW}🔄 [3/5] Memastikan container WAHA Gateway aktif (Port 7005)...${NC}"
+$DOCKER_COMPOSE up -d --no-deps waha
+
+echo -e "${YELLOW}🔄 [4/5] Me-restart container 'app' (Database PostgreSQL aman & tidak disentuh)...${NC}"
 $DOCKER_COMPOSE up -d --no-deps app
 
-echo -e "${YELLOW}🗄️ [4/4] Menyinkronkan skema database Prisma (prisma db push)...${NC}"
+echo -e "${YELLOW}🗄️ [5/5] Menyinkronkan skema database Prisma (prisma db push)...${NC}"
 sleep 3
 $DOCKER_COMPOSE exec -T app npx prisma db push || echo -e "${YELLOW}⚠️ Catatan: Jika db push di kontainer terkendala, skema dapat disinkronkan langsung via host.${NC}"
 
