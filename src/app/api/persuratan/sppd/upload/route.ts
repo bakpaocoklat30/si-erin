@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { db } from '@/lib/db';
 import * as fs from 'fs';
 import * as path from 'path';
+import { notifyTeacherMonitoringTte } from '@/lib/whatsapp';
 
 export async function POST(request: Request) {
   try {
@@ -66,6 +67,29 @@ export async function POST(request: Request) {
       where: { id },
       data: updateData
     });
+
+    // 📲 TRIGGER NOTIFIKASI WHATSAPP KE GURU PEMBIMBING
+    if (hasTugas && hasSppd) {
+      try {
+        const fullAssign = await db.monitoringAssignment.findUnique({
+          where: { id },
+          include: { teacher: true, industry: true }
+        });
+        if (fullAssign?.teacher?.phone) {
+          notifyTeacherMonitoringTte({
+            teacherPhone: fullAssign.teacher.phone,
+            teacherName: fullAssign.teacher.name || 'Guru Pembimbing',
+            industryName: fullAssign.industry?.name || '-',
+            letterNumber: fullAssign.letterNumber || fullAssign.sppdNumber || '-',
+            monitoringDate: fullAssign.monitoringDate ? new Date(fullAssign.monitoringDate).toLocaleDateString('id-ID', { dateStyle: 'full' }) : '-'
+          }).catch((waErr) => {
+            console.warn('[WAHA] Warning kirim WA ke Guru Pembimbing:', waErr);
+          });
+        }
+      } catch (e) {
+        console.warn('Gagal mempersiapkan data WA guru:', e);
+      }
+    }
 
     return NextResponse.json({ success: true, url: fileUrl });
   } catch (error: any) {

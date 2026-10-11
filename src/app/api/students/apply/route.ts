@@ -15,6 +15,7 @@ import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { saveBase64ToFile } from '@/lib/file-utils';
+import { notifyPokjaNewApplication } from '@/lib/whatsapp';
 
 // Helper terisolasi untuk mendeteksi instance model InternshipPlacement secara presisi
 function getPlacementClient() {
@@ -556,6 +557,17 @@ export async function POST(request: Request) {
         });
       }
     }
+
+    // 📲 TRIGGER NOTIFIKASI WHATSAPP KE TIM POKJA
+    notifyPokjaNewApplication({
+      studentName: student.name || 'Siswa',
+      studentClass: student.className || '-',
+      department: student.department || 'Teknik Komputer dan Jaringan',
+      industryName: industry.name || '-',
+      appliedDate: new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' }),
+    }).catch((waErr) => {
+      console.warn('[WAHA] Warning pengiriman notifikasi Pokja:', waErr);
+    });
 
     return NextResponse.json({
       success: true,

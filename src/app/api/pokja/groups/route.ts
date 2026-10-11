@@ -19,6 +19,7 @@ import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { saveBase64ToFile } from '@/lib/file-utils';
+import { notifyStudentLetterIssued } from '@/lib/whatsapp';
 
 // List Role yang Berhak Mengakses Data Kelompok & Persuratan
 const ALLOWED_ROLES = ['POKJA', 'TIM_POKJA', 'ADMIN', 'TATA_USAHA', 'TATA USAHA', 'TATAUSAHA', 'TU', 'SUPER_ADMIN'];
@@ -399,6 +400,36 @@ export async function PUT(request: Request) {
         })
       )
     );
+
+    // 📲 TRIGGER NOTIFIKASI WHATSAPP KE SISWA-SISWA DI KELOMPOK
+    if (suratTugasUrl || suratPengantaranUrl || suratPenarikanUrl) {
+      try {
+        const fullPlacements = await db.internshipPlacement.findMany({
+          where: { id: { in: placementIds } },
+          include: { student: true, industry: true }
+        });
+
+        const letterType = suratPenarikanUrl ? 'PENARIKAN' : (suratPengantaranUrl ? 'PENERJUNAN' : 'PERMOHONAN');
+        const numToReport = letterNumber || nomorPengantaran || nomorPenarikan || '-';
+
+        fullPlacements.forEach((p) => {
+          const sPhone = p.student?.phone || p.student?.parentPhone;
+          if (sPhone) {
+            notifyStudentLetterIssued({
+              studentPhone: sPhone,
+              studentName: p.student?.name || 'Siswa',
+              industryName: p.industry?.name || '-',
+              letterNumber: numToReport,
+              letterType
+            }).catch((waErr) => {
+              console.warn('[WAHA] Warning kirim WA ke siswa kelompok:', waErr);
+            });
+          }
+        });
+      } catch (err) {
+        console.warn('Gagal dispatch WA siswa kelompok:', err);
+      }
+    }
 
     return NextResponse.json({
       success: true,

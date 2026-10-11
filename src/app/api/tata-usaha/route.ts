@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { db } from '@/lib/db';
+import { notifyStudentLetterIssued } from '@/lib/whatsapp';
 
 // 🛡️ HELPER: Sanitasi Nama/Object menjadi String
 function safeString(val: any): string {
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
       }
     });
 
-    // 🔔 OTO-NOTIFIKASI KE SISWA
+    // 🔔 OTO-NOTIFIKASI KE SISWA (IN-APP & WHATSAPP)
     try {
       if (prisma.notification && existingPlacement.student?.userId) {
         await prisma.notification.create({
@@ -167,6 +168,20 @@ export async function POST(request: Request) {
             type: 'SUCCESS',
             link: '/dashboard/students/pengajuan'
           }
+        });
+      }
+
+      // 📲 Notifikasi WhatsApp ke Siswa
+      const targetPhone = existingPlacement.student?.phone || existingPlacement.student?.parentPhone;
+      if (targetPhone) {
+        notifyStudentLetterIssued({
+          studentPhone: targetPhone,
+          studentName: existingPlacement.student?.name || 'Siswa',
+          industryName: existingPlacement.industry?.name || '-',
+          letterNumber: generatedNumber,
+          letterType: 'PERMOHONAN'
+        }).catch((waErr) => {
+          console.warn('[WAHA] Warning pengiriman notifikasi WA siswa:', waErr);
         });
       }
     } catch (e) {
