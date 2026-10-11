@@ -16,7 +16,8 @@ import { db } from '@/lib/db';
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'POKJA', 'TIM_POKJA', 'PEMBIMBING'].includes((session.user as any)?.role)) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase();
+    if (!session || !['ADMIN', 'POKJA', 'TIM_POKJA', 'PEMBIMBING', 'SUPER_ADMIN'].includes(userRole)) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 
@@ -25,8 +26,9 @@ export async function GET(request: Request) {
 
     let whereClause: any = {};
     if (classNameParam) {
+      const cleanClassName = classNameParam.trim();
       whereClause.className = {
-        equals: classNameParam.trim(),
+        equals: cleanClassName,
         mode: 'insensitive'
       };
     }

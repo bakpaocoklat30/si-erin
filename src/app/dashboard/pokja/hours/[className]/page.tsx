@@ -96,16 +96,28 @@ export default function PokjaClassHoursDetailPage() {
   // Load daftar siswa kelas untuk keperluan penghitungan & assign
   const loadClassStudents = useCallback(async () => {
     if (!rawClassName) return;
+    setLoadingStudents(true);
     try {
       const timestamp = new Date().getTime();
-      const res = await fetch(`/api/admin/students?className=${encodeURIComponent(rawClassName)}&t=${timestamp}`);
+      const res = await fetch(`/api/admin/students?className=${encodeURIComponent(rawClassName.trim())}&t=${timestamp}`);
       const result = await res.json();
-      if (result.success || result.data) {
+      if (res.ok && (result.success || result.data || result.students)) {
         const list = result.data || result.students || [];
         setClassStudents(list);
+      } else {
+        console.warn('Gagal memuat siswa dari /api/admin/students, mencoba fallback ke /api/pokja/rekap-kelas...', result.error);
+        // Fallback ke endpoint pokja bila ada issue otorisasi di route admin
+        const fallbackRes = await fetch(`/api/pokja/rekap-kelas?className=${encodeURIComponent(rawClassName.trim())}&t=${timestamp}`);
+        const fallbackResult = await fallbackRes.json();
+        if (fallbackRes.ok && (fallbackResult.success || fallbackResult.students)) {
+          const list = fallbackResult.students || fallbackResult.data || [];
+          setClassStudents(list);
+        }
       }
     } catch (e) {
-      console.error(e);
+      console.error('Error loadClassStudents:', e);
+    } finally {
+      setLoadingStudents(false);
     }
   }, [rawClassName]);
 
@@ -624,8 +636,22 @@ export default function PokjaClassHoursDetailPage() {
 
                       <form onSubmit={handleSaveAssignedStudents} className="space-y-4">
                         <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
-                          {classStudents.length === 0 ? (
-                            <p className="text-xs text-amber-500 py-4 text-center">Tidak ada siswa terdaftar di kelas {rawClassName}.</p>
+                          {loadingStudents ? (
+                            <div className="flex items-center justify-center py-6 space-x-2 text-xs text-indigo-400">
+                              <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                              <span>Memuat data siswa kelas {rawClassName}...</span>
+                            </div>
+                          ) : classStudents.length === 0 ? (
+                            <div className="py-6 text-center space-y-2">
+                              <p className="text-xs text-amber-500 font-semibold">Tidak ada siswa terdaftar di kelas {rawClassName}.</p>
+                              <button
+                                type="button"
+                                onClick={() => loadClassStudents()}
+                                className="px-3 py-1 text-xs rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20"
+                              >
+                                Muat Ulang Siswa
+                              </button>
+                            </div>
                           ) : filteredStudents.length === 0 ? (
                             <p className="text-xs text-slate-400 py-4 text-center italic">Tidak ada siswa yang cocok dengan pencarian "{studentSearchQuery}".</p>
                           ) : (
