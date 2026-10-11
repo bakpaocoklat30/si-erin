@@ -95,7 +95,7 @@ export function buildSuratIzinKegiatanXml(
     <w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>NIP ${escapeXml(school?.headmasterNip || '19690316 199802 1 004')}</w:t></w:r></w:p>
   `;
 
-  const kopSuratXml = useTte ? '' : `
+  const kopSuratXml = `
     <!-- KOP SURAT (DENGAN TTE REL) -->
     <w:p>
       <w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="120"/></w:pPr>
@@ -251,7 +251,10 @@ export async function generateSuratIzinKegiatanDocx(
   options?: GeneratorOptions
 ): Promise<Buffer> {
   const templatePath = path.join(process.cwd(), 'template', 'Surat Tugas Monitoring PKL.docx');
-  const kopPath = path.join(process.cwd(), 'public', 'images', 'kop-surat-tugas.png');
+  let kopPath = path.join(process.cwd(), 'public', 'images', 'kop-surat-tugas.png');
+  if (!fs.existsSync(kopPath)) {
+    kopPath = path.join(process.cwd(), 'public', 'images', 'kop-jateng-smkn1adw.png');
+  }
   
   if (!fs.existsSync(templatePath)) {
     throw new Error('File template tidak ditemukan di: ' + templatePath);
@@ -291,7 +294,10 @@ export async function generateMergedSuratIzinKegiatanDocx(
   }
 
   const templatePath = path.join(process.cwd(), 'template', 'Surat Tugas Monitoring PKL.docx');
-  const kopPath = path.join(process.cwd(), 'public', 'images', 'kop-surat-tugas.png');
+  let kopPath = path.join(process.cwd(), 'public', 'images', 'kop-surat-tugas.png');
+  if (!fs.existsSync(kopPath)) {
+    kopPath = path.join(process.cwd(), 'public', 'images', 'kop-jateng-smkn1adw.png');
+  }
   
   if (!fs.existsSync(templatePath)) {
     throw new Error(`File template tidak ditemukan di: ${templatePath}`);
