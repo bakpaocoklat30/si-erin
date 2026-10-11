@@ -15,31 +15,16 @@ export async function GET(request: Request) {
 
     const teacherId = (session.user as any)?.id;
     const teacherName = (session.user as any)?.name || '';
+    const teacherNip = (session.user as any)?.nip || (session.user as any)?.username || '';
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
 
-    // Ambil penugasan di mana guru ini adalah Guru Utama (teacherId)
-    // ATAU guru pendamping (companionTeachers JSON mencakup nama/NIP guru ini)
-    // DAN dokumen sudah diterbitkan/di-TTE oleh Tata Usaha (status SELESAI_TTE atau memiliki suratTugasUrl/sppdUrl)
+    // Ambil penugasan di mana dokumen sudah diterbitkan/di-TTE oleh Tata Usaha
     const assignments = await db.monitoringAssignment.findMany({
       where: {
-        AND: [
-          {
-            OR: [
-              { teacherId: teacherId },
-              {
-                companionTeachers: {
-                  path: '$[*].name',
-                  string_contains: teacherName
-                }
-              }
-            ]
-          },
-          {
-            OR: [
-              { status: { in: ['SELESAI_TTE', 'TERBIT_TTE', 'SELESAI'] } },
-              { suratTugasUrl: { not: null } },
-              { sppdUrl: { not: null } }
-            ]
-          }
+        OR: [
+          { status: { in: ['SELESAI_TTE', 'TERBIT_TTE', 'SELESAI'] } },
+          { suratTugasUrl: { not: null } },
+          { sppdUrl: { not: null } }
         ]
       },
       include: {
@@ -74,7 +59,32 @@ export async function GET(request: Request) {
       orderBy: { monitoringDate: 'desc' }
     });
 
-    const mapped = assignments.map((a: any) => ({
+    // Jika bukan Admin, saring hanya penugasan guru yang bersangkutan (Guru Utama atau Guru Pendamping)
+    const cleanName = teacherName.toLowerCase().trim();
+    const cleanNip = teacherNip.trim();
+
+    const filteredAssignments = isAdmin
+      ? assignments
+      : assignments.filter((a: any) => {
+          // 1. Cek apakah Guru Utama (berdasarkan teacherId, NIP, atau Nama)
+          if (a.teacherId === teacherId) return true;
+          if (cleanNip && a.teacher?.nip === cleanNip) return true;
+          if (cleanName && a.teacher?.name?.toLowerCase().includes(cleanName)) return true;
+
+          // 2. Cek apakah Guru Pendamping (companionTeachers)
+          if (Array.isArray(a.companionTeachers)) {
+            return a.companionTeachers.some((c: any) => {
+              if (!c) return false;
+              if (cleanNip && c.nip && String(c.nip).trim() === cleanNip) return true;
+              if (cleanName && c.name && String(c.name).toLowerCase().includes(cleanName)) return true;
+              return false;
+            });
+          }
+
+          return false;
+        });
+
+    const mapped = filteredAssignments.map((a: any) => ({
       ...a,
       suratTugasDownloadUrl: a.suratTugasUrl ? `/api/persuratan/sppd/file?id=${a.id}&type=tugas` : null,
       sppdDownloadUrl: a.sppdUrl ? `/api/persuratan/sppd/file?id=${a.id}&type=sppd` : null,

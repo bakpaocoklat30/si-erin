@@ -420,7 +420,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
   sqlDumpContent += generateInsert('SchoolSetting', schoolSettings, 'id');
   sqlDumpContent += generateInsert('SystemSetting', systemSettings, 'key');
-  sqlDumpContent += generateInsert('User', users, 'DO NOTHING');
+  sqlDumpContent += generateInsert('User', users, 'username');
   sqlDumpContent += generateInsert('AcademicYear', academicYears, 'DO NOTHING');
   sqlDumpContent += generateInsert('Department', departments, 'DO NOTHING');
   sqlDumpContent += generateInsert('InternshipPeriod', internshipPeriods, 'DO NOTHING');
