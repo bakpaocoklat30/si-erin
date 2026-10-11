@@ -22,9 +22,25 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const className = searchParams.get('className');
 
-    // 1. Ambil semua alokasi jam guru beserta data guru yang sudah ter-assign
+    // 1. Ambil semua alokasi jam guru beserta data guru dan jumlah total siswa bimbingan
     const allocations = await db.teacherHourAllocation.findMany({
-      include: { teacher: true },
+      include: { 
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            role: true,
+            department: true,
+            phone: true,
+            _count: {
+              select: {
+                supervisedStudents: true
+              }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -47,7 +63,12 @@ export async function GET(request: Request) {
         username: true,
         role: true,
         department: true,
-        phone: true
+        phone: true,
+        _count: {
+          select: {
+            supervisedStudents: true
+          }
+        }
       },
       orderBy: { name: 'asc' }
     });

@@ -406,9 +406,16 @@ export default function PokjaClassHoursDetailPage() {
                       />
                       <div className="space-y-0.5">
                         <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{t.name} <span className="opacity-60 uppercase text-xs">({t.role})</span></span>
-                        {isAlreadyInClass && (
-                          <p className="text-xs font-semibold text-emerald-400">✓ Sudah ditugaskan di kelas ini</p>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                          <span className="text-[11px] font-semibold text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded">
+                            {t._count?.supervisedStudents ?? 0} Total Siswa Terplot
+                          </span>
+                          {isAlreadyInClass && (
+                            <span className="text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded">
+                              ✓ Ditugaskan di kelas ini
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </label>
 
@@ -488,8 +495,18 @@ export default function PokjaClassHoursDetailPage() {
                 }`}>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                      <h4 className="text-lg font-extrabold text-slate-900 dark:text-white">{alloc.teacher?.name || 'Guru Pembimbing'}</h4>
-                      <p className="text-xs text-slate-400">Username/NIP: <span className="font-mono">{alloc.teacher?.username || alloc.teacherId}</span> • <strong className="text-indigo-500">{assignedStudentsCount} Siswa Bimbingan</strong></p>
+                      <h4 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>{alloc.teacher?.name || 'Guru Pembimbing'}</span>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                          {assignedStudentsCount} Siswa di Kelas Ini
+                        </span>
+                        {alloc.teacher?._count?.supervisedStudents !== undefined && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-500 dark:text-slate-400 border border-slate-500/20">
+                            Total {alloc.teacher._count.supervisedStudents} Siswa (Semua Kelas)
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-1">Username/NIP: <span className="font-mono">{alloc.teacher?.username || alloc.teacherId}</span> • Tahun Pelajaran: {alloc.academicYear || '-'}</p>
                     </div>
 
                     <div className="flex items-center space-x-3 shrink-0">
