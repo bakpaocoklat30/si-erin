@@ -35,6 +35,8 @@ export default function WhatsAppSettingsPage() {
   const [apiKey, setApiKey] = useState('');
   const [pokjaPhone, setPokjaPhone] = useState('');
   const [tuPhone, setTuPhone] = useState('');
+  const [pokjaAccounts, setPokjaAccounts] = useState<any[]>([]);
+  const [tuAccounts, setTuAccounts] = useState<any[]>([]);
 
   // Event Toggles
   const [notifyPokjaNewApp, setNotifyPokjaNewApp] = useState(true);
@@ -87,6 +89,12 @@ export default function WhatsAppSettingsPage() {
           setTemplateStudentPenerjunan(data.config.templateStudentPenerjunan || '');
           setTemplateStudentPenarikan(data.config.templateStudentPenarikan || '');
           setTemplateTeacherMonitoring(data.config.templateTeacherMonitoring || '');
+        }
+        if (data.pokjaAccounts) {
+          setPokjaAccounts(data.pokjaAccounts);
+        }
+        if (data.tuAccounts) {
+          setTuAccounts(data.tuAccounts);
         }
         if (data.session) {
           setSessionStatus(data.session);
@@ -564,19 +572,107 @@ export default function WhatsAppSettingsPage() {
               <div>
                 <h3 className="text-sm font-bold flex items-center space-x-2">
                   <Users className="w-4 h-4 text-emerald-500" />
-                  <span>Nomor WhatsApp Tujuan Petugas (PIC Sekolah)</span>
+                  <span>Rute Notifikasi Petugas & Nomor Cadangan (Fallback)</span>
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Nomor resmi yang didaftarkan untuk menerima laporan dan peringatan langsung ke HP petugas.
+                  Sistem SI-ERIN mengarahkan pesan secara otomatis ke nomor akun petugas yang bertugas.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* NOMOR WA TIM POKJA */}
+              {/* INFO BANNER OTOMATISASI BERBASIS AKUN */}
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2 text-xs">
+                <div className="flex items-center space-x-2 font-bold text-emerald-500">
+                  <Sparkles className="w-4 h-4 shrink-0" />
+                  <span>Logika Pengiriman Real-Time Berbasis Role & Jurusan:</span>
+                </div>
+                <ul className="space-y-1.5 text-slate-600 dark:text-slate-300 pl-6 list-disc">
+                  <li>
+                    <b>Verifikasi Pengajuan PKL Siswa:</b> Dikirim langsung ke nomor WhatsApp akun <b>POKJA</b> yang jurusannya cocok dengan jurusan siswa (contoh: siswa TKJ otomatis mengirim ke Pokja jurusan TKJ).
+                  </li>
+                  <li>
+                    <b>Antrean Surat & Proses TTE:</b> Saat pengajuan disetujui Pokja, sistem otomatis melakukan <b>broadcast ke seluruh akun ber-role TATA_USAHA</b> yang memiliki nomor WhatsApp aktif.
+                  </li>
+                </ul>
+              </div>
+
+              {/* LIST AKUN PETUGAS TERDETEKSI */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* AKUN POKJA PER JURUSAN */}
+                <div className={`p-4 rounded-2xl border space-y-2.5 ${
+                  theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold flex items-center space-x-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Akun Pokja Terdaftar ({pokjaAccounts.length})</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">Otomatis per jurusan</span>
+                  </div>
+                  {pokjaAccounts.length === 0 ? (
+                    <p className="text-[11px] text-slate-500">Belum ada akun user ber-role Pokja.</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                      {pokjaAccounts.map((acc: any) => (
+                        <div key={acc.id} className="p-2 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold">{acc.name}</p>
+                            <p className="text-[10px] text-slate-400">{acc.department || 'Pokja Umum'}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-medium ${
+                            acc.phone 
+                              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                              : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                          }`}>
+                            {acc.phone || 'Nomor Belum Diisi'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* AKUN TATA USAHA */}
+                <div className={`p-4 rounded-2xl border space-y-2.5 ${
+                  theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold flex items-center space-x-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-teal-500" />
+                      <span>Akun Tata Usaha Terdaftar ({tuAccounts.length})</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">Broadcast semua TU</span>
+                  </div>
+                  {tuAccounts.length === 0 ? (
+                    <p className="text-[11px] text-slate-500">Belum ada akun user ber-role Tata Usaha.</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                      {tuAccounts.map((acc: any) => (
+                        <div key={acc.id} className="p-2 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold">{acc.name}</p>
+                            <p className="text-[10px] text-slate-400">Petugas Persuratan & TTE</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-medium ${
+                            acc.phone 
+                              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                              : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                          }`}>
+                            {acc.phone || 'Nomor Belum Diisi'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* INPUT NOMOR CADANGAN (FALLBACK PUSAT) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+                {/* NOMOR WA TIM POKJA CADANGAN */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
                     <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>WhatsApp Tim Pokja Prakerin</span>
+                    <span>Nomor Cadangan WhatsApp Pokja (Opsional)</span>
                   </label>
                   <input
                     type="text"
@@ -588,15 +684,15 @@ export default function WhatsAppSettingsPage() {
                     }`}
                   />
                   <p className="text-[11px] text-slate-500">
-                    Menerima notifikasi setiap kali ada pengajuan tempat PKL baru dari siswa.
+                    Hanya digunakan sebagai cadangan jika akun Pokja jurusan yang bersangkutan belum melengkapi nomor HP di profilnya.
                   </p>
                 </div>
 
-                {/* NOMOR WA TATA USAHA */}
+                {/* NOMOR WA TATA USAHA CADANGAN */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
                     <Building2 className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>WhatsApp Tata Usaha / Persuratan</span>
+                    <span>Nomor Cadangan WhatsApp TU (Opsional)</span>
                   </label>
                   <input
                     type="text"
@@ -608,7 +704,7 @@ export default function WhatsAppSettingsPage() {
                     }`}
                   />
                   <p className="text-[11px] text-slate-500">
-                    Menerima info jika ada berkas/surat permohonan baru yang perlu diproses.
+                    Hanya digunakan sebagai cadangan jika belum ada akun Tata Usaha yang melengkapi nomor HP di profilnya.
                   </p>
                 </div>
               </div>
@@ -635,12 +731,12 @@ export default function WhatsAppSettingsPage() {
                     <div className="space-y-1 pr-4">
                       <div className="flex items-center space-x-2">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/30">
-                          PENERIMA: TIM POKJA
+                          PENERIMA: POKJA JURUSAN SISWA
                         </span>
                       </div>
                       <p className="text-sm font-bold">Pengajuan Tempat PKL Baru dari Siswa</p>
                       <p className="text-xs text-slate-400">
-                        Kirim pesan otomatis ke HP Tim Pokja saat siswa memilih industri dan mengirim pengajuan tempat PKL.
+                        Kirim pesan otomatis ke akun Pokja jurusan siswa (contoh: ajuan siswa TKJ langsung masuk ke WA Pokja TKJ) untuk diverifikasi.
                       </p>
                     </div>
                     <div className="flex items-center space-x-3 shrink-0">
@@ -670,7 +766,7 @@ export default function WhatsAppSettingsPage() {
                   </div>
 
                   {expandedTemplate === 'pokja' && (
-                    <div className={`p-4 border-t space-y-3 ${
+                    <div className={`p-4 border-t space-y-2 ${
                       theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100/70 border-slate-200'
                     }`}>
                       <div className="flex items-center justify-between">
@@ -698,12 +794,12 @@ export default function WhatsAppSettingsPage() {
                     <div className="space-y-1 pr-4">
                       <div className="flex items-center space-x-2">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                          PENERIMA: TATA USAHA
+                          PENERIMA: BROADCAST TATA USAHA
                         </span>
                       </div>
-                      <p className="text-sm font-bold">Peringatan Pembuatan Surat Permohonan</p>
+                      <p className="text-sm font-bold">Antrean Surat Permohonan & Proses TTE</p>
                       <p className="text-xs text-slate-400">
-                        Beri tahu tim TU saat ada pengajuan baru yang siap dicetak/dibuatkan nomor surat permohonan PKL.
+                        Kirim broadcast otomatis ke seluruh akun Tata Usaha saat ajuan disetujui Pokja dan siap dibuatkan surat / proses TTE.
                       </p>
                     </div>
                     <div className="flex items-center space-x-3 shrink-0">

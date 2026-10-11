@@ -28,10 +28,34 @@ export async function GET() {
     const config = await getWahaConfig();
     const sessionStatus = await getWahaSessionStatus();
 
+    // Ambil daftar akun Pokja & Tata Usaha beserta status nomor WhatsApp-nya
+    const pokjaAccounts = await db.user.findMany({
+      where: { role: { in: ['POKJA', 'TIM_POKJA'] } },
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        phone: true,
+      },
+      orderBy: [{ department: 'asc' }, { name: 'asc' }]
+    });
+
+    const tuAccounts = await db.user.findMany({
+      where: { role: { in: ['TATA_USAHA', 'TU'] } },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+      },
+      orderBy: { name: 'asc' }
+    });
+
     return NextResponse.json({
       success: true,
       config,
       session: sessionStatus,
+      pokjaAccounts,
+      tuAccounts,
     });
   } catch (err: any) {
     console.error('Error GET /api/admin/settings/whatsapp:', err);

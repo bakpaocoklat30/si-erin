@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { notifyTuNewPendingPermohonan } from '@/lib/whatsapp';
 
 // 1. GET: Ambil Data Pengajuan Terkelompok yang Perlu Diverifikasi (Status: PENGAJUAN_DIKIRIM / REVIEW_POKJA)
 export async function GET(request: Request) {
@@ -236,6 +237,31 @@ export async function POST(request: Request) {
     const message = targetStatus === 'PEMBUATAN_SURAT' 
       ? `Berhasil memverifikasi ${result.length} ajuan! Data telah dipindahkan ke menu Kelompok Prakerin untuk pembuatan & pengiriman surat.`
       : `Berhasil menolak ${result.length} ajuan siswa.`;
+
+    // 📲 TRIGGER BROADCAST NOTIFIKASI KE TIM TATA USAHA (UNTUK PEMBUATAN SURAT & TTE)
+    if (targetStatus === 'PEMBUATAN_SURAT' && result.length > 0) {
+      db.internshipPlacement.findMany({
+        where: { id: { in: placementIds } },
+        include: { student: true, industry: true },
+        take: 3
+      }).then((placementsDetail) => {
+        if (placementsDetail.length > 0) {
+          const first = placementsDetail[0];
+          const totalCount = result.length;
+          const studentSummary = totalCount === 1 
+            ? `${first.student?.name || 'Siswa'}` 
+            : `${first.student?.name || 'Siswa'} (+${totalCount - 1} siswa lainnya)`;
+          
+          notifyTuNewPendingPermohonan({
+            studentName: studentSummary,
+            studentClass: first.student?.className || '-',
+            department: first.student?.department || '-',
+            industryName: first.industry?.name || '-',
+            waktu: new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' }),
+          }).catch(err => console.warn('[WAHA] Warning broadcast notifikasi TU:', err));
+        }
+      }).catch(err => console.warn('[WAHA] Error querying placement details for TU notification:', err));
+    }
 
     return NextResponse.json({
       success: true,

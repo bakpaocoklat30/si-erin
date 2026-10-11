@@ -84,17 +84,17 @@ Silakan tinjau dan verifikasi pengajuan ini melalui sistem SI-ERIN:
 
 _Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`,
 
-  templateTuNewPermohonan: `📋 *[SI-ERIN NOTIFIKASI TU]*
-📢 *Pengajuan Baru Menunggu Surat Permohonan*
+  templateTuNewPermohonan: `📋 *[SI-ERIN NOTIFIKASI TATA USAHA]*
+📢 *Pengajuan PKL Disetujui Pokja - Menunggu Surat & TTE*
 
-Halo Tim Tata Usaha, terdapat pengajuan PKL baru yang memerlukan pembuatan Surat Permohonan:
+Halo Tim Tata Usaha, terdapat pengajuan PKL siswa yang telah diverifikasi Pokja dan memerlukan penerbitan Surat Permohonan / Proses TTE:
 
 👤 *Siswa:* {nama_siswa} ({kelas})
 🏢 *Industri Mitra:* {nama_industri}
 📅 *Waktu:* {waktu}
 
-Silakan cek antrean persuratan pada sistem SI-ERIN:
-👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/tata-usaha
+Silakan proses antrean persuratan & TTE melalui sistem SI-ERIN:
+👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/persuratan/permohonan
 
 _Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`,
 
@@ -528,7 +528,103 @@ export async function getWahaSessionStatus(): Promise<{
 // ======================================================================
 
 /**
+ * Ambil daftar nomor WhatsApp akun Pokja sesuai jurusan siswa
+ */
+export async function findPokjaPhonesForDepartment(deptNameOrCode: string): Promise<string[]> {
+  try {
+    const clean = (deptNameOrCode || '').toLowerCase().trim();
+    const pokjaUsers = await db.user.findMany({
+      where: {
+        role: { in: ['POKJA', 'TIM_POKJA'] },
+      },
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        phone: true,
+      }
+    });
+
+    const phones: string[] = [];
+    for (const user of pokjaUsers) {
+      if (!user.phone || String(user.phone).trim() === '') continue;
+      const userDept = (user.department || '').toLowerCase().trim();
+      
+      // Pencocokan jurusan fleksibel (kode singkatan maupun nama lengkap)
+      const isMatch = 
+        !clean ||
+        userDept === clean ||
+        (userDept && clean && (userDept.includes(clean) || clean.includes(userDept))) ||
+        (clean.includes('tkj') && userDept.includes('komputer')) ||
+        (userDept.includes('tkj') && clean.includes('komputer')) ||
+        (clean.includes('rpl') && userDept.includes('perangkat lunak')) ||
+        (userDept.includes('rpl') && clean.includes('perangkat lunak')) ||
+        (clean.includes('tkr') && userDept.includes('kendaraan ringan')) ||
+        (userDept.includes('tkr') && clean.includes('kendaraan ringan')) ||
+        (clean.includes('tbsm') && userDept.includes('sepeda motor')) ||
+        (userDept.includes('tbsm') && clean.includes('sepeda motor')) ||
+        (clean.includes('titl') && userDept.includes('instalasi tenaga listrik')) ||
+        (userDept.includes('titl') && clean.includes('instalasi tenaga listrik')) ||
+        (clean.includes('tflm') && userDept.includes('fabrikasi')) ||
+        (userDept.includes('tflm') && clean.includes('fabrikasi')) ||
+        (clean.includes('dpib') && userDept.includes('pemodelan')) ||
+        (userDept.includes('dpib') && clean.includes('pemodelan')) ||
+        (clean.includes('tmi') && userDept.includes('mekanik')) ||
+        (userDept.includes('tmi') && clean.includes('mekanik')) ||
+        (clean.includes('tei') && userDept.includes('elektronika')) ||
+        (userDept.includes('tei') && clean.includes('elektronika'));
+
+      if (isMatch) {
+        phones.push(user.phone);
+      }
+    }
+
+    // Jika belum ada Pokja jurusan spesifik yang ber-HP, sertakan Pokja umum (tanpa department)
+    if (phones.length === 0) {
+      for (const user of pokjaUsers) {
+        if (user.phone && !user.department) {
+          phones.push(user.phone);
+        }
+      }
+    }
+
+    return Array.from(new Set(phones));
+  } catch (err) {
+    console.warn('[WAHA] Error finding pokja phones:', err);
+    return [];
+  }
+}
+
+/**
+ * Ambil daftar nomor WhatsApp seluruh akun Tata Usaha
+ */
+export async function findTuPhones(): Promise<string[]> {
+  try {
+    const tuUsers = await db.user.findMany({
+      where: {
+        role: { in: ['TATA_USAHA', 'TU'] },
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+      }
+    });
+
+    const phones = tuUsers
+      .map(u => u.phone)
+      .filter((p): p is string => Boolean(p && String(p).trim() !== ''));
+
+    return Array.from(new Set(phones));
+  } catch (err) {
+    console.warn('[WAHA] Error finding tu phones:', err);
+    return [];
+  }
+}
+
+/**
  * Notifikasi ke Tim Pokja saat ada siswa mengajukan PKL baru
+ * Otomatis mengambil nomor WA dari akun Pokja sesuai jurusan siswa!
  */
 export async function notifyPokjaNewApplication(params: {
   studentName: string;
@@ -548,15 +644,54 @@ export async function notifyPokjaNewApplication(params: {
     waktu: params.appliedDate || new Date().toLocaleString('id-ID'),
   };
 
-  // 1. Kirim ke Tim Pokja jika diaktifkan
-  if (config.notifyPokjaNewApp && config.pokjaPhone) {
+  // 1. Kirim ke Tim Pokja jurusan terkait (Otomatis dari akun user Pokja)
+  if (config.notifyPokjaNewApp) {
+    const pokjaPhones = await findPokjaPhonesForDepartment(params.department);
     const textPokja = renderTemplate(config.templatePokjaNewApp, vars);
-    await sendWhatsAppMessage(config.pokjaPhone, textPokja);
-  }
 
-  // 2. Kirim ke Tata Usaha jika diaktifkan (opsional untuk TU mempersiapkan surat permohonan)
-  if (config.notifyTuNewPermohonan && config.tuPhone) {
-    const textTu = renderTemplate(config.templateTuNewPermohonan, vars);
+    if (pokjaPhones.length > 0) {
+      for (const phone of pokjaPhones) {
+        await sendWhatsAppMessage(phone, textPokja);
+      }
+    } else if (config.pokjaPhone) {
+      // Fallback ke nomor Pokja cadangan di pengaturan jika akun belum diisi nomor
+      await sendWhatsAppMessage(config.pokjaPhone, textPokja);
+    }
+  }
+}
+
+/**
+ * Notifikasi broadcast ke Tim Tata Usaha saat ada pengajuan yang siap diproses surat / TTE
+ * Otomatis broadcast ke seluruh akun dengan role TATA_USAHA!
+ */
+export async function notifyTuNewPendingPermohonan(params: {
+  studentName: string;
+  studentClass: string;
+  department?: string;
+  industryName: string;
+  waktu?: string;
+  customMessage?: string;
+}) {
+  const config = await getWahaConfig();
+  if (!config.enabled || !config.notifyTuNewPermohonan) return;
+
+  const vars = {
+    nama_siswa: params.studentName,
+    kelas: params.studentClass,
+    jurusan: params.department || '-',
+    nama_industri: params.industryName,
+    waktu: params.waktu || new Date().toLocaleString('id-ID'),
+  };
+
+  const textTu = params.customMessage || renderTemplate(config.templateTuNewPermohonan, vars);
+  const tuPhones = await findTuPhones();
+
+  if (tuPhones.length > 0) {
+    for (const phone of tuPhones) {
+      await sendWhatsAppMessage(phone, textTu);
+    }
+  } else if (config.tuPhone) {
+    // Fallback ke nomor TU cadangan jika akun TU belum mengisi nomor
     await sendWhatsAppMessage(config.tuPhone, textTu);
   }
 }
