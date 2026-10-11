@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Users, MapPin, Search, CheckCircle2, ChevronLeft, Save, Plus, Trash2, FileText, X, CheckSquare, Printer, Edit, Eye, Download } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 import Link from 'next/link';
+import { useRouter, useParams } from 'next/navigation';
 import { PDFDocument } from 'pdf-lib';
 
 
@@ -135,10 +136,12 @@ const generateSuratEventHtml = (data: any, useTte: boolean) => {
   return html;
 };
 
-export default function PokjaEventDetailPage({ params }: { params: { id: string } }) {
+export default function PokjaEventDetailPage({ params }: { params?: { id: string } }) {
   const { status } = useSession();
   const { theme } = useTheme();
   const router = useRouter();
+  const routeParams = useParams();
+  const eventId = (params?.id || routeParams?.id) as string;
 
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -388,71 +391,43 @@ export default function PokjaEventDetailPage({ params }: { params: { id: string 
   };
 
   useEffect(() => {
+    if (!eventId) return;
+
     const loadData = async () => {
       try {
-        setLoadingText('Membangun koneksi ke server untuk memuat data siswa...');
-        const stuRes = await fetch('/api/pokja/students');
-        
-        const contentLength = stuRes.headers.get('content-length');
-        const total = contentLength ? parseInt(contentLength, 10) : 0;
-        const reader = stuRes.body?.getReader();
-        let stuJson;
-
-        if (!reader) {
-          setLoadingText('Memproses JSON siswa (Stream tidak didukung)...');
-          stuJson = await stuRes.json();
-        } else {
-          let receivedLength = 0;
-          const chunks = [];
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            receivedLength += value.length;
-            if (total) {
-              const percent = Math.round((receivedLength / total) * 100);
-              setLoadingText(`Mengunduh data siswa... ${percent}%`);
-            } else {
-              setLoadingText(`Mengunduh data siswa... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
-            }
-          }
-          setLoadingText('Mengekstrak paket JSON siswa...');
-          const chunksAll = new Uint8Array(receivedLength);
-          let position = 0;
-          for (let chunk of chunks) {
-            chunksAll.set(chunk, position);
-            position += chunk.length;
-          }
-          const result = new TextDecoder("utf-8").decode(chunksAll);
-          setLoadingText('Parsing struktur data UI siswa...');
-          stuJson = JSON.parse(result);
-        }
-
-        if (stuJson.success) {
-          setAllStudents(stuJson.data.filter((s: any) => s.placement && s.placement.industryId));
-        }
-
         setLoadingText('Memuat detail kegiatan...');
-        const evRes = await fetch(`/api/pokja/events/${params.id}`);
+        const [evRes, stRes, stuRes] = await Promise.all([
+          fetch(`/api/pokja/events/${eventId}`),
+          fetch(`/api/pokja/events/${eventId}/students`),
+          fetch('/api/pokja/students')
+        ]);
+
         const evData = await evRes.json();
         if (evData.success) {
           setSelectedEvent(evData.data);
-          const stRes = await fetch(`/api/pokja/events/${params.id}/students`);
-          const stData = await stRes.json();
-          if (stData.success) {
-            setEventStudents(stData.data);
-          }
+        } else {
+          setErrorMsg(evData.error || 'Kegiatan tidak ditemukan.');
         }
-      } catch (err) {
+
+        const stData = await stRes.json();
+        if (stData.success) {
+          setEventStudents(stData.data);
+        }
+
+        const stuData = await stuRes.json();
+        if (stuData.success) {
+          setAllStudents(stuData.data.filter((s: any) => s.placement && s.placement.industryId));
+        }
+      } catch (err: any) {
         console.error(err);
-        setErrorMsg('Gagal memuat data awal.');
+        setErrorMsg('Gagal memuat data awal: ' + (err.message || ''));
       } finally {
         setLoadingText('');
         setLoading(false);
       }
     };
     loadData();
-  }, []);
+  }, [eventId]);
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -653,6 +628,18 @@ export default function PokjaEventDetailPage({ params }: { params: { id: string 
       <div className="text-center space-y-4">
         <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
         <p className="text-indigo-600 font-medium animate-pulse">{loadingText}</p>
+      </div>
+    </div>
+  );
+
+  if (!selectedEvent) return (
+    <div className={`min-h-screen p-6 sm:p-10 space-y-6 ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <Link href="/dashboard/pokja/events" className="inline-flex items-center text-sm text-indigo-500 hover:text-indigo-600 mb-2">
+        <ChevronLeft className="w-4 h-4 mr-1" />
+        Kembali ke Daftar Kegiatan
+      </Link>
+      <div className={`p-8 text-center rounded-2xl border ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+        <p className="text-slate-500">{errorMsg || 'Kegiatan tidak ditemukan atau telah dihapus.'}</p>
       </div>
     </div>
   );
