@@ -24,8 +24,25 @@ export default function PokjaRekapKelasPage() {
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('ALL');
   const [selectedClassRoom, setSelectedClassRoom] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const handleSort = (field: string) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortField(null);
+        setSortDirection(null);
+      } else {
+        setSortDirection('asc');
+      }
+    }
+  };
 
   useEffect(() => {
     fetchData(selectedAcademicYear, selectedClassRoom);
@@ -94,15 +111,36 @@ export default function PokjaRekapKelasPage() {
       });
     }
 
-    // Pengurutan (Sort) Nama Siswa
-    if (sortDirection === 'asc') {
-      result = [...result].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    } else if (sortDirection === 'desc') {
-      result = [...result].sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+    // Pengurutan (Sort) Kolom
+    if (sortField && sortDirection) {
+      result = [...result].sort((a, b) => {
+        let valA = '';
+        let valB = '';
+
+        if (sortField === 'nis') {
+          valA = a.nis || '';
+          valB = b.nis || '';
+        } else if (sortField === 'name') {
+          valA = a.name || '';
+          valB = b.name || '';
+        } else if (sortField === 'className') {
+          valA = a.className || '';
+          valB = b.className || '';
+        } else if (sortField === 'status') {
+          valA = formatStatus(a.placement?.status) || '';
+          valB = formatStatus(b.placement?.status) || '';
+        } else if (sortField === 'industry') {
+          valA = a.placement?.industry?.name || '';
+          valB = b.placement?.industry?.name || '';
+        }
+
+        const comp = valA.localeCompare(valB, 'id', { sensitivity: 'base', numeric: true });
+        return sortDirection === 'asc' ? comp : -comp;
+      });
     }
 
     return result;
-  }, [students, selectedStatus, searchTerm, sortDirection]);
+  }, [students, selectedStatus, searchTerm, sortField, sortDirection]);
 
   // Statistik
   const stats = useMemo(() => {
@@ -323,28 +361,96 @@ export default function PokjaRekapKelasPage() {
                 <thead className={`bg-slate-50 dark:bg-slate-800/50 border-b ${theme === 'dark' ? 'border-slate-800' : 'border-slate-200'}`}>
                   <tr>
                     <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 w-16 text-center">No</th>
-                    <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400">NIS</th>
+                    
+                    {/* NIS */}
                     <th 
-                      onClick={() => {
-                        setSortDirection(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc');
-                      }}
+                      onClick={() => handleSort('nis')}
                       className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-indigo-600 transition-colors"
-                      title="Klik untuk mengurutkan Nama Siswa (A-Z / Z-A)"
+                      title="Klik untuk mengurutkan NIS"
                     >
                       <div className="flex items-center gap-1.5">
-                        <span>Nama Siswa</span>
-                        {sortDirection === 'asc' ? (
+                        <span>NIS</span>
+                        {sortField === 'nis' && sortDirection === 'asc' ? (
                           <ArrowUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                        ) : sortDirection === 'desc' ? (
+                        ) : sortField === 'nis' && sortDirection === 'desc' ? (
                           <ArrowDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                         ) : (
                           <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
                         )}
                       </div>
                     </th>
-                    <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 text-center">Kelas</th>
-                    <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400">Status Terakhir</th>
-                    <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400">Industri / Instansi Penempatan</th>
+
+                    {/* Nama Siswa */}
+                    <th 
+                      onClick={() => handleSort('name')}
+                      className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-indigo-600 transition-colors"
+                      title="Klik untuk mengurutkan Nama Siswa"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Nama Siswa</span>
+                        {sortField === 'name' && sortDirection === 'asc' ? (
+                          <ArrowUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : sortField === 'name' && sortDirection === 'desc' ? (
+                          <ArrowDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
+                        )}
+                      </div>
+                    </th>
+
+                    {/* Kelas */}
+                    <th 
+                      onClick={() => handleSort('className')}
+                      className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-indigo-600 transition-colors text-center"
+                      title="Klik untuk mengurutkan Kelas"
+                    >
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span>Kelas</span>
+                        {sortField === 'className' && sortDirection === 'asc' ? (
+                          <ArrowUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : sortField === 'className' && sortDirection === 'desc' ? (
+                          <ArrowDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
+                        )}
+                      </div>
+                    </th>
+
+                    {/* Status Terakhir */}
+                    <th 
+                      onClick={() => handleSort('status')}
+                      className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-indigo-600 transition-colors"
+                      title="Klik untuk mengurutkan Status"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Status Terakhir</span>
+                        {sortField === 'status' && sortDirection === 'asc' ? (
+                          <ArrowUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : sortField === 'status' && sortDirection === 'desc' ? (
+                          <ArrowDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
+                        )}
+                      </div>
+                    </th>
+
+                    {/* Industri / Instansi Penempatan */}
+                    <th 
+                      onClick={() => handleSort('industry')}
+                      className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-indigo-600 transition-colors"
+                      title="Klik untuk mengurutkan Industri / Instansi Penempatan"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Industri / Instansi Penempatan</span>
+                        {sortField === 'industry' && sortDirection === 'asc' ? (
+                          <ArrowUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : sortField === 'industry' && sortDirection === 'desc' ? (
+                          <ArrowDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
+                        )}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
