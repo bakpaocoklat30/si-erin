@@ -51,6 +51,10 @@ export function buildSuratIzinKegiatanXml(
   let indName = letter.industry?.name || 'Pimpinan Mitra';
   let indAddress = letter.industry?.address || '-';
   let suratIntro = event.letterIntro || 'Sehubungan dengan adanya program sekolah...';
+  const defaultClosing = 'Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya.';
+  let suratClosing = (event.letterClosing || defaultClosing)
+    .replace(/{nama_kegiatan}|{event_name}/g, event.name || '')
+    .replace(/{nama_industri}|{industry_name}/g, indName);
   
   const studentRowsXml = letter.students.map((s: any, i: number) => {
     const start = s.participantStartDate ? new Date(s.participantStartDate).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : (event.startDate ? new Date(event.startDate).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '');
@@ -209,7 +213,7 @@ ${kopSuratXml}
       ${studentRowsXml}
     </w:tbl>
 
-    <w:p><w:pPr><w:jc w:val="both"/><w:spacing w:before="120" w:after="160" w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Kami sampaikan pula bahwa setelah kegiatan ${escapeXml(event.name)} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di ${escapeXml(indName)} hingga batas waktu yang telah disepakati bersama sebelumnya.</w:t></w:r></w:p>
+    <w:p><w:pPr><w:jc w:val="both"/><w:spacing w:before="120" w:after="160" w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${convertHtmlToXmlBreaks(suratClosing)}</w:t></w:r></w:p>
 
     <w:p><w:pPr><w:jc w:val="both"/><w:spacing w:before="0" w:after="160" w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>Demikian permohonan izin ini kami sampaikan. Atas perhatian, pengertian, dan kerja sama yang baik dari Bapak/Ibu pimpinan, kami ucapkan terima kasih.</w:t></w:r></w:p>
 

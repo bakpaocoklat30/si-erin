@@ -23,6 +23,7 @@ export default function PrintPermitsPage() {
   const [golongan, setGolongan] = useState('Pembina Utama Muda. IV/c');
   const [showSettings, setShowSettings] = useState(false);
   const [suratIntro, setSuratIntro] = useState('Sebagai upaya peningkatan mutu lulusan Sekolah Menengah Kejuruan (SMK) yang relevan dengan kebutuhan industri, serta merujuk pada Kurikulum Merdeka yang mewajibkan siswa terjun langsung ke dunia kerja melalui Praktik Kerja Lapangan (PKL), maka dengan ini kami bermaksud mengajukan permohonan untuk menempatkan siswa/siswi kami guna melaksanakan PKL di perusahaan yang Bapak/Ibu pimpin.');
+  const [suratClosing, setSuratClosing] = useState('Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya.');
   const [useTte, setUseTte] = useState(false);
 
   useEffect(() => {
@@ -38,6 +39,9 @@ export default function PrintPermitsPage() {
             }
             if (d.event?.letterIntro) {
                 setSuratIntro(d.event.letterIntro);
+            }
+            if (d.event?.letterClosing) {
+                setSuratClosing(d.event.letterClosing);
             }
         } else {
             setData({ error: d.error || 'Unknown error from API' });
@@ -99,6 +103,13 @@ export default function PrintPermitsPage() {
           <div>
             <label className="block text-sm font-medium mb-1">Paragraf Pengantar</label>
             <textarea value={suratIntro} onChange={e => setSuratIntro(e.target.value)} className="w-full border p-2 rounded h-24" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium">Narasi Penutup Surat (Sebelum &ldquo;Demikian permohonan...&rdquo;)</label>
+              <span className="text-xs text-slate-500">Placeholder: &#123;nama_kegiatan&#125;, &#123;nama_industri&#125;</span>
+            </div>
+            <textarea value={suratClosing} onChange={e => setSuratClosing(e.target.value)} className="w-full border p-2 rounded h-20 text-sm" placeholder="Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya." />
           </div>
         </div>
       )}
@@ -173,8 +184,16 @@ export default function PrintPermitsPage() {
               </tbody>
             </table>
 
+            <div className="mb-4 leading-[1.35] text-justify text-[12pt] whitespace-pre-wrap">
+              <p>
+                {suratClosing
+                  .replace(/{nama_kegiatan}|{event_name}/g, event.name || '')
+                  .replace(/{nama_industri}|{industry_name}/g, letter.industry.name || '')}
+              </p>
+            </div>
+
             <div className="mb-8 leading-[1.35] text-justify text-[12pt]">
-              <p>Demikian permohonan kami, atas perhatian dan kerjasamanya kami sampaikan terimakasih.</p>
+              <p>Demikian permohonan izin ini kami sampaikan. Atas perhatian, pengertian, dan kerja sama yang baik dari Bapak/Ibu pimpinan, kami ucapkan terima kasih.</p>
             </div>
 
             <div className="flex justify-end text-[12pt]">

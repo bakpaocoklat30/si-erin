@@ -15,6 +15,7 @@ const generateSuratEventHtml = (data: any, useTte: boolean) => {
   
   const tanggalNaskah = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const suratIntro = event?.letterIntro || 'Sehubungan dengan adanya program sekolah untuk memfasilitasi peserta didik dalam kegiatan Tes Kompetensi Akademik (TKA) bagi siswa kelas XII SMK Negeri 1 Adiwerna, bersama surat ini kami bermaksud memohon izin bagi siswa tersebut untuk sementara waktu tidak dapat mengikuti kegiatan Praktik Kerja Lapangan (PKL) di perusahaan yang Bapak/Ibu pimpin.';
+  const defaultClosing = 'Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya.';
 
   let html = `<!DOCTYPE html>
 <html lang="id">
@@ -102,8 +103,10 @@ const generateSuratEventHtml = (data: any, useTte: boolean) => {
     </tbody>
   </table>
 
-  <p style="margin-bottom: 12px; text-align: justify; line-height: 1.35; font-size: 12pt;">
-    Kami sampaikan pula bahwa setelah kegiatan ${event.name} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di ${letter.industry.name} hingga batas waktu yang telah disepakati bersama sebelumnya.
+  <p style="margin-bottom: 12px; text-align: justify; line-height: 1.35; font-size: 12pt; white-space: pre-wrap;">
+    ${(event?.letterClosing || defaultClosing)
+      .replace(/{nama_kegiatan}|{event_name}/g, event.name || '')
+      .replace(/{nama_industri}|{industry_name}/g, letter.industry.name || '')}
   </p>
 
   <p style="margin-bottom: 32px; text-align: justify; line-height: 1.35; font-size: 12pt;">
@@ -157,6 +160,7 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
   const [formEnd, setFormEnd] = useState('');
   const [formLocation, setFormLocation] = useState('');
   const [formIntro, setFormIntro] = useState('Sehubungan dengan adanya program sekolah untuk memfasilitasi peserta didik dalam kegiatan Tes Kompetensi Akademik (TKA) bagi siswa kelas XII SMK Negeri 1 Adiwerna, bersama surat ini kami bermaksud memohon izin bagi siswa tersebut untuk sementara waktu tidak dapat mengikuti kegiatan Praktik Kerja Lapangan (PKL) di perusahaan yang Bapak/Ibu pimpin.');
+  const [formClosing, setFormClosing] = useState('Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya.');
   const [creatingEvent, setCreatingEvent] = useState(false);
 
   // Selected Event State
@@ -499,7 +503,8 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
           startDate: formStart,
           endDate: formEnd,
           location: formLocation,
-            letterIntro: formIntro,
+          letterIntro: formIntro,
+          letterClosing: formClosing,
         })
       });
       const data = await res.json();
@@ -507,7 +512,9 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
       
       setSuccessMsg('Kegiatan berhasil dibuat!');
       setShowEventForm(false);
-      setFormName(''); setFormStart(''); setFormEnd(''); setFormLocation(''); setFormIntro('Sehubungan dengan adanya program sekolah untuk memfasilitasi peserta didik dalam kegiatan Tes Kompetensi Akademik (TKA) bagi siswa kelas XII SMK Negeri 1 Adiwerna, bersama surat ini kami bermaksud memohon izin bagi siswa tersebut untuk sementara waktu tidak dapat mengikuti kegiatan Praktik Kerja Lapangan (PKL) di perusahaan yang Bapak/Ibu pimpin.');
+      setFormName(''); setFormStart(''); setFormEnd(''); setFormLocation(''); 
+      setFormIntro('Sehubungan dengan adanya program sekolah untuk memfasilitasi peserta didik dalam kegiatan Tes Kompetensi Akademik (TKA) bagi siswa kelas XII SMK Negeri 1 Adiwerna, bersama surat ini kami bermaksud memohon izin bagi siswa tersebut untuk sementara waktu tidak dapat mengikuti kegiatan Praktik Kerja Lapangan (PKL) di perusahaan yang Bapak/Ibu pimpin.');
+      setFormClosing('Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya.');
       fetchEvents();
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -598,7 +605,8 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
           startDate: formStart,
           endDate: formEnd,
           location: formLocation,
-          letterIntro: formIntro
+          letterIntro: formIntro,
+          letterClosing: formClosing,
         })
       });
       const data = await res.json();
@@ -620,7 +628,8 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
     setFormStart(selectedEvent.startDate.split('T')[0]);
     setFormEnd(selectedEvent.endDate.split('T')[0]);
     setFormLocation(selectedEvent.location || '');
-    setFormIntro(selectedEvent.letterIntro || 'Maka dengan ini kami memohonkan izin kepada Bapak/Ibu Pimpinan agar siswa/i kami yang sedang melaksanakan Praktik Kerja Lapangan (PKL) di instansi yang Bapak/Ibu pimpin dapat diberikan izin untuk mengikuti kegiatan tersebut.');
+    setFormIntro(selectedEvent.letterIntro || 'Sehubungan dengan adanya program sekolah untuk memfasilitasi peserta didik dalam kegiatan Tes Kompetensi Akademik (TKA) bagi siswa kelas XII SMK Negeri 1 Adiwerna, bersama surat ini kami bermaksud memohon izin bagi siswa tersebut untuk sementara waktu tidak dapat mengikuti kegiatan Praktik Kerja Lapangan (PKL) di perusahaan yang Bapak/Ibu pimpin.');
+    setFormClosing(selectedEvent.letterClosing || 'Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya.');
     setShowEditEvent(true);
   };
 
@@ -800,6 +809,14 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
             <div className="lg:col-span-4">
               <label className="block text-sm font-medium mb-1">Dasar Kegiatan / Narasi Surat</label>
               <textarea rows={3} required value={formIntro} onChange={e => setFormIntro(e.target.value)} className={`w-full p-2.5 rounded-xl border ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'}`} />
+            </div>
+            <div className="lg:col-span-4">
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium">Narasi Penutup Surat (Sebelum &ldquo;Demikian permohonan...&rdquo;)</label>
+                <span className="text-xs text-slate-500">Placeholder: &#123;nama_kegiatan&#125;, &#123;nama_industri&#125;</span>
+              </div>
+              <textarea rows={3} value={formClosing} onChange={e => setFormClosing(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'}`} placeholder="Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya." />
+              <p className="text-xs text-slate-500 mt-1">Kosongkan untuk memakai narasi penutup standar.</p>
             </div>
             <div className="lg:col-span-4 flex justify-end">
               <button type="submit" disabled={creatingEvent} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-medium disabled:opacity-70">
@@ -1358,6 +1375,14 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
                   <div>
                     <label className="block text-xs font-medium mb-1">Pengantar Surat / Dasar Kegiatan</label>
                     <textarea required rows={4} value={formIntro} onChange={e => setFormIntro(e.target.value)} className={`w-full px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}`} />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium">Narasi Penutup Surat (Sebelum &ldquo;Demikian permohonan...&rdquo;)</label>
+                      <span className="text-[10px] text-slate-500">Placeholder: &#123;nama_kegiatan&#125;, &#123;nama_industri&#125;</span>
+                    </div>
+                    <textarea rows={3} value={formClosing} onChange={e => setFormClosing(e.target.value)} className={`w-full px-3 py-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}`} placeholder="Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya." />
+                    <p className="text-[11px] text-slate-500 mt-1">Kosongkan untuk memakai narasi penutup standar.</p>
                   </div>
                   <div className="pt-4 flex justify-end gap-3">
                     <button type="button" onClick={() => setShowEditEvent(false)} className="px-4 py-2 rounded-lg font-medium bg-slate-200 text-slate-700 hover:bg-slate-300">Batal</button>

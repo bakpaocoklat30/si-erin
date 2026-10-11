@@ -92,7 +92,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { name, startDate, endDate, location, description, letterIntro } = body;
+    const { name, startDate, endDate, location, description, letterIntro, letterClosing } = body;
 
     const event = await prisma.schoolEvent.update({
       where: { id: params.id },
@@ -103,6 +103,7 @@ export async function PATCH(
         ...(location !== undefined && { location }),
         
         ...(letterIntro !== undefined && { letterIntro }),
+        ...(letterClosing !== undefined && { letterClosing }),
       }
     });
 

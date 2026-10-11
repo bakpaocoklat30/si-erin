@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { name, startDate, endDate, location, letterIntro } = body;
+    const { name, startDate, endDate, location, letterIntro, letterClosing } = body;
 
     const event = await prisma.schoolEvent.create({
       data: {
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
         endDate: new Date(endDate),
         location,
         letterIntro: letterIntro || 'Sehubungan dengan adanya program sekolah untuk memfasilitasi peserta didik dalam kegiatan Tes Kompetensi Akademik (TKA) bagi siswa kelas XII SMK Negeri 1 Adiwerna, bersama surat ini kami bermaksud memohon izin bagi siswa tersebut untuk sementara waktu tidak dapat mengikuti kegiatan Praktik Kerja Lapangan (PKL) di perusahaan yang Bapak/Ibu pimpin.',
+        letterClosing: letterClosing || 'Kami sampaikan pula bahwa setelah kegiatan {nama_kegiatan} tersebut selesai, siswa yang bersangkutan akan kembali melanjutkan kegiatan PKL di {nama_industri} hingga batas waktu yang telah disepakati bersama sebelumnya.',
       },
     });
 
