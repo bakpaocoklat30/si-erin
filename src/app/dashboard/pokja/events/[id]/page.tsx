@@ -163,9 +163,11 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventStudents, setEventStudents] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [searchEventStudentTerm, setSearchEventStudentTerm] = useState('');
 
-  // Form Add Student to Event
+  // Form Add Student to Event (Lazy Loaded)
   const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [loadingAllStudents, setLoadingAllStudents] = useState(false);
   const [showAddStudentForm, setShowAddStudentForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchClassTerm, setSearchClassTerm] = useState('');
@@ -390,37 +392,48 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
     }
   };
 
+  // Lazy load daftar seluruh siswa sekolah (hanya saat form Tambah Siswa dibuka)
+  const fetchAllStudentsIfNeeded = async () => {
+    if (allStudents.length > 0 || loadingAllStudents) return;
+    setLoadingAllStudents(true);
+    try {
+      const res = await fetch('/api/pokja/students');
+      const data = await res.json();
+      if (data.success) {
+        setAllStudents(data.data.filter((s: any) => s.placement && s.placement.industryId));
+      }
+    } catch (e) {
+      console.error('Error fetching all students:', e);
+    } finally {
+      setLoadingAllStudents(false);
+    }
+  };
+
   useEffect(() => {
     if (!eventId) return;
 
     const loadData = async () => {
       try {
-        setLoadingText('Memuat detail kegiatan...');
-        const [evRes, stRes, stuRes] = await Promise.all([
-          fetch(`/api/pokja/events/${eventId}`),
-          fetch(`/api/pokja/events/${eventId}/students`),
-          fetch('/api/pokja/students')
-        ]);
-
+        setLoadingText('Memuat kegiatan...');
+        const evRes = await fetch(`/api/pokja/events/${eventId}`);
         const evData = await evRes.json();
-        if (evData.success) {
+
+        if (evData.success && evData.data) {
           setSelectedEvent(evData.data);
+          const mapped = (evData.data.participants || []).map((p: any) => ({
+            ...p.student,
+            participantId: p.id,
+            participantStartDate: p.startDate,
+            participantEndDate: p.endDate,
+            participantLocation: p.location,
+          }));
+          setEventStudents(mapped);
         } else {
           setErrorMsg(evData.error || 'Kegiatan tidak ditemukan.');
         }
-
-        const stData = await stRes.json();
-        if (stData.success) {
-          setEventStudents(stData.data);
-        }
-
-        const stuData = await stuRes.json();
-        if (stuData.success) {
-          setAllStudents(stuData.data.filter((s: any) => s.placement && s.placement.industryId));
-        }
       } catch (err: any) {
         console.error(err);
-        setErrorMsg('Gagal memuat data awal: ' + (err.message || ''));
+        setErrorMsg('Gagal memuat data kegiatan: ' + (err.message || 'Koneksi error'));
       } finally {
         setLoadingText('');
         setLoading(false);
@@ -598,6 +611,16 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
   };
 
   const uniqueClasses = Array.from(new Set(allStudents.map(s => s.className).filter(Boolean))).sort() as string[];
+
+  const filteredEventStudents = eventStudents.filter(s => {
+    if (!searchEventStudentTerm) return true;
+    const term = searchEventStudentTerm.toLowerCase();
+    const nameMatch = s.name?.toLowerCase().includes(term);
+    const nisMatch = s.nis?.toLowerCase().includes(term);
+    const classMatch = s.className?.toLowerCase().includes(term);
+    const indMatch = s.placement?.industry?.name?.toLowerCase().includes(term);
+    return Boolean(nameMatch || nisMatch || classMatch || indMatch);
+  });
 
   const filteredAllStudents = allStudents.filter(s => {
     const notInEvent = !eventStudents.find(es => es.id === s.id);
@@ -781,12 +804,16 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
                       <Edit className="w-4 h-4"/> Edit Kegiatan & Narasi
                     </button>
                     <button
-                      onClick={() => setShowAddStudentForm(!showAddStudentForm)}
-                    className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2"
-                  >
-                    {showAddStudentForm ? <X className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
-                    {showAddStudentForm ? 'Tutup' : 'Tambah Siswa'}
-                  </button>
+                      onClick={() => {
+                        const next = !showAddStudentForm;
+                        setShowAddStudentForm(next);
+                        if (next) fetchAllStudentsIfNeeded();
+                      }}
+                      className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2"
+                    >
+                      {showAddStudentForm ? <X className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
+                      {showAddStudentForm ? 'Tutup' : 'Tambah Siswa'}
+                    </button>
                                       <button onClick={openPreview} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2">
                       <Eye className="w-4 h-4"/> Preview Surat
                     </button>
@@ -982,7 +1009,12 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
                       </div>
                     </div>
                   </div>
-                  <div className="max-h-96 overflow-y-auto border rounded-xl mb-4 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                  {loadingAllStudents ? (
+                    <div className="p-8 text-center text-indigo-600 dark:text-indigo-400 font-medium animate-pulse">
+                      Memuat data seluruh siswa sekolah...
+                    </div>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto border rounded-xl mb-4 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
                     <table className="w-full text-left text-sm">
                       <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 shadow-sm">
                         <tr>
@@ -1013,6 +1045,7 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
                       </tbody>
                     </table>
                   </div>
+                  )}
                   <button onClick={handleAddStudents} disabled={addingStudents || selectedStudentIds.length === 0} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl font-medium disabled:opacity-70">
                     {addingStudents ? 'Menyimpan...' : `Simpan ${selectedStudentIds.length} Siswa ke Kegiatan`}
                   </button>
@@ -1020,11 +1053,50 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
               )}
 
               <div className="mt-4">
-                <h3 className="font-bold text-slate-700 dark:text-slate-300 mb-3">Siswa yang Ikut Serta ({eventStudents.length})</h3>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
+                  <div>
+                    <h3 className="font-bold text-slate-700 dark:text-slate-300">
+                      Siswa yang Ikut Serta ({eventStudents.length})
+                    </h3>
+                    {searchEventStudentTerm && (
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Menampilkan {filteredEventStudents.length} dari {eventStudents.length} siswa
+                      </p>
+                    )}
+                  </div>
+                  {eventStudents.length > 0 && (
+                    <div className="relative w-full sm:w-72">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Cari siswa / NIS / kelas / mitra..."
+                        value={searchEventStudentTerm}
+                        onChange={e => setSearchEventStudentTerm(e.target.value)}
+                        className={`w-full pl-9 pr-8 py-2 rounded-xl text-sm border transition-all ${
+                          theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-400' : 'bg-white border-slate-200 placeholder-slate-400'
+                        }`}
+                      />
+                      {searchEventStudentTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchEventStudentTerm('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {loadingStudents ? (
                   <p className="text-slate-500">Memuat siswa...</p>
                 ) : eventStudents.length === 0 ? (
                   <p className="text-slate-500 text-sm">Belum ada siswa yang ditambahkan ke kegiatan ini.</p>
+                ) : filteredEventStudents.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 text-sm bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                    Tidak ditemukan siswa yang sesuai dengan kata kunci &ldquo;<span className="font-semibold text-slate-600 dark:text-slate-300">{searchEventStudentTerm}</span>&rdquo;.
+                  </div>
                 ) : (
                   <div className="max-h-[500px] overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
                     <table className="w-full text-left text-sm relative">
@@ -1037,7 +1109,7 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {eventStudents.map(s => (
+                        {filteredEventStudents.map(s => (
                           <tr key={s.id}>
                             <td className="px-4 py-3 font-medium">{s.name}<br/><span className="text-xs font-normal text-slate-500">{s.nis}</span></td>
                             <td className="px-4 py-3">
