@@ -337,7 +337,13 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     IndustryCategory: new Set(['id', 'name', 'description', 'createdAt', 'updatedAt']),
     Industry: new Set(['id', 'name', 'nib', 'sector', 'npwp', 'logoUrl', 'province', 'regency', 'address', 'rt', 'rw', 'dusun', 'desaKelurahan', 'subDistrict', 'postalCode', 'latitude', 'longitude', 'contactPerson', 'phone', 'fax', 'email', 'website', 'workType', 'jobDescription', 'totalQuota', 'createdAt', 'updatedAt']),
     Student: new Set(['id', 'userId', 'nis', 'nisn', 'name', 'className', 'department', 'phone', 'parentName', 'parentRelation', 'parentPhone', 'bpjsStatus', 'bpjsUrl', 'cvStatus', 'cvUrl', 'isAllowedPkl', 'teacherId', 'createdAt', 'updatedAt']),
-    InternshipPlacement: new Set(['id', 'studentId', 'industryId', 'status', 'stage', 'notes', 'letterNumber', 'suratTugasUrl', 'letterUploadedBy', 'letterUploadedAt', 'suratBalasanUrl', 'suratBalasanStatus', 'startDate', 'endDate', 'appliedAt', 'createdAt', 'updatedAt']),
+    InternshipPlacement: new Set([
+      'id', 'studentId', 'industryId', 'status', 'stage', 'notes',
+      'letterNumber', 'suratTugasUrl', 'letterUploadedBy', 'letterUploadedAt',
+      'suratBalasanUrl', 'suratBalasanStatus', 'suratPengantaranUrl', 'nomorPengantaran',
+      'suratPenarikanUrl', 'nomorPenarikan', 'startDate', 'endDate', 'groupId',
+      'appliedAt', 'createdAt', 'updatedAt'
+    ]),
     TeacherHourAllocation: new Set(['id', 'className', 'teacherId', 'totalHours', 'academicYear', 'createdAt', 'updatedAt']),
     MonitoringAssignment: new Set(['id', 'industryId', 'targetIndustries', 'teacherId', 'companionTeachers', 'periodId', 'monitoringDate', 'returnDate', 'letterNumber', 'sppdNumber', 'purpose', 'transportType', 'departurePlace', 'destinationPlace', 'budgetSource', 'budgetAccount', 'suratTugasUrl', 'sppdUrl', 'laporanUrl', 'status', 'notes', 'createdAt', 'updatedAt']),
     Notification: new Set(['id', 'userId', 'title', 'message', 'type', 'link', 'isRead', 'createdAt']),
@@ -345,6 +351,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     AuditLog: new Set(['id', 'userId', 'username', 'userRole', 'action', 'module', 'details', 'ipAddress', 'userAgent', 'createdAt']),
     SchoolEvent: new Set(['id', 'name', 'startDate', 'endDate', 'location', 'letterIntro', 'createdAt', 'updatedAt']),
     EventParticipant: new Set(['id', 'eventId', 'studentId', 'startDate', 'endDate', 'location', 'letterUrl', 'createdAt']),
+    PlacementGroup: new Set(['id', 'industryId', 'periodId', 'startDate', 'endDate', 'createdAt', 'updatedAt']),
   };
 
   // Kueri murni tabel tanpa include relasi agar tidak menyisipkan kolom objek/array phantom
@@ -357,6 +364,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   const coefficients = prisma.internshipCoefficient ? await prisma.internshipCoefficient.findMany() : [];
   const categories = prisma.industryCategory ? await prisma.industryCategory.findMany() : [];
   const industries = prisma.industry ? await prisma.industry.findMany() : [];
+  const placementGroups = prisma.placementGroup ? await prisma.placementGroup.findMany() : [];
   const students = prisma.student ? await prisma.student.findMany() : [];
   const placements = prisma.internshipPlacement ? await prisma.internshipPlacement.findMany() : [];
   const teacherHours = prisma.teacherHourAllocation ? await prisma.teacherHourAllocation.findMany() : [];
@@ -365,8 +373,8 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   const errorLogs = prisma.errorLog ? await prisma.errorLog.findMany() : [];
   const systemSettings = prisma.systemSetting ? await prisma.systemSetting.findMany() : [];
   const auditLogs = prisma.auditLog ? await prisma.auditLog.findMany() : [];
-    const schoolEvents = prisma.schoolEvent ? await prisma.schoolEvent.findMany() : [];
-    const eventParticipants = prisma.eventParticipant ? await prisma.eventParticipant.findMany() : [];
+  const schoolEvents = prisma.schoolEvent ? await prisma.schoolEvent.findMany() : [];
+  const eventParticipants = prisma.eventParticipant ? await prisma.eventParticipant.findMany() : [];
 
   function generateInsert(tableName: string, records: any[], conflictKey = 'id') {
     if (!records || records.length === 0) return '';
@@ -420,6 +428,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   sqlDumpContent += generateInsert('InternshipCoefficient', coefficients, 'DO NOTHING');
   sqlDumpContent += generateInsert('IndustryCategory', categories, 'DO NOTHING');
   sqlDumpContent += generateInsert('Industry', industries, 'DO NOTHING');
+  sqlDumpContent += generateInsert('PlacementGroup', placementGroups, 'DO NOTHING');
   sqlDumpContent += generateInsert('Student', students, 'DO NOTHING');
   sqlDumpContent += generateInsert('InternshipPlacement', placements, 'DO NOTHING');
   sqlDumpContent += generateInsert('TeacherHourAllocation', teacherHours, 'DO NOTHING');
@@ -427,6 +436,8 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   sqlDumpContent += generateInsert('Notification', notifications, 'DO NOTHING');
   sqlDumpContent += generateInsert('ErrorLog', errorLogs, 'DO NOTHING');
   sqlDumpContent += generateInsert('AuditLog', auditLogs, 'DO NOTHING');
+  sqlDumpContent += generateInsert('SchoolEvent', schoolEvents, 'DO NOTHING');
+  sqlDumpContent += generateInsert('EventParticipant', eventParticipants, 'DO NOTHING');
 
   // Hidupkan kembali constraint
   sqlDumpContent += `\nSET session_replication_role = 'origin';\n`;

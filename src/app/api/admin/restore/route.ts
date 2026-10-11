@@ -40,12 +40,21 @@ const VALID_TABLE_COLUMNS: Record<string, Set<string>> = {
   IndustryCategory: new Set(['id', 'name', 'description', 'createdAt', 'updatedAt']),
   Industry: new Set(['id', 'name', 'nib', 'sector', 'npwp', 'logoUrl', 'province', 'regency', 'address', 'rt', 'rw', 'dusun', 'desaKelurahan', 'subDistrict', 'postalCode', 'latitude', 'longitude', 'contactPerson', 'phone', 'fax', 'email', 'website', 'workType', 'jobDescription', 'totalQuota', 'createdAt', 'updatedAt']),
   Student: new Set(['id', 'userId', 'nis', 'nisn', 'name', 'className', 'department', 'phone', 'parentName', 'parentRelation', 'parentPhone', 'bpjsStatus', 'bpjsUrl', 'cvStatus', 'cvUrl', 'isAllowedPkl', 'teacherId', 'createdAt', 'updatedAt']),
-  InternshipPlacement: new Set(['id', 'studentId', 'industryId', 'status', 'stage', 'notes', 'letterNumber', 'suratTugasUrl', 'letterUploadedBy', 'letterUploadedAt', 'suratBalasanUrl', 'suratBalasanStatus', 'startDate', 'endDate', 'appliedAt', 'createdAt', 'updatedAt']),
+  InternshipPlacement: new Set([
+    'id', 'studentId', 'industryId', 'status', 'stage', 'notes',
+    'letterNumber', 'suratTugasUrl', 'letterUploadedBy', 'letterUploadedAt',
+    'suratBalasanUrl', 'suratBalasanStatus', 'suratPengantaranUrl', 'nomorPengantaran',
+    'suratPenarikanUrl', 'nomorPenarikan', 'startDate', 'endDate', 'groupId',
+    'appliedAt', 'createdAt', 'updatedAt'
+  ]),
   TeacherHourAllocation: new Set(['id', 'className', 'teacherId', 'totalHours', 'academicYear', 'createdAt', 'updatedAt']),
   MonitoringAssignment: new Set(['id', 'industryId', 'targetIndustries', 'teacherId', 'companionTeachers', 'periodId', 'monitoringDate', 'returnDate', 'letterNumber', 'sppdNumber', 'purpose', 'transportType', 'departurePlace', 'destinationPlace', 'budgetSource', 'budgetAccount', 'suratTugasUrl', 'sppdUrl', 'laporanUrl', 'status', 'notes', 'createdAt', 'updatedAt']),
   Notification: new Set(['id', 'userId', 'title', 'message', 'type', 'link', 'isRead', 'createdAt']),
   ErrorLog: new Set(['id', 'level', 'message', 'stack', 'path', 'method', 'userId', 'ip', 'createdAt']),
   AuditLog: new Set(['id', 'userId', 'username', 'userRole', 'action', 'module', 'details', 'ipAddress', 'userAgent', 'createdAt']),
+  SchoolEvent: new Set(['id', 'name', 'startDate', 'endDate', 'location', 'letterIntro', 'createdAt', 'updatedAt']),
+  EventParticipant: new Set(['id', 'eventId', 'studentId', 'startDate', 'endDate', 'location', 'letterUrl', 'createdAt']),
+  PlacementGroup: new Set(['id', 'industryId', 'periodId', 'startDate', 'endDate', 'createdAt', 'updatedAt']),
 };
 
 // Helper pembersih baris INSERT dari kolom relasi phantom (seperti "period", "classes", dll.)
@@ -359,7 +368,7 @@ export async function POST(request: Request) {
                 await db.$executeRawUnsafe(stmtToRun);
                 executedCount++;
               } catch (stmtErr: any) {
-                // Lewatkan duplikasi non-kritis
+                console.warn('⚠️ [RESTORE SQL SKIP]:', stmtErr?.message?.slice(0, 150), '| Query:', stmtToRun.substring(0, 80));
               }
             }
           }
