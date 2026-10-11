@@ -84,6 +84,17 @@ export default function WhatsAppSettingsPage() {
     fetchSettings();
   }, []);
 
+  // Polling status otomatis setiap 3.5 detik jika belum terhubung agar QR code & status update live
+  useEffect(() => {
+    if (sessionStatus?.status === 'CONNECTED') return;
+
+    const interval = setInterval(() => {
+      refreshStatus();
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [sessionStatus?.status]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);

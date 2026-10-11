@@ -154,25 +154,57 @@ export async function startWahaSession(): Promise<{ success: boolean; error?: st
     const headers: Record<string, string> = {};
     if (config.apiKey) headers['X-Api-Key'] = config.apiKey;
 
-    // Pastikan session sudah dibuat terlebih dahulu
-    await fetch(`${cleanBaseUrl}/api/sessions`, {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: config.sessionName }),
+    // 1. Cek status sesi saat ini
+    const checkRes = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}`, {
+      headers,
       signal: AbortSignal.timeout(5000),
     }).catch(() => null);
 
-    const res = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/start`, {
+    if (!checkRes || checkRes.status === 404) {
+      // Buat sesi baru jika belum ada
+      await fetch(`${cleanBaseUrl}/api/sessions`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: config.sessionName }),
+        signal: AbortSignal.timeout(5000),
+      }).catch(() => null);
+
+      const startRes = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/start`, {
+        method: 'POST',
+        headers,
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!startRes.ok) {
+        const err = await startRes.text().catch(() => '');
+        return { success: false, error: err || `HTTP ${startRes.status}` };
+      }
+      return { success: true };
+    }
+
+    // 2. Jika sesi sudah ada, gunakan restart agar me-refresh instance browser WAHA secara bersih
+    const restartRes = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/restart`, {
       method: 'POST',
       headers,
       signal: AbortSignal.timeout(5000),
-    });
+    }).catch(() => null);
 
-    if (!res.ok) {
-      const err = await res.text().catch(() => '');
-      return { success: false, error: err || `HTTP ${res.status}` };
+    if (restartRes && restartRes.ok) {
+      return { success: true };
     }
-    return { success: true };
+
+    // Fallback: coba start biasa
+    const fallbackStart = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/start`, {
+      method: 'POST',
+      headers,
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => null);
+
+    if (fallbackStart && fallbackStart.ok) {
+      return { success: true };
+    }
+
+    return { success: false, error: 'Gagal memulai sesi WAHA. Periksa logs container WAHA.' };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Gagal menghubungi server WAHA' };
   }
@@ -215,55 +247,55 @@ export async function getWahaSessionStatus(): Promise<{
       headers['X-Api-Key'] = config.apiKey;
     }
 
-    // 1. Cek daftar sesi aktif
-    let sessionRes = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}`, {
+    // 1. Cek detail sesi aktif
+    let detailRes = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}`, {
       headers,
       signal: AbortSignal.timeout(5000),
     }).catch(() => null);
 
-    if (sessionRes?.status === 401) {
+    if (detailRes?.status === 401) {
       return {
         status: 'ERROR',
         message: 'Otorisasi ditolak (HTTP 401 Unauthorized). Silakan masukkan API Key yang sesuai atau pastikan container WAHA berjalan dengan WAHA_NO_API_KEY=true.',
       };
     }
 
-    if (!sessionRes || !sessionRes.ok) {
-      // Coba inisiasi session baru jika belum ada
-      const startRes = await fetch(`${cleanBaseUrl}/api/sessions`, {
+    // Jika sesi belum terdaftar di WAHA (HTTP 404), daftarkan lalu start
+    if (!detailRes || detailRes.status === 404) {
+      const createRes = await fetch(`${cleanBaseUrl}/api/sessions`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: config.sessionName }),
         signal: AbortSignal.timeout(5000),
       }).catch(() => null);
 
-      if (!startRes) {
+      if (!createRes) {
         return { status: 'ERROR', message: `Server WAHA tidak dapat dihubungi di ${config.apiUrl}` };
       }
-      if (startRes.status === 401) {
-        return {
-          status: 'ERROR',
-          message: 'Otorisasi ditolak (HTTP 401 Unauthorized). Periksa pengaturan API Key Anda.',
-        };
-      }
+
+      await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/start`, {
+        method: 'POST',
+        headers,
+        signal: AbortSignal.timeout(5000),
+      }).catch(() => null);
+
+      return {
+        status: 'SCAN_QR',
+        qrCode: null,
+        message: 'Sedang memulai sesi WhatsApp baru... QR Code akan segera muncul.',
+      };
     }
 
-    // 2. Ambil status detail sesi
-    const detailRes = await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}`, {
-      headers,
-      signal: AbortSignal.timeout(5000),
-    }).catch(() => null);
-
-    if (!detailRes || !detailRes.ok) {
-      return { status: 'ERROR', message: 'Gagal membaca status sesi WAHA' };
+    if (!detailRes.ok) {
+      return { status: 'ERROR', message: `Gagal membaca status sesi WAHA (HTTP ${detailRes.status})` };
     }
 
     const detailData = await detailRes.json();
     let wahaStatus = String(detailData?.status || '').toUpperCase();
 
-    // Jika status STOPPED, otomatis start sesi agar beralih ke STARTING -> SCAN_QR_CODE
-    if (wahaStatus === 'STOPPED') {
-      await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/start`, {
+    // Jika status STOPPED atau FAILED, otomatis restart sesi
+    if (wahaStatus === 'STOPPED' || wahaStatus === 'FAILED') {
+      await fetch(`${cleanBaseUrl}/api/sessions/${config.sessionName}/restart`, {
         method: 'POST',
         headers,
         signal: AbortSignal.timeout(5000),
