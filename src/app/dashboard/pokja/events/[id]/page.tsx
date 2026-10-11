@@ -414,11 +414,53 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
 
     const loadData = async () => {
       try {
-        setLoadingText('Memuat kegiatan...');
+        setLoadingText('Membangun koneksi ke server...');
         const evRes = await fetch(`/api/pokja/events/${eventId}`);
-        const evData = await evRes.json();
+
+        if (!evRes.ok) {
+          throw new Error(`HTTP error status ${evRes.status}`);
+        }
+
+        const contentLength = evRes.headers.get('content-length');
+        const total = contentLength ? parseInt(contentLength, 10) : 0;
+        const reader = evRes.body?.getReader();
+        let evData;
+
+        if (!reader) {
+          setLoadingText('Memuat data event dan daftar siswa...');
+          evData = await evRes.json();
+        } else {
+          setLoadingText('Mengunduh rincian agenda dan siswa...');
+          let receivedLength = 0;
+          const chunks = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            receivedLength += value.length;
+            if (total) {
+              const percent = Math.round((receivedLength / total) * 100);
+              setLoadingText(`Mengunduh data kegiatan & peserta... ${percent}%`);
+            } else {
+              setLoadingText(`Mengunduh paket data kegiatan... ${(receivedLength / 1024).toFixed(0)} KB`);
+            }
+          }
+
+          setLoadingText('Mengekstrak data agenda & profil peserta...');
+          const chunksAll = new Uint8Array(receivedLength);
+          let position = 0;
+          for (let chunk of chunks) {
+            chunksAll.set(chunk, position);
+            position += chunk.length;
+          }
+          const result = new TextDecoder("utf-8").decode(chunksAll);
+          setLoadingText('Menyusun struktur data siswa & instansi mitra...');
+          evData = JSON.parse(result);
+        }
 
         if (evData.success && evData.data) {
+          const participantCount = evData.data.participants?.length || 0;
+          setLoadingText(`Menyiapkan tampilan untuk ${participantCount} peserta...`);
           setSelectedEvent(evData.data);
           const mapped = (evData.data.participants || []).map((p: any) => ({
             ...p.student,
@@ -647,10 +689,27 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="text-indigo-600 font-medium animate-pulse">{loadingText}</p>
+    <div className={`min-h-screen flex items-center justify-center p-6 ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <div className={`max-w-md w-full p-8 rounded-3xl border shadow-xl text-center space-y-6 ${
+        theme === 'dark' ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'
+      }`}>
+        <div className="relative w-16 h-16 mx-auto">
+          <div className="w-16 h-16 border-4 border-indigo-200 dark:border-indigo-950 rounded-full"></div>
+          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Calendar className="w-6 h-6 text-indigo-500 animate-pulse" />
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-bold mb-1">Memuat Rincian Perizinan Kegiatan</h3>
+          <p className="text-xs text-slate-400">Sedang menyinkronkan data acara & daftar penempatan siswa</p>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50">
+          <div className="flex items-center justify-center gap-2 text-indigo-700 dark:text-indigo-300 font-semibold text-sm">
+            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
+            <span>{loadingText}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

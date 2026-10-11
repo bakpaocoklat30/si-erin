@@ -19,13 +19,21 @@ export async function GET(
         participants: {
           include: {
             student: {
-              include: {
-                user: { select: { id: true, name: true, username: true } },
+              select: {
+                id: true,
+                nis: true,
+                name: true,
+                className: true,
+                department: true,
+                phone: true,
                 placement: {
-                  include: {
+                  select: {
+                    id: true,
+                    status: true,
+                    industryId: true,
                     industry: {
                       select: { id: true, name: true, address: true }
-                    },
+                    }
                   }
                 }
               }
