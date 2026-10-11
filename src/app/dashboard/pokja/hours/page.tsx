@@ -18,6 +18,7 @@ import {
   Clock, Users, Trash2, ShieldCheck, AlertCircle, X, Calendar, Calculator, CheckCircle2, UserPlus, Check, UserCheck, AlertTriangle, Building2, User, Search, Download 
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
+import Link from 'next/link';
 
 export default function PokjaTeacherHoursPage() {
   const { data: session, status } = useSession();
@@ -443,9 +444,9 @@ export default function PokjaTeacherHoursPage() {
               const totalHours = classAllocations.reduce((acc, curr) => acc + (curr.totalHours || 0), 0);
               
               return (
-                <div
+                <Link
                   key={clsName}
-                  onClick={() => handleOpenClassModal(clsName)}
+                  href={`/dashboard/pokja/hours/${encodeURIComponent(clsName)}`}
                   className={`border rounded-2xl p-6 shadow-md transition-all hover:scale-[1.02] cursor-pointer relative overflow-hidden flex flex-col justify-between space-y-4 ${
                     theme === 'dark' ? 'bg-slate-950/60 border-slate-800 hover:border-emerald-500/50' : 'bg-slate-50 border-slate-200 hover:border-emerald-500/50'
                   }`}
@@ -466,7 +467,7 @@ export default function PokjaTeacherHoursPage() {
                     <span>Atur Guru & Kalkulasi PKL</span>
                     <span>→</span>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
