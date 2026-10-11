@@ -16,7 +16,7 @@ import { useTheme } from '@/app/theme-provider';
 import { 
   MessageSquare, ShieldCheck, RefreshCw, Send, CheckCircle2, 
   AlertCircle, QrCode, Phone, Globe, Key, Settings, Loader2, Sparkles, Check, Play,
-  Bell, FileText, UserCheck, GraduationCap, Building2, Users
+  Bell, FileText, UserCheck, GraduationCap, Building2, Users, ChevronDown, ChevronUp, RotateCcw
 } from 'lucide-react';
 
 export default function WhatsAppSettingsPage() {
@@ -44,6 +44,17 @@ export default function WhatsAppSettingsPage() {
   const [notifyTeacherMonitoring, setNotifyTeacherMonitoring] = useState(true);
   const [notifyTuNewPermohonan, setNotifyTuNewPermohonan] = useState(true);
 
+  // Template Narasi Pesan
+  const [templatePokjaNewApp, setTemplatePokjaNewApp] = useState('');
+  const [templateTuNewPermohonan, setTemplateTuNewPermohonan] = useState('');
+  const [templateStudentPermohonan, setTemplateStudentPermohonan] = useState('');
+  const [templateStudentPenerjunan, setTemplateStudentPenerjunan] = useState('');
+  const [templateStudentPenarikan, setTemplateStudentPenarikan] = useState('');
+  const [templateTeacherMonitoring, setTemplateTeacherMonitoring] = useState('');
+
+  // Expand State untuk Narasi Card
+  const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
+
   // Status Sesi WAHA
   const [sessionStatus, setSessionStatus] = useState<any>(null);
 
@@ -70,6 +81,12 @@ export default function WhatsAppSettingsPage() {
           setNotifyStudentPenarikan(data.config.notifyStudentPenarikan !== false);
           setNotifyTeacherMonitoring(data.config.notifyTeacherMonitoring !== false);
           setNotifyTuNewPermohonan(data.config.notifyTuNewPermohonan !== false);
+          setTemplatePokjaNewApp(data.config.templatePokjaNewApp || '');
+          setTemplateTuNewPermohonan(data.config.templateTuNewPermohonan || '');
+          setTemplateStudentPermohonan(data.config.templateStudentPermohonan || '');
+          setTemplateStudentPenerjunan(data.config.templateStudentPenerjunan || '');
+          setTemplateStudentPenarikan(data.config.templateStudentPenarikan || '');
+          setTemplateTeacherMonitoring(data.config.templateTeacherMonitoring || '');
         }
         if (data.session) {
           setSessionStatus(data.session);
@@ -133,6 +150,12 @@ export default function WhatsAppSettingsPage() {
           notifyStudentPenarikan,
           notifyTeacherMonitoring,
           notifyTuNewPermohonan,
+          templatePokjaNewApp,
+          templateTuNewPermohonan,
+          templateStudentPermohonan,
+          templateStudentPenerjunan,
+          templateStudentPenarikan,
+          templateTeacherMonitoring,
         }),
       });
       const data = await res.json();
@@ -603,161 +626,383 @@ export default function WhatsAppSettingsPage() {
                 </p>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {/* 1. PENGAJUAN BARU KE POKJA */}
-                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                <div className={`rounded-2xl border transition-all overflow-hidden ${
                   theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <div className="space-y-1 pr-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/30">
-                        PENERIMA: TIM POKJA
-                      </span>
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="space-y-1 pr-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/30">
+                          PENERIMA: TIM POKJA
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold">Pengajuan Tempat PKL Baru dari Siswa</p>
+                      <p className="text-xs text-slate-400">
+                        Kirim pesan otomatis ke HP Tim Pokja saat siswa memilih industri dan mengirim pengajuan tempat PKL.
+                      </p>
                     </div>
-                    <p className="text-sm font-bold">Pengajuan Tempat PKL Baru dari Siswa</p>
-                    <p className="text-xs text-slate-400">
-                      Kirim pesan otomatis ke HP Tim Pokja saat siswa memilih industri dan mengirim pengajuan tempat PKL.
-                    </p>
+                    <div className="flex items-center space-x-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTemplate(expandedTemplate === 'pokja' ? null : 'pokja')}
+                        className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                          expandedTemplate === 'pokja'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{expandedTemplate === 'pokja' ? 'Tutup Narasi' : 'Ubah Narasi'}</span>
+                        {expandedTemplate === 'pokja' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notifyPokjaNewApp}
+                          onChange={(e) => setNotifyPokjaNewApp(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={notifyPokjaNewApp}
-                      onChange={(e) => setNotifyPokjaNewApp(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                  </label>
+
+                  {expandedTemplate === 'pokja' && (
+                    <div className={`p-4 border-t space-y-3 ${
+                      theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100/70 border-slate-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-300">Format Narasi WhatsApp (Template):</p>
+                        <span className="text-[11px] text-slate-400">Variabel: {'{nama_siswa}'}, {'{kelas}'}, {'{jurusan}'}, {'{nama_industri}'}, {'{waktu}'}</span>
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={templatePokjaNewApp}
+                        onChange={(e) => setTemplatePokjaNewApp(e.target.value)}
+                        placeholder="Masukkan format pesan WhatsApp..."
+                        className={`w-full p-3 rounded-xl border text-xs font-mono outline-none transition-all ${
+                          theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-600'
+                        }`}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* 2. PENGAJUAN BARU KE TATA USAHA */}
-                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                <div className={`rounded-2xl border transition-all overflow-hidden ${
                   theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <div className="space-y-1 pr-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                        PENERIMA: TATA USAHA
-                      </span>
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="space-y-1 pr-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                          PENERIMA: TATA USAHA
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold">Peringatan Pembuatan Surat Permohonan</p>
+                      <p className="text-xs text-slate-400">
+                        Beri tahu tim TU saat ada pengajuan baru yang siap dicetak/dibuatkan nomor surat permohonan PKL.
+                      </p>
                     </div>
-                    <p className="text-sm font-bold">Peringatan Pembuatan Surat Permohonan</p>
-                    <p className="text-xs text-slate-400">
-                      Beri tahu tim TU saat ada pengajuan baru yang siap dicetak/dibuatkan nomor surat permohonan PKL.
-                    </p>
+                    <div className="flex items-center space-x-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTemplate(expandedTemplate === 'tu' ? null : 'tu')}
+                        className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                          expandedTemplate === 'tu'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{expandedTemplate === 'tu' ? 'Tutup Narasi' : 'Ubah Narasi'}</span>
+                        {expandedTemplate === 'tu' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notifyTuNewPermohonan}
+                          onChange={(e) => setNotifyTuNewPermohonan(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={notifyTuNewPermohonan}
-                      onChange={(e) => setNotifyTuNewPermohonan(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                  </label>
+
+                  {expandedTemplate === 'tu' && (
+                    <div className={`p-4 border-t space-y-3 ${
+                      theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100/70 border-slate-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-300">Format Narasi WhatsApp (Template):</p>
+                        <span className="text-[11px] text-slate-400">Variabel: {'{nama_siswa}'}, {'{kelas}'}, {'{nama_industri}'}, {'{waktu}'}</span>
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={templateTuNewPermohonan}
+                        onChange={(e) => setTemplateTuNewPermohonan(e.target.value)}
+                        placeholder="Masukkan format pesan WhatsApp..."
+                        className={`w-full p-3 rounded-xl border text-xs font-mono outline-none transition-all ${
+                          theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-600'
+                        }`}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* 3. SURAT PERMOHONAN KE SISWA */}
-                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                <div className={`rounded-2xl border transition-all overflow-hidden ${
                   theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <div className="space-y-1 pr-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
-                        PENERIMA: SISWA
-                      </span>
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="space-y-1 pr-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                          PENERIMA: SISWA
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold">Penerbitan Surat Permohonan PKL</p>
+                      <p className="text-xs text-slate-400">
+                        Kirim link dan pemberitahuan ke nomor WhatsApp siswa saat TU menerbitkan surat permohonan.
+                      </p>
                     </div>
-                    <p className="text-sm font-bold">Penerbitan Surat Permohonan PKL</p>
-                    <p className="text-xs text-slate-400">
-                      Kirim link dan pemberitahuan ke nomor WhatsApp siswa saat TU menerbitkan surat permohonan.
-                    </p>
+                    <div className="flex items-center space-x-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTemplate(expandedTemplate === 'permohonan' ? null : 'permohonan')}
+                        className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                          expandedTemplate === 'permohonan'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{expandedTemplate === 'permohonan' ? 'Tutup Narasi' : 'Ubah Narasi'}</span>
+                        {expandedTemplate === 'permohonan' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notifyStudentPermohonan}
+                          onChange={(e) => setNotifyStudentPermohonan(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={notifyStudentPermohonan}
-                      onChange={(e) => setNotifyStudentPermohonan(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                  </label>
+
+                  {expandedTemplate === 'permohonan' && (
+                    <div className={`p-4 border-t space-y-3 ${
+                      theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100/70 border-slate-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-300">Format Narasi WhatsApp (Template):</p>
+                        <span className="text-[11px] text-slate-400">Variabel: {'{nama_siswa}'}, {'{nama_industri}'}, {'{nomor_surat}'}</span>
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={templateStudentPermohonan}
+                        onChange={(e) => setTemplateStudentPermohonan(e.target.value)}
+                        placeholder="Masukkan format pesan WhatsApp..."
+                        className={`w-full p-3 rounded-xl border text-xs font-mono outline-none transition-all ${
+                          theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-600'
+                        }`}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* 4. SURAT PENERJUNAN / TUGAS KE SISWA */}
-                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                <div className={`rounded-2xl border transition-all overflow-hidden ${
                   theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <div className="space-y-1 pr-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
-                        PENERIMA: SISWA
-                      </span>
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="space-y-1 pr-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                          PENERIMA: SISWA
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold">Penerbitan Surat Tugas & Pengantar Penerjunan</p>
+                      <p className="text-xs text-slate-400">
+                        Kirim info surat penerjunan resmi dan instruksi koordinasi pembimbing langsung ke siswa.
+                      </p>
                     </div>
-                    <p className="text-sm font-bold">Penerbitan Surat Tugas & Pengantar Penerjunan</p>
-                    <p className="text-xs text-slate-400">
-                      Kirim info surat penerjunan resmi dan instruksi koordinasi pembimbing langsung ke siswa.
-                    </p>
+                    <div className="flex items-center space-x-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTemplate(expandedTemplate === 'penerjunan' ? null : 'penerjunan')}
+                        className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                          expandedTemplate === 'penerjunan'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{expandedTemplate === 'penerjunan' ? 'Tutup Narasi' : 'Ubah Narasi'}</span>
+                        {expandedTemplate === 'penerjunan' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notifyStudentPenerjunan}
+                          onChange={(e) => setNotifyStudentPenerjunan(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={notifyStudentPenerjunan}
-                      onChange={(e) => setNotifyStudentPenerjunan(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                  </label>
+
+                  {expandedTemplate === 'penerjunan' && (
+                    <div className={`p-4 border-t space-y-3 ${
+                      theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100/70 border-slate-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-300">Format Narasi WhatsApp (Template):</p>
+                        <span className="text-[11px] text-slate-400">Variabel: {'{nama_siswa}'}, {'{nama_industri}'}, {'{nomor_surat}'}</span>
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={templateStudentPenerjunan}
+                        onChange={(e) => setTemplateStudentPenerjunan(e.target.value)}
+                        placeholder="Masukkan format pesan WhatsApp..."
+                        className={`w-full p-3 rounded-xl border text-xs font-mono outline-none transition-all ${
+                          theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-600'
+                        }`}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* 5. SURAT PENARIKAN KE SISWA */}
-                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                <div className={`rounded-2xl border transition-all overflow-hidden ${
                   theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <div className="space-y-1 pr-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
-                        PENERIMA: SISWA
-                      </span>
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="space-y-1 pr-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                          PENERIMA: SISWA
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold">Penerbitan Surat Penarikan Siswa PKL</p>
+                      <p className="text-xs text-slate-400">
+                        Kirim dokumen penarikan dan ucapan terima kasih kepada siswa saat masa PKL berakhir.
+                      </p>
                     </div>
-                    <p className="text-sm font-bold">Penerbitan Surat Penarikan Siswa PKL</p>
-                    <p className="text-xs text-slate-400">
-                      Kirim dokumen penarikan dan ucapan terima kasih kepada siswa saat masa PKL berakhir.
-                    </p>
+                    <div className="flex items-center space-x-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTemplate(expandedTemplate === 'penarikan' ? null : 'penarikan')}
+                        className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                          expandedTemplate === 'penarikan'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{expandedTemplate === 'penarikan' ? 'Tutup Narasi' : 'Ubah Narasi'}</span>
+                        {expandedTemplate === 'penarikan' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notifyStudentPenarikan}
+                          onChange={(e) => setNotifyStudentPenarikan(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={notifyStudentPenarikan}
-                      onChange={(e) => setNotifyStudentPenarikan(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                  </label>
+
+                  {expandedTemplate === 'penarikan' && (
+                    <div className={`p-4 border-t space-y-3 ${
+                      theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100/70 border-slate-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-300">Format Narasi WhatsApp (Template):</p>
+                        <span className="text-[11px] text-slate-400">Variabel: {'{nama_siswa}'}, {'{nama_industri}'}, {'{nomor_surat}'}</span>
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={templateStudentPenarikan}
+                        onChange={(e) => setTemplateStudentPenarikan(e.target.value)}
+                        placeholder="Masukkan format pesan WhatsApp..."
+                        className={`w-full p-3 rounded-xl border text-xs font-mono outline-none transition-all ${
+                          theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-600'
+                        }`}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* 6. SURAT TUGAS & SPPD TTE KE GURU PEMBIMBING */}
-                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                <div className={`rounded-2xl border transition-all overflow-hidden ${
                   theme === 'dark' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <div className="space-y-1 pr-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                        PENERIMA: GURU PEMBIMBING
-                      </span>
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="space-y-1 pr-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                          PENERIMA: GURU PEMBIMBING
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold">Surat Tugas & SPPD Monitoring TTE Siap Unduh</p>
+                      <p className="text-xs text-slate-400">
+                        Kirim pesan langsung ke WhatsApp Guru Pembimbing saat dokumen penugasan monitoring telah selesai di-TTE.
+                      </p>
                     </div>
-                    <p className="text-sm font-bold">Surat Tugas & SPPD Monitoring TTE Siap Unduh</p>
-                    <p className="text-xs text-slate-400">
-                      Kirim pesan langsung ke WhatsApp Guru Pembimbing saat dokumen penugasan monitoring telah selesai di-TTE.
-                    </p>
+                    <div className="flex items-center space-x-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTemplate(expandedTemplate === 'guru' ? null : 'guru')}
+                        className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                          expandedTemplate === 'guru'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{expandedTemplate === 'guru' ? 'Tutup Narasi' : 'Ubah Narasi'}</span>
+                        {expandedTemplate === 'guru' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notifyTeacherMonitoring}
+                          onChange={(e) => setNotifyTeacherMonitoring(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={notifyTeacherMonitoring}
-                      onChange={(e) => setNotifyTeacherMonitoring(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                  </label>
+
+                  {expandedTemplate === 'guru' && (
+                    <div className={`p-4 border-t space-y-3 ${
+                      theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100/70 border-slate-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-300">Format Narasi WhatsApp (Template):</p>
+                        <span className="text-[11px] text-slate-400">Variabel: {'{nama_guru}'}, {'{nama_industri}'}, {'{nomor_surat}'}, {'{tanggal_monitoring}'}</span>
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={templateTeacherMonitoring}
+                        onChange={(e) => setTemplateTeacherMonitoring(e.target.value)}
+                        placeholder="Masukkan format pesan WhatsApp..."
+                        className={`w-full p-3 rounded-xl border text-xs font-mono outline-none transition-all ${
+                          theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500' : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-600'
+                        }`}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

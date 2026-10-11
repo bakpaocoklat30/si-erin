@@ -59,6 +59,123 @@ export interface WahaConfig {
   notifyStudentPenarikan: boolean;
   notifyTeacherMonitoring: boolean;
   notifyTuNewPermohonan: boolean;
+  // Template Narasi Pesan (Customizable Templates)
+  templatePokjaNewApp: string;
+  templateTuNewPermohonan: string;
+  templateStudentPermohonan: string;
+  templateStudentPenerjunan: string;
+  templateStudentPenarikan: string;
+  templateTeacherMonitoring: string;
+}
+
+export const DEFAULT_WA_TEMPLATES = {
+  templatePokjaNewApp: `🔔 *[SI-ERIN NOTIFIKASI]*
+📢 *Pengajuan Tempat PKL Baru Masuk!*
+
+Halo Tim Pokja Prakerin, terdapat siswa yang baru saja mengirimkan pengajuan tempat PKL:
+
+👤 *Siswa:* {nama_siswa}
+🏫 *Kelas:* {kelas} ({jurusan})
+🏢 *Industri Tujuan:* {nama_industri}
+📅 *Waktu:* {waktu}
+
+Silakan tinjau dan verifikasi pengajuan ini melalui sistem SI-ERIN:
+🔗 *Menu:* Verifikasi Pengajuan PKL
+
+_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`,
+
+  templateTuNewPermohonan: `📋 *[SI-ERIN NOTIFIKASI TU]*
+📢 *Pengajuan Baru Menunggu Surat Permohonan*
+
+Halo Tim Tata Usaha, terdapat pengajuan PKL baru yang memerlukan pembuatan Surat Permohonan:
+
+👤 *Siswa:* {nama_siswa} ({kelas})
+🏢 *Industri Mitra:* {nama_industri}
+📅 *Waktu:* {waktu}
+
+Silakan cek antrean persuratan pada sistem SI-ERIN:
+👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/tata-usaha
+
+_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`,
+
+  templateStudentPermohonan: `📄 *[SI-ERIN NOTIFIKASI]*
+✅ *Surat Permohonan PKL Telah Diterbitkan!*
+
+Halo *{nama_siswa}*, 
+Dokumen resmi PKL Anda telah selesai disahkan dan diterbitkan oleh Tata Usaha:
+
+🏢 *Industri Mitra:* {nama_industri}
+🔢 *Nomor Surat:* {nomor_surat}
+📌 *Status:* Diterbitkan & Sah
+
+Silakan unduh dokumen surat tersebut melalui dashboard SI-ERIN Anda untuk diserahkan ke pihak industri mitra.
+
+Silakan cek di dashboard siswa:
+👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/students/pengajuan
+
+_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`,
+
+  templateStudentPenerjunan: `📄 *[SI-ERIN NOTIFIKASI]*
+✅ *Surat Pengantar & Tugas Penerjunan Telah Diterbitkan!*
+
+Halo *{nama_siswa}*, 
+Dokumen resmi PKL Anda telah selesai disahkan dan diterbitkan oleh Tata Usaha:
+
+🏢 *Industri Mitra:* {nama_industri}
+🔢 *Nomor Surat:* {nomor_surat}
+📌 *Status:* Diterbitkan & Sah
+
+Surat pengantaran dan penerjunan ke industri telah siap. Silakan koordinasikan dengan Guru Pembimbing Anda.
+
+Silakan cek di dashboard siswa:
+👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/students/pengajuan
+
+_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`,
+
+  templateStudentPenarikan: `📄 *[SI-ERIN NOTIFIKASI]*
+✅ *Surat Penarikan Siswa PKL Telah Diterbitkan!*
+
+Halo *{nama_siswa}*, 
+Dokumen resmi PKL Anda telah selesai disahkan dan diterbitkan oleh Tata Usaha:
+
+🏢 *Industri Mitra:* {nama_industri}
+🔢 *Nomor Surat:* {nomor_surat}
+📌 *Status:* Diterbitkan & Sah
+
+Surat penarikan dan ucapan terima kasih untuk industri mitra telah diterbitkan oleh sekolah.
+
+Silakan cek di dashboard siswa:
+👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/students/pengajuan
+
+_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`,
+
+  templateTeacherMonitoring: `📝 *[SI-ERIN NOTIFIKASI]*
+✅ *Surat Tugas & SPPD Monitoring Telah Ter-TTE!*
+
+Yth. Bapak/Ibu *{nama_guru}*,
+Dokumen penugasan monitoring PKL telah disahkan dengan Tanda Tangan Elektronik (TTE) resmi oleh Kepala Sekolah / Tata Usaha:
+
+🏢 *Tempat Monitoring:* {nama_industri}
+📅 *Jadwal:* {tanggal_monitoring}
+🔢 *No. Surat Tugas:* {nomor_surat}
+
+Surat Tugas TTE dan SPPD TTE resmi dapat langsung diunduh melalui portal SI-ERIN pada menu *Penugasan Guru Pembimbing*:
+👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/pembimbing/penugasan
+
+Setelah melaksanakan kunjungan, mohon untuk mengunggah berkas laporan kegiatan pada menu tersebut.
+
+_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`,
+};
+
+/**
+ * Helper untuk mengganti placeholder {variabel} pada template
+ */
+export function renderTemplate(template: string, vars: Record<string, string>): string {
+  let result = template;
+  for (const [key, val] of Object.entries(vars)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), val || '-');
+  }
+  return result;
 }
 
 export async function getWahaConfig(): Promise<WahaConfig> {
@@ -79,6 +196,12 @@ export async function getWahaConfig(): Promise<WahaConfig> {
             'WA_NOTIFY_STUDENT_PENARIKAN',
             'WA_NOTIFY_TEACHER_MONITORING',
             'WA_NOTIFY_TU_NEW_PERMOHONAN',
+            'WA_TEMPLATE_POKJA_NEW_APP',
+            'WA_TEMPLATE_TU_NEW_PERMOHONAN',
+            'WA_TEMPLATE_STUDENT_PERMOHONAN',
+            'WA_TEMPLATE_STUDENT_PENERJUNAN',
+            'WA_TEMPLATE_STUDENT_PENARIKAN',
+            'WA_TEMPLATE_TEACHER_MONITORING',
           ],
         },
       },
@@ -108,6 +231,12 @@ export async function getWahaConfig(): Promise<WahaConfig> {
       notifyStudentPenarikan: isEventActive('WA_NOTIFY_STUDENT_PENARIKAN'),
       notifyTeacherMonitoring: isEventActive('WA_NOTIFY_TEACHER_MONITORING'),
       notifyTuNewPermohonan: isEventActive('WA_NOTIFY_TU_NEW_PERMOHONAN'),
+      templatePokjaNewApp: map.get('WA_TEMPLATE_POKJA_NEW_APP') || DEFAULT_WA_TEMPLATES.templatePokjaNewApp,
+      templateTuNewPermohonan: map.get('WA_TEMPLATE_TU_NEW_PERMOHONAN') || DEFAULT_WA_TEMPLATES.templateTuNewPermohonan,
+      templateStudentPermohonan: map.get('WA_TEMPLATE_STUDENT_PERMOHONAN') || DEFAULT_WA_TEMPLATES.templateStudentPermohonan,
+      templateStudentPenerjunan: map.get('WA_TEMPLATE_STUDENT_PENERJUNAN') || DEFAULT_WA_TEMPLATES.templateStudentPenerjunan,
+      templateStudentPenarikan: map.get('WA_TEMPLATE_STUDENT_PENARIKAN') || DEFAULT_WA_TEMPLATES.templateStudentPenarikan,
+      templateTeacherMonitoring: map.get('WA_TEMPLATE_TEACHER_MONITORING') || DEFAULT_WA_TEMPLATES.templateTeacherMonitoring,
     };
   } catch (err) {
     console.warn('[WAHA] Gagal membaca konfigurasi SystemSetting:', err);
@@ -124,6 +253,12 @@ export async function getWahaConfig(): Promise<WahaConfig> {
       notifyStudentPenarikan: true,
       notifyTeacherMonitoring: true,
       notifyTuNewPermohonan: true,
+      templatePokjaNewApp: DEFAULT_WA_TEMPLATES.templatePokjaNewApp,
+      templateTuNewPermohonan: DEFAULT_WA_TEMPLATES.templateTuNewPermohonan,
+      templateStudentPermohonan: DEFAULT_WA_TEMPLATES.templateStudentPermohonan,
+      templateStudentPenerjunan: DEFAULT_WA_TEMPLATES.templateStudentPenerjunan,
+      templateStudentPenarikan: DEFAULT_WA_TEMPLATES.templateStudentPenarikan,
+      templateTeacherMonitoring: DEFAULT_WA_TEMPLATES.templateTeacherMonitoring,
     };
   }
 }
@@ -405,44 +540,23 @@ export async function notifyPokjaNewApplication(params: {
   const config = await getWahaConfig();
   if (!config.enabled) return;
 
+  const vars = {
+    nama_siswa: params.studentName,
+    kelas: params.studentClass,
+    jurusan: params.department,
+    nama_industri: params.industryName,
+    waktu: params.appliedDate || new Date().toLocaleString('id-ID'),
+  };
+
   // 1. Kirim ke Tim Pokja jika diaktifkan
   if (config.notifyPokjaNewApp && config.pokjaPhone) {
-    const textPokja = 
-`🔔 *[SI-ERIN NOTIFIKASI]*
-📢 *Pengajuan Tempat PKL Baru Masuk!*
-
-Halo Tim Pokja Prakerin, terdapat siswa yang baru saja mengirimkan pengajuan tempat PKL:
-
-👤 *Siswa:* ${params.studentName}
-🏫 *Kelas:* ${params.studentClass} (${params.department})
-🏢 *Industri Tujuan:* ${params.industryName}
-📅 *Waktu:* ${params.appliedDate || new Date().toLocaleString('id-ID')}
-
-Silakan tinjau dan verifikasi pengajuan ini melalui sistem SI-ERIN:
-🔗 *Menu:* Verifikasi Pengajuan PKL
-
-_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`;
-
+    const textPokja = renderTemplate(config.templatePokjaNewApp, vars);
     await sendWhatsAppMessage(config.pokjaPhone, textPokja);
   }
 
   // 2. Kirim ke Tata Usaha jika diaktifkan (opsional untuk TU mempersiapkan surat permohonan)
   if (config.notifyTuNewPermohonan && config.tuPhone) {
-    const textTu =
-`📋 *[SI-ERIN NOTIFIKASI TU]*
-📢 *Pengajuan Baru Menunggu Surat Permohonan*
-
-Halo Tim Tata Usaha, terdapat pengajuan PKL baru yang memerlukan pembuatan Surat Permohonan:
-
-👤 *Siswa:* ${params.studentName} (${params.studentClass})
-🏢 *Industri Mitra:* ${params.industryName}
-📅 *Waktu:* ${params.appliedDate || new Date().toLocaleString('id-ID')}
-
-Silakan cek antrean persuratan pada sistem SI-ERIN:
-👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/tata-usaha
-
-_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`;
-
+    const textTu = renderTemplate(config.templateTuNewPermohonan, vars);
     await sendWhatsAppMessage(config.tuPhone, textTu);
   }
 }
@@ -466,35 +580,20 @@ export async function notifyStudentLetterIssued(params: {
   if (type === 'PENERJUNAN' && !config.notifyStudentPenerjunan) return;
   if (type === 'PENARIKAN' && !config.notifyStudentPenarikan) return;
 
-  let title = 'Surat Permohonan PKL';
-  let instruksi = 'Silakan unduh dokumen surat tersebut melalui dashboard SI-ERIN Anda untuk diserahkan ke pihak industri mitra.';
+  const vars = {
+    nama_siswa: params.studentName,
+    nama_industri: params.industryName,
+    nomor_surat: params.letterNumber,
+  };
 
+  let rawTemplate = config.templateStudentPermohonan;
   if (type === 'PENERJUNAN') {
-    title = 'Surat Pengantar & Tugas Penerjunan PKL';
-    instruksi = 'Surat pengantaran dan penerjunan ke industri telah siap. Silakan koordinasikan dengan Guru Pembimbing Anda.';
+    rawTemplate = config.templateStudentPenerjunan;
   } else if (type === 'PENARIKAN') {
-    title = 'Surat Penarikan Siswa PKL';
-    instruksi = 'Surat penarikan dan ucapan terima kasih untuk industri mitra telah diterbitkan oleh sekolah.';
+    rawTemplate = config.templateStudentPenarikan;
   }
 
-  const text =
-`📄 *[SI-ERIN NOTIFIKASI]*
-✅ *${title} Telah Diterbitkan!*
-
-Halo *${params.studentName}*, 
-Dokumen resmi PKL Anda telah selesai disahkan dan diterbitkan oleh Tata Usaha:
-
-🏢 *Industri Mitra:* ${params.industryName}
-🔢 *Nomor Surat:* ${params.letterNumber}
-📌 *Status:* Diterbitkan & Sah
-
-${instruksi}
-
-Silakan cek di dashboard siswa:
-👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/students/pengajuan
-
-_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`;
-
+  const text = renderTemplate(rawTemplate, vars);
   await sendWhatsAppMessage(params.studentPhone, text);
 }
 
@@ -512,24 +611,14 @@ export async function notifyTeacherMonitoringTte(params: {
   const config = await getWahaConfig();
   if (!config.enabled || !config.notifyTeacherMonitoring) return;
 
-  const text =
-`📝 *[SI-ERIN NOTIFIKASI]*
-✅ *Surat Tugas & SPPD Monitoring Telah Ter-TTE!*
+  const vars = {
+    nama_guru: params.teacherName,
+    nama_industri: params.industryName,
+    nomor_surat: params.letterNumber || '-',
+    tanggal_monitoring: params.monitoringDate || '-',
+  };
 
-Yth. Bapak/Ibu *${params.teacherName}*,
-Dokumen penugasan monitoring PKL telah disahkan dengan Tanda Tangan Elektronik (TTE) resmi oleh Kepala Sekolah / Tata Usaha:
-
-🏢 *Tempat Monitoring:* ${params.industryName}
-📅 *Jadwal:* ${params.monitoringDate || '-'}
-🔢 *No. Surat Tugas:* ${params.letterNumber || '-'}
-
-Surat Tugas TTE dan SPPD TTE resmi dapat langsung diunduh melalui portal SI-ERIN pada menu *Penugasan Guru Pembimbing*:
-👉 https://si-erin.smkn1adiwerna.sch.id/dashboard/pembimbing/penugasan
-
-Setelah melaksanakan kunjungan, mohon untuk mengunggah berkas laporan kegiatan pada menu tersebut.
-
-_Pesan otomatis dikirim oleh SI-ERIN v2.0 - SMKN 1 Adiwerna_`;
-
+  const text = renderTemplate(config.templateTeacherMonitoring, vars);
   await sendWhatsAppMessage(params.teacherPhone, text);
 }
 

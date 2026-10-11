@@ -52,7 +52,9 @@ export async function POST(request: Request) {
     const { 
       enabled, apiUrl, sessionName, apiKey, pokjaPhone, tuPhone,
       notifyPokjaNewApp, notifyStudentPermohonan, notifyStudentPenerjunan,
-      notifyStudentPenarikan, notifyTeacherMonitoring, notifyTuNewPermohonan
+      notifyStudentPenarikan, notifyTeacherMonitoring, notifyTuNewPermohonan,
+      templatePokjaNewApp, templateTuNewPermohonan, templateStudentPermohonan,
+      templateStudentPenerjunan, templateStudentPenarikan, templateTeacherMonitoring,
     } = body;
 
     const upsertSetting = async (key: string, value: string) => {
@@ -75,6 +77,12 @@ export async function POST(request: Request) {
     if (notifyStudentPenarikan !== undefined) await upsertSetting('WA_NOTIFY_STUDENT_PENARIKAN', notifyStudentPenarikan ? 'true' : 'false');
     if (notifyTeacherMonitoring !== undefined) await upsertSetting('WA_NOTIFY_TEACHER_MONITORING', notifyTeacherMonitoring ? 'true' : 'false');
     if (notifyTuNewPermohonan !== undefined) await upsertSetting('WA_NOTIFY_TU_NEW_PERMOHONAN', notifyTuNewPermohonan ? 'true' : 'false');
+    if (templatePokjaNewApp !== undefined) await upsertSetting('WA_TEMPLATE_POKJA_NEW_APP', String(templatePokjaNewApp).trim());
+    if (templateTuNewPermohonan !== undefined) await upsertSetting('WA_TEMPLATE_TU_NEW_PERMOHONAN', String(templateTuNewPermohonan).trim());
+    if (templateStudentPermohonan !== undefined) await upsertSetting('WA_TEMPLATE_STUDENT_PERMOHONAN', String(templateStudentPermohonan).trim());
+    if (templateStudentPenerjunan !== undefined) await upsertSetting('WA_TEMPLATE_STUDENT_PENERJUNAN', String(templateStudentPenerjunan).trim());
+    if (templateStudentPenarikan !== undefined) await upsertSetting('WA_TEMPLATE_STUDENT_PENARIKAN', String(templateStudentPenarikan).trim());
+    if (templateTeacherMonitoring !== undefined) await upsertSetting('WA_TEMPLATE_TEACHER_MONITORING', String(templateTeacherMonitoring).trim());
 
     return NextResponse.json({
       success: true,
