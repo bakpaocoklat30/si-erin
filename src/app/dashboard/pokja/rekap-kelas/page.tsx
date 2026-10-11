@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '@/app/theme-provider';
 import { useSession } from 'next-auth/react';
-import { Loader2, Users, Search, AlertCircle, BarChart3, Filter } from 'lucide-react';
+import { Loader2, Users, Search, AlertCircle, BarChart3, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 const BELUM_MENDAFTAR = ['BELUM_MENDAFTAR'];
 const MENGAJUKAN = ['PENGAJUAN_DIKIRIM', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'LETTER_ISSUED'];
@@ -23,6 +23,8 @@ export default function PokjaRekapKelasPage() {
   
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('ALL');
   const [selectedClassRoom, setSelectedClassRoom] = useState('ALL');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -62,13 +64,45 @@ export default function PokjaRekapKelasPage() {
   }, [classRooms, selectedAcademicYear]);
 
   const filteredStudents = useMemo(() => {
-    if (!searchTerm) return students;
-    const lowerSearch = searchTerm.toLowerCase();
-    return students.filter(s => 
-      s.name.toLowerCase().includes(lowerSearch) ||
-      s.nis.toLowerCase().includes(lowerSearch)
-    );
-  }, [students, searchTerm]);
+    let result = students;
+
+    // Filter status
+    if (selectedStatus !== 'ALL') {
+      result = result.filter(s => {
+        const status = s.placement?.status;
+        if (selectedStatus === 'BELUM_MENDAFTAR') {
+          return !s.placement || !status || BELUM_MENDAFTAR.includes(status);
+        } else if (selectedStatus === 'MENGAJUKAN') {
+          return status && MENGAJUKAN.includes(status);
+        } else if (selectedStatus === 'MENUNGGU_BALASAN') {
+          return status && MENUNGGU_BALASAN.includes(status);
+        } else if (selectedStatus === 'DITERIMA') {
+          return status && DITERIMA.includes(status);
+        }
+        return true;
+      });
+    }
+
+    // Filter pencarian (Nama, NIS, dan Industri)
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter(s => {
+        const nameMatch = s.name?.toLowerCase().includes(lowerSearch);
+        const nisMatch = s.nis?.toLowerCase().includes(lowerSearch);
+        const indMatch = s.placement?.industry?.name?.toLowerCase().includes(lowerSearch);
+        return Boolean(nameMatch || nisMatch || indMatch);
+      });
+    }
+
+    // Pengurutan (Sort) Nama Siswa
+    if (sortDirection === 'asc') {
+      result = [...result].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else if (sortDirection === 'desc') {
+      result = [...result].sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+    }
+
+    return result;
+  }, [students, selectedStatus, searchTerm, sortDirection]);
 
   // Statistik
   const stats = useMemo(() => {
@@ -150,8 +184,8 @@ export default function PokjaRekapKelasPage() {
       <div className={`p-6 rounded-2xl border shadow-sm ${
         theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Tahun Pelajaran</label>
             <select
               value={selectedAcademicYear}
@@ -170,7 +204,7 @@ export default function PokjaRekapKelasPage() {
             </select>
           </div>
           
-          <div className="flex-1">
+          <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Nama Kelas</label>
             <select
               value={selectedClassRoom}
@@ -186,13 +220,30 @@ export default function PokjaRekapKelasPage() {
             </select>
           </div>
 
-          <div className="flex-1">
-            <label className="block text-xs font-bold text-slate-500 mb-1">Cari Siswa / NIS</label>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">Status Penempatan PKL</label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className={`w-full p-2.5 rounded-xl text-sm border focus:ring-2 focus:ring-indigo-500 transition-all ${
+                theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
+              }`}
+            >
+              <option value="ALL">-- Semua Status --</option>
+              <option value="BELUM_MENDAFTAR">Belum Mendaftar PKL</option>
+              <option value="MENGAJUKAN">Mengajukan PKL</option>
+              <option value="MENUNGGU_BALASAN">Menunggu Balasan PKL</option>
+              <option value="DITERIMA">Diterima Industri</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">Cari Siswa / NIS / Industri</label>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Cari nama atau NIS..." 
+                placeholder="Cari nama, NIS, atau industri..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className={`w-full pl-9 pr-4 py-2.5 rounded-xl text-sm border focus:ring-2 focus:ring-indigo-500 transition-all ${
@@ -273,7 +324,24 @@ export default function PokjaRekapKelasPage() {
                   <tr>
                     <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 w-16 text-center">No</th>
                     <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400">NIS</th>
-                    <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400">Nama Siswa</th>
+                    <th 
+                      onClick={() => {
+                        setSortDirection(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc');
+                      }}
+                      className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-indigo-600 transition-colors"
+                      title="Klik untuk mengurutkan Nama Siswa (A-Z / Z-A)"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Nama Siswa</span>
+                        {sortDirection === 'asc' ? (
+                          <ArrowUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : sortDirection === 'desc' ? (
+                          <ArrowDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
+                        )}
+                      </div>
+                    </th>
                     <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 text-center">Kelas</th>
                     <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400">Status Terakhir</th>
                     <th className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400">Industri / Instansi Penempatan</th>
