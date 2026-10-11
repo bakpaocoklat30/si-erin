@@ -10,8 +10,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const student = await prisma.student.findUnique({
-      where: { userId: session.user.id },
+    const userId = session.user.id;
+    const username = (session.user as any)?.username;
+
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(username ? [{ nis: username }] : []),
+          ...(session.user.name ? [{ name: session.user.name }] : [])
+        ]
+      },
       include: {
         placement: {
           include: {

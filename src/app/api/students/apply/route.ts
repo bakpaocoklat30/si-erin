@@ -302,61 +302,69 @@ export async function GET() {
     });
 
     // 6. HITUNG SISA KUOTA TERHUBUNG DENGAN KONFIGURASI PERIODE POKJA & DATABASE
-    const industries = await Promise.all(
-      industriesRaw.map(async (ind: any) => {
-        let activePlacementsCount = 0;
-
-        try {
-          if (placementClient && typeof placementClient.count === 'function') {
-            activePlacementsCount = await placementClient.count({
-              where: {
-                industryId: ind.id,
-                status: {
-                  notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
-                }
-              }
-            });
+    // OPTIMASI: Hitung seluruh active placements sekaligus dengan groupBy (menghindari N+1 queries)
+    const activeCountsMap: Record<string, number> = {};
+    try {
+      if (placementClient && typeof placementClient.groupBy === 'function') {
+        const counts = await placementClient.groupBy({
+          by: ['industryId'],
+          where: {
+            status: {
+              notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
+            }
+          },
+          _count: {
+            id: true
           }
-        } catch (e) {
-          console.warn('Warning: Gagal menghitung jumlah siswa terdaftar:', e);
-        }
-
-        // Tentukan total kuota: Prioritaskan konfigurasi khusus Periode Pokja jika ada
-        const periodConfig = periodIndustryConfigMap[ind.id];
-        let totalQuota = ind.totalQuota || 0;
-
-        if (periodConfig) {
-          if (periodConfig.isUnlimited) {
-            totalQuota = 999; // Penanda Tanpa Kuota / Bebas
-          } else if (periodConfig.quota > 0) {
-            totalQuota = periodConfig.quota;
+        });
+        counts.forEach((c: any) => {
+          if (c.industryId) {
+            activeCountsMap[c.industryId] = c._count.id || 0;
           }
+        });
+      }
+    } catch (e) {
+      console.warn('Warning: Gagal groupBy hitung jumlah siswa terdaftar:', e);
+    }
+
+    const industries = industriesRaw.map((ind: any) => {
+      const activePlacementsCount = activeCountsMap[ind.id] || 0;
+
+      // Tentukan total kuota: Prioritaskan konfigurasi khusus Periode Pokja jika ada
+      const periodConfig = periodIndustryConfigMap[ind.id];
+      let totalQuota = ind.totalQuota || 0;
+
+      if (periodConfig) {
+        if (periodConfig.isUnlimited) {
+          totalQuota = 999; // Penanda Tanpa Kuota / Bebas
+        } else if (periodConfig.quota > 0) {
+          totalQuota = periodConfig.quota;
         }
+      }
 
-        const isUnlimited = periodConfig?.isUnlimited || totalQuota >= 999;
-        const remainingQuota = isUnlimited ? 999 : Math.max(0, totalQuota - activePlacementsCount);
+      const isUnlimited = periodConfig?.isUnlimited || totalQuota >= 999;
+      const remainingQuota = isUnlimited ? 999 : Math.max(0, totalQuota - activePlacementsCount);
 
-        return {
-          id: ind.id,
-          name: ind.name,
-          address: ind.address,
-          subDistrict: ind.subDistrict || '',
-          regency: ind.desaKelurahan || '',
-          sector: ind.sector || 'Umum',
-          phone: ind.phone || '',
-          contactPerson: ind.contactPerson || '-',
-          totalQuota: isUnlimited ? 'Bebas' : totalQuota,
-          remainingQuota: isUnlimited ? 999 : remainingQuota,
-          isUnlimited: isUnlimited,
-          customDates: customDatesMap[ind.id] || null,
+      return {
+        id: ind.id,
+        name: ind.name,
+        address: ind.address,
+        subDistrict: ind.subDistrict || '',
+        regency: ind.desaKelurahan || '',
+        sector: ind.sector || 'Umum',
+        phone: ind.phone || '',
+        contactPerson: ind.contactPerson || '-',
+        totalQuota: isUnlimited ? 'Bebas' : totalQuota,
+        remainingQuota: isUnlimited ? 999 : remainingQuota,
+        isUnlimited: isUnlimited,
+        customDates: customDatesMap[ind.id] || null,
 
-          // LOGO DAN KOORDINAT MAPS
-          logoUrl: ind.logoUrl || null,
-          latitude: ind.latitude ?? null,
-          longitude: ind.longitude ?? null
-        };
-      })
-    );
+        // LOGO DAN KOORDINAT MAPS
+        logoUrl: ind.logoUrl || null,
+        latitude: ind.latitude ?? null,
+        longitude: ind.longitude ?? null
+      };
+    });
 
     return NextResponse.json({
       success: true,

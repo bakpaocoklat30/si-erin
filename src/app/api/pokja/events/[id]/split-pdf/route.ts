@@ -80,7 +80,7 @@ export async function POST(
       await fs.writeFile(filePath, newPdfBytes);
       const fileUrl = `/uploads/surat-izin/${params.id}/${fileName}`;
       
-      // Update or Create Database records for all students in group
+      // Update or Create Database records for students in group
       if (studentIds.length > 0) {
         for (const sid of studentIds) {
           await prisma.eventParticipant.upsert({
@@ -98,6 +98,28 @@ export async function POST(
               studentId: sid,
               letterUrl: fileUrl
             }
+          });
+        }
+      } else if (item.industryName) {
+        // Fallback: If no specific student group was chosen, assign this letter to all event participants from this industry
+        const indParticipants = await prisma.eventParticipant.findMany({
+          where: {
+            eventId: params.id,
+            student: {
+              placement: {
+                industry: {
+                  name: item.industryName
+                }
+              }
+            }
+          },
+          select: { id: true, studentId: true }
+        });
+
+        for (const p of indParticipants) {
+          await prisma.eventParticipant.update({
+            where: { id: p.id },
+            data: { letterUrl: fileUrl }
           });
         }
       }
