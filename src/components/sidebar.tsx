@@ -222,10 +222,11 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
   // ----------------------------------------------------------------------
   const pembimbingGroups: MenuGroup[] = [
     {
-      groupLabel: 'Bimbingan',
+      groupLabel: 'Bimbingan & Tugas',
       items: [
         { name: 'Dashboard Pembimbing', href: '/dashboard/pembimbing', icon: LayoutDashboard },
         { name: 'Siswa Bimbingan', href: '/dashboard/pembimbing', icon: Users },
+        { name: 'Penugasan', href: '/dashboard/pembimbing/penugasan', icon: ClipboardCheck },
       ]
     },
     {
