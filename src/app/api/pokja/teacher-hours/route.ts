@@ -76,7 +76,38 @@ export async function GET(request: Request) {
     let periodInfo = null;
     let coefficientInfo = null;
 
+    let classStudents: any[] = [];
+
     if (className) {
+      // Ambil data siswa di kelas ini langsung untuk memangkas latency jaringan
+      classStudents = await db.student.findMany({
+        where: {
+          className: {
+            equals: className.trim(),
+            mode: 'insensitive'
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          nis: true,
+          className: true,
+          teacherId: true,
+          teacher: {
+            select: { id: true, name: true, username: true }
+          },
+          placement: {
+            select: {
+              status: true,
+              industry: {
+                select: { id: true, name: true, sector: true }
+              }
+            }
+          }
+        },
+        orderBy: { name: 'asc' }
+      });
+
       // Cari data kelas di master ClassRoom
       const classRoomData = await db.classRoom.findFirst({
         where: { name: { equals: className, mode: 'insensitive' } },
@@ -113,6 +144,7 @@ export async function GET(request: Request) {
       success: true, 
       allocations,
       teachers,
+      classStudents,
       periodInfo,
       coefficientInfo
     });
