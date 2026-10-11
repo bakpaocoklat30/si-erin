@@ -40,41 +40,81 @@ export default function PokjaClassHoursDetailPage() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
-  const loadClassData = useCallback(async () => {
+  // State tahapan pemuatan data
+  const [loadingStep, setLoadingStep] = useState<string>('Memulai sinkronisasi data...');
+
+  // Muat semua data kelas (alokasi, guru, dan siswa) secara menyeluruh
+  const loadAllData = useCallback(async () => {
     if (!rawClassName) return;
     setLoading(true);
     setErrorMsg('');
     try {
       const timestamp = new Date().getTime();
-      const res = await fetch(`/api/pokja/teacher-hours?className=${encodeURIComponent(rawClassName)}&t=${timestamp}`);
-      const result = await res.json();
-      if (result.success) {
-        setAllocations(result.allocations || []);
-        setClassDetailData({
-          periodInfo: result.periodInfo,
-          coefficientInfo: result.coefficientInfo
-        });
-        if (result.teachers && result.teachers.length > 0) {
-          setTeachers(result.teachers);
-        }
+      setLoadingStep('Mengambil data alokasi jam & guru pembimbing...');
 
-        // Ambil juga master guru dari /api/admin/users jika list belum lengkap
-        fetch(`/api/admin/users?t=${timestamp}`)
-          .then(uRes => uRes.json())
-          .then(uJson => {
-            const userList = uJson.data || uJson.users || [];
-            if (userList.length > 0) {
-              const filtered = userList.filter((u: any) => {
-                const r = String(u.role || '').toUpperCase();
-                return ['GURU', 'PEMBIMBING', 'TEACHER', 'GURUPMB', 'POKJA', 'ADMIN', 'SUPER_ADMIN'].includes(r);
-              });
-              if (filtered.length > 0) setTeachers(filtered);
-            }
-          })
-          .catch(() => {});
+      // 1. Ambil data alokasi jam kelas & guru
+      const hoursPromise = fetch(`/api/pokja/teacher-hours?className=${encodeURIComponent(rawClassName)}&t=${timestamp}`)
+        .then(res => res.json())
+        .catch(err => ({ success: false, error: err.message }));
+
+      // 2. Ambil data siswa kelas
+      setLoadingStep('Mengambil data siswa kelas ' + rawClassName + '...');
+      const studentsPromise = (async () => {
+        try {
+          const res = await fetch(`/api/admin/students?className=${encodeURIComponent(rawClassName.trim())}&t=${timestamp}`);
+          const result = await res.json();
+          if (res.ok && (result.success || result.data || result.students)) {
+            return result.data || result.students || [];
+          }
+          // Fallback jika admin route gagal
+          const fallbackRes = await fetch(`/api/pokja/rekap-kelas?className=${encodeURIComponent(rawClassName.trim())}&t=${timestamp}`);
+          const fallbackResult = await fallbackRes.json();
+          if (fallbackRes.ok && (fallbackResult.success || fallbackResult.students)) {
+            return fallbackResult.students || fallbackResult.data || [];
+          }
+        } catch (e) {
+          console.error('Error fetching students:', e);
+        }
+        return [];
+      })();
+
+      // 3. Ambil data master guru tambahan
+      const usersPromise = fetch(`/api/admin/users?t=${timestamp}`)
+        .then(res => res.json())
+        .catch(() => ({ success: false }));
+
+      const [hoursResult, studentsResult, usersResult] = await Promise.all([
+        hoursPromise,
+        studentsPromise,
+        usersPromise
+      ]);
+
+      // Set daftar siswa
+      if (Array.isArray(studentsResult)) {
+        setClassStudents(studentsResult);
+      }
+
+      // Set data alokasi jam
+      if (hoursResult && hoursResult.success) {
+        setAllocations(hoursResult.allocations || []);
+        setClassDetailData({
+          periodInfo: hoursResult.periodInfo,
+          coefficientInfo: hoursResult.coefficientInfo
+        });
+
+        let availableTeachers = hoursResult.teachers || [];
+        if (usersResult && (usersResult.data || usersResult.users)) {
+          const userList = usersResult.data || usersResult.users || [];
+          const filtered = userList.filter((u: any) => {
+            const r = String(u.role || '').toUpperCase();
+            return ['GURU', 'PEMBIMBING', 'TEACHER', 'GURUPMB', 'POKJA', 'ADMIN', 'SUPER_ADMIN'].includes(r);
+          });
+          if (filtered.length > 0) availableTeachers = filtered;
+        }
+        setTeachers(availableTeachers);
 
         // Pre-check guru yang sudah ter-assign di kelas ini
-        const currentClassAllocations = (result.allocations || []).filter((a: any) => a.className === rawClassName);
+        const currentClassAllocations = (hoursResult.allocations || []).filter((a: any) => a.className === rawClassName);
         const preSelectedIds = currentClassAllocations.map((a: any) => a.teacherId);
         setSelectedTeacherIds(preSelectedIds);
 
@@ -84,49 +124,20 @@ export default function PokjaClassHoursDetailPage() {
         });
         setTeacherHoursMap(initialHoursMap);
       } else {
-        setErrorMsg(result.error || 'Gagal memuat data alokasi kelas');
+        setErrorMsg(hoursResult?.error || 'Gagal memuat data alokasi kelas');
       }
     } catch (e: any) {
-      setErrorMsg('Terjadi kesalahan jaringan');
+      setErrorMsg('Terjadi kesalahan jaringan saat memuat data');
     } finally {
       setLoading(false);
     }
   }, [rawClassName]);
 
-  // Load daftar siswa kelas untuk keperluan penghitungan & assign
-  const loadClassStudents = useCallback(async () => {
-    if (!rawClassName) return;
-    setLoadingStudents(true);
-    try {
-      const timestamp = new Date().getTime();
-      const res = await fetch(`/api/admin/students?className=${encodeURIComponent(rawClassName.trim())}&t=${timestamp}`);
-      const result = await res.json();
-      if (res.ok && (result.success || result.data || result.students)) {
-        const list = result.data || result.students || [];
-        setClassStudents(list);
-      } else {
-        console.warn('Gagal memuat siswa dari /api/admin/students, mencoba fallback ke /api/pokja/rekap-kelas...', result.error);
-        // Fallback ke endpoint pokja bila ada issue otorisasi di route admin
-        const fallbackRes = await fetch(`/api/pokja/rekap-kelas?className=${encodeURIComponent(rawClassName.trim())}&t=${timestamp}`);
-        const fallbackResult = await fallbackRes.json();
-        if (fallbackRes.ok && (fallbackResult.success || fallbackResult.students)) {
-          const list = fallbackResult.students || fallbackResult.data || [];
-          setClassStudents(list);
-        }
-      }
-    } catch (e) {
-      console.error('Error loadClassStudents:', e);
-    } finally {
-      setLoadingStudents(false);
-    }
-  }, [rawClassName]);
-
   useEffect(() => {
     if (status === 'authenticated') {
-      loadClassData();
-      loadClassStudents();
+      loadAllData();
     }
-  }, [status, loadClassData, loadClassStudents]);
+  }, [status, loadAllData]);
 
   const handleToggleTeacherCheckbox = (teacherId: string) => {
     if (selectedTeacherIds.includes(teacherId)) {
@@ -173,8 +184,7 @@ export default function PokjaClassHoursDetailPage() {
       if (result.success) {
         setSuccessMsg('Alokasi guru pembimbing berhasil diperbarui.');
         setShowAddTeacherSection(false);
-        loadClassData();
-        loadClassStudents();
+        loadAllData();
       } else {
         setErrorMsg(result.error || 'Gagal menyimpan');
       }
@@ -192,8 +202,7 @@ export default function PokjaClassHoursDetailPage() {
       const result = await res.json();
       if (result.success) {
         setSuccessMsg(result.message);
-        loadClassData();
-        loadClassStudents();
+        loadAllData();
       } else {
         alert(result.error);
       }
@@ -240,8 +249,7 @@ export default function PokjaClassHoursDetailPage() {
       if (result.success) {
         setSuccessMsg(`Berhasil menugaskan ${selectedStudentIds.length} siswa ke ${activeTeacherForAssign.teacher?.name || 'Guru'}.`);
         setActiveTeacherForAssign(null);
-        loadClassData();
-        loadClassStudents();
+        loadAllData();
       } else {
         setErrorMsg(result.error || 'Gagal menyimpan siswa bimbingan');
       }
@@ -279,10 +287,20 @@ export default function PokjaClassHoursDetailPage() {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-        <div className="flex items-center space-x-3">
-          <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-semibold">Memuat Data Alokasi Kelas {rawClassName}...</span>
+      <div className={`min-h-screen flex flex-col items-center justify-center space-y-4 px-4 ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+        <div className="relative flex items-center justify-center">
+          <div className="w-14 h-14 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+          <Users className="w-6 h-6 text-emerald-500 absolute animate-pulse" />
+        </div>
+        <div className="text-center space-y-1.5 max-w-sm">
+          <h3 className="text-base font-bold text-slate-100">Memuat Data Kelas {rawClassName}...</h3>
+          <p className="text-xs text-slate-400 font-medium">
+            {loadingStep || 'Sinkronisasi alokasi jam, guru pembimbing, dan daftar siswa...'}
+          </p>
+          <div className="pt-2 flex items-center justify-center space-x-2 text-[11px] text-slate-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <span>Menyiapkan seluruh data sebelum menampilkan halaman...</span>
+          </div>
         </div>
       </div>
     );
