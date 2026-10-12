@@ -194,7 +194,7 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
   const [splitPdfFile, setSplitPdfFile] = useState<File | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPageCount, setPdfPageCount] = useState<number>(0);
-  const [pageMapping, setPageMapping] = useState<Record<number, { industry: string; group: string }>>({});
+  const [pageMapping, setPageMapping] = useState<Record<number, { industry: string; groups: string[] }>>({});
   const [splittingPdf, setSplittingPdf] = useState(false);
   const [industriesList, setIndustriesList] = useState<string[]>([]);
   const [splitPdfLetters, setSplitPdfLetters] = useState<any[]>([]);
@@ -245,9 +245,9 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
         setPdfPageCount(count);
         
         // Auto map sequential pages to industries
-        const newMap: Record<number, { industry: string; group: string }> = {};
+        const newMap: Record<number, { industry: string; groups: string[] }> = {};
         for (let i = 1; i <= count; i++) {
-          newMap[i] = { industry: industriesList[i - 1] || '', group: '' };
+          newMap[i] = { industry: industriesList[i - 1] || '', groups: [] };
         }
         setPageMapping(newMap);
       } catch (err) {
@@ -269,11 +269,20 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
     setSplittingPdf(true);
     setErrorMsg('');
     try {
-      // Convert mapping object to array grouped by industry and group
+      // Convert mapping object to array grouped by industry and groups
       const groups: Record<string, number[]> = {};
       Object.entries(pageMapping).forEach(([pageStr, mapping]) => {
         if (mapping && mapping.industry) {
-          const key = mapping.group ? `${mapping.industry} - ${mapping.group}` : mapping.industry;
+          let key = mapping.industry;
+          if (mapping.groups && mapping.groups.length > 0) {
+            // mapping.groups contains stringified JSON of { label, studentIds }
+            try {
+              const parsedArray = mapping.groups.map(g => JSON.parse(g));
+              key = `${mapping.industry} - ${JSON.stringify(parsedArray)}`;
+            } catch (err) {
+              key = `${mapping.industry} - ${mapping.groups.join(', ')}`;
+            }
+          }
           if (!groups[key]) groups[key] = [];
           groups[key].push(parseInt(pageStr));
         }
@@ -959,7 +968,7 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
                                     onChange={(e) => {
                                       setPageMapping(prev => ({ 
                                         ...prev, 
-                                        [pageNum]: { industry: e.target.value, group: '' } 
+                                        [pageNum]: { industry: e.target.value, groups: [] } 
                                       }));
                                     }}
                                     className={`flex-1 p-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-300'}`}
@@ -1011,32 +1020,52 @@ export default function PokjaEventDetailPage({ params }: { params?: { id: string
 
                                   if (!selectedInd || options.length === 0) return null;
 
+                                  const currentGroups = pageMapping[pageNum]?.groups || [];
+
                                   return (
                                     <div className="pl-1 sm:pl-28 flex flex-col gap-1.5">
-                                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pilih Kelompok PKL:</div>
+                                      <div className="flex items-center justify-between">
+                                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                          Pilih Kelompok PKL (Bisa centang lebih dari 1 kelompok):
+                                        </div>
+                                        {currentGroups.length > 0 && (
+                                          <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                                            {currentGroups.length} terpilih
+                                          </span>
+                                        )}
+                                      </div>
                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         {options.map((opt, idx) => {
-                                          const isSelected = pageMapping[pageNum]?.group === opt.value;
+                                          const isSelected = currentGroups.includes(opt.value);
                                           return (
                                             <label 
                                               key={idx} 
-                                              className={`cursor-pointer border rounded-lg p-2.5 text-sm flex items-start gap-2.5 transition ${
+                                              className={`cursor-pointer border rounded-lg p-2.5 text-sm flex items-start gap-2.5 transition select-none ${
                                                 isSelected 
                                                   ? 'bg-purple-50 border-purple-500 dark:bg-purple-900/30 dark:border-purple-500/70 text-purple-900 dark:text-purple-100' 
                                                   : 'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-700/50'
                                               }`}
                                             >
                                               <input 
-                                                type="radio" 
-                                                className="mt-0.5 shrink-0" 
-                                                name={`group-${pageNum}`} 
+                                                type="checkbox" 
+                                                className="mt-0.5 shrink-0 rounded border-slate-300 text-purple-600 focus:ring-purple-500" 
                                                 value={opt.value} 
                                                 checked={isSelected}
                                                 onChange={(e) => {
-                                                  setPageMapping(prev => ({ 
-                                                    ...prev, 
-                                                    [pageNum]: { industry: prev[pageNum]?.industry || '', group: e.target.value } 
-                                                  }));
+                                                  const checked = e.target.checked;
+                                                  setPageMapping(prev => {
+                                                    const prevGroups = prev[pageNum]?.groups || [];
+                                                    const newGroups = checked
+                                                      ? [...prevGroups, opt.value]
+                                                      : prevGroups.filter(g => g !== opt.value);
+                                                    return {
+                                                      ...prev,
+                                                      [pageNum]: {
+                                                        industry: prev[pageNum]?.industry || '',
+                                                        groups: newGroups
+                                                      }
+                                                    };
+                                                  });
                                                 }}
                                               />
                                               <span className="leading-snug">{opt.label}</span>

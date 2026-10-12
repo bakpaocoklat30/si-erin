@@ -43,15 +43,27 @@ export async function POST(
       let studentIds: string[] = [];
       
       // Attempt to extract studentIds from JSON inside rawName
-      const parts = rawName.split(' - {');
+      // Supports single: "Ind - {"label":"...", "studentIds":[...]}"
+      // or multiple combined: "Ind - [{"label":"...", "studentIds":[...]}]"
+      const parts = rawName.split(' - ');
       if (parts.length > 1) {
         try {
-          const jsonStr = '{' + parts.slice(1).join(' - {');
+          const jsonStr = parts.slice(1).join(' - ');
           const parsed = JSON.parse(jsonStr);
-          rawName = `${parts[0]} - ${parsed.label}`;
-          studentIds = parsed.studentIds || [];
+          if (Array.isArray(parsed)) {
+            const labels = parsed.map((p: any) => p.label).filter(Boolean);
+            rawName = `${parts[0]} - ${labels.join(', ')}`;
+            parsed.forEach((p: any) => {
+              if (Array.isArray(p.studentIds)) {
+                studentIds.push(...p.studentIds);
+              }
+            });
+          } else if (parsed && typeof parsed === 'object') {
+            rawName = `${parts[0]} - ${parsed.label || ''}`;
+            studentIds = parsed.studentIds || [];
+          }
         } catch (e) {
-          // ignore parsing error
+          // If not valid JSON, rawName remains as is
         }
       }
 
