@@ -2,10 +2,10 @@
 import { PDFDocument } from 'pdf-lib';
 
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
-import { Truck, Printer, Search, Loader2, Users, Building2, Calendar, FileText, Upload, SendHorizontal, X, Eye , UploadCloud, FileCheck2, Trash2, Hash} from 'lucide-react';
+import { Truck, Printer, Search, Loader2, Users, Building2, Calendar, FileText, Upload, SendHorizontal, X, Eye , UploadCloud, FileCheck2, Trash2, Hash, Layers } from 'lucide-react';
 
 export default function SuratPenerjunanPage() {
   const { data: session } = useSession();
@@ -15,6 +15,7 @@ export default function SuratPenerjunanPage() {
   const [groups, setGroups] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'PENDING' | 'PUBLISHED' | 'ALL'>('PENDING');
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState<string>('SEMUA');
 
   // Upload Modal State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -460,9 +461,27 @@ export default function SuratPenerjunanPage() {
     }
   };
 
+  const availableDepartments = useMemo(() => {
+    const setJur = new Set<string>();
+    groups.forEach((g: any) => {
+      if (g.departmentName) setJur.add(g.departmentName);
+      const studentList = g.students || [];
+      studentList.forEach((st: any) => {
+        const studentObj = st.student || st;
+        if (studentObj.department) setJur.add(studentObj.department);
+      });
+    });
+    return ['SEMUA', ...Array.from(setJur)];
+  }, [groups]);
+
   const filteredGroups = groups.filter(g => {
-    const matchSearch = g.industryName.toLowerCase().includes(searchQuery.toLowerCase()) || g.departmentName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = (g.industryName || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        (g.departmentName || '').toLowerCase().includes(searchQuery.toLowerCase());
     
+    // Check department filter
+    const groupDept = g.departmentName || (g.students?.[0]?.department) || '';
+    const matchDept = selectedDepartmentFilter === 'SEMUA' || groupDept.toLowerCase() === selectedDepartmentFilter.toLowerCase();
+
     // Check status
     const pendingList = ['REQUEST_PENGANTARAN'];
     const publishedList = ['MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN'];
@@ -473,7 +492,7 @@ export default function SuratPenerjunanPage() {
     if (statusFilter === 'PENDING') matchStatus = isPending;
     if (statusFilter === 'PUBLISHED') matchStatus = isPublished;
 
-    return matchSearch && matchStatus;
+    return matchSearch && matchDept && matchStatus;
   });
 
   
@@ -557,6 +576,34 @@ export default function SuratPenerjunanPage() {
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           </div>
+        </div>
+      </div>
+
+      {/* FILTER JURUSAN PENGIRIM (POKJA JURUSAN) */}
+      <div className={`p-4 rounded-3xl border shadow-sm space-y-3 ${
+        theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
+        <div className="flex items-center space-x-2 text-xs font-extrabold text-indigo-500">
+          <Layers className="w-4 h-4" />
+          <span>Filter Jurusan Pengirim (Pokja Jurusan):</span>
+        </div>
+        <div className="flex items-center space-x-2 overflow-x-auto pb-1">
+          {availableDepartments.map((dept) => (
+            <button
+              key={dept}
+              type="button"
+              onClick={() => setSelectedDepartmentFilter(dept)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                selectedDepartmentFilter === dept
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/30'
+                  : theme === 'dark'
+                  ? 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+              }`}
+            >
+              {dept}
+            </button>
+          ))}
         </div>
       </div>
 
