@@ -977,12 +977,12 @@ export default function PermohonanSuratKelompokPage() {
         </div>
 
         {/* FILTER JURUSAN DINAMIS */}
-        <div className={`lg:col-span-7 p-4 rounded-3xl border shadow-lg space-y-3 ${
+        <div className={`lg:col-span-12 p-4 rounded-3xl border shadow-lg space-y-3 ${
           theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
           <div className="flex items-center space-x-2 text-xs font-extrabold text-indigo-500">
             <Layers className="w-4 h-4" />
-            <span>Filter Berdasarkan Jurusan (Disinkronkan dari Database):</span>
+            <span>Filter Jurusan Pengirim (Pokja Pengirim):</span>
           </div>
           <div className="flex items-center space-x-2 overflow-x-auto pb-1">
             {availableDepartments.map((dept) => (
