@@ -25,24 +25,39 @@ export async function GET(req: NextRequest) {
     let placementIndustryWhere: any = {
       status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
     };
+    // Tampilkan semua guru dalam sistem (guru umum bisa lintas jurusan)
     let teacherWhere: any = {
       role: { in: ['PEMBIMBING', 'GURU', 'POKJA', 'ADMIN'] }
     };
+    let industryWhere: any = {};
 
     if (userRole === 'POKJA' && userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
       assignmentWhere = {
         OR: [
           { department: { contains: userDept, mode: 'insensitive' } },
-          { teacher: { department: { contains: userDept, mode: 'insensitive' } } }
+          {
+            AND: [
+              { OR: [{ department: null }, { department: 'ALL' }] },
+              {
+                OR: [
+                  { industry: { department: { contains: userDept, mode: 'insensitive' } } },
+                  { industry: { placements: { some: { student: { department: { contains: userDept, mode: 'insensitive' } } } } } }
+                ]
+              }
+            ]
+          }
         ]
       };
       placementIndustryWhere.student = {
         department: { contains: userDept, mode: 'insensitive' }
       };
-      teacherWhere.OR = [
-        { department: { contains: userDept, mode: 'insensitive' } },
-        { department: null }
-      ];
+      // Tampilkan hanya industri yang terafiliasi dengan jurusan pokja ini
+      industryWhere = {
+        OR: [
+          { department: { contains: userDept, mode: 'insensitive' } },
+          { placements: { some: { student: { department: { contains: userDept, mode: 'insensitive' } } } } }
+        ]
+      };
     }
 
     // 1. Ambil penugasan monitoring sesuai scope jurusan
@@ -96,13 +111,15 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // 2. Ambil daftar industri mitra yang sedang memiliki penempatan aktif
+    // 2. Ambil daftar industri mitra yang sedang memiliki penempatan aktif / sesuai jurusan Pokja
     const industries = await prisma.industry.findMany({
+      where: industryWhere,
       select: {
         id: true,
         name: true,
         address: true,
         regency: true,
+        department: true,
         _count: {
           select: {
             placements: {
