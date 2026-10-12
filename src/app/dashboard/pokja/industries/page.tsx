@@ -47,7 +47,8 @@ import {
   RefreshCw,
   ExternalLink,
   ChevronDown,
-  Check
+  Check,
+  Filter
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 
@@ -295,12 +296,17 @@ export default function PokjaIndustriesPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Auto set initial department filter to Pokja's own department
+  // Auto set initial department filter to Pokja's own department if it has industries
   useEffect(() => {
     if (userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
-      setSelectedDeptFilter(userDept);
+      const hasMatchingIndustries = industries.some(
+        (i: any) => (i.department || '').toLowerCase() === userDept.toLowerCase()
+      );
+      if (hasMatchingIndustries) {
+        setSelectedDeptFilter(userDept);
+      }
     }
-  }, [userDept]);
+  }, [userDept, industries]);
 
   // State Toggle Tampilan (Grid / Table List)
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
