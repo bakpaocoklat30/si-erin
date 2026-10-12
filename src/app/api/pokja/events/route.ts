@@ -13,6 +13,38 @@ export async function GET(req: Request) {
     const userDept = (session.user as any)?.department;
     const userRole = (session.user as any)?.role;
 
+    // Auto-heal: Deteksi dan perbaiki event lama yang departemennya masih null atau ALL di database server
+    try {
+      const unassignedEvents = await prisma.schoolEvent.findMany({
+        where: {
+          OR: [
+            { department: null },
+            { department: "ALL" },
+            { department: "Semua Jurusan" }
+          ],
+          participants: { some: {} }
+        },
+        include: {
+          participants: {
+            take: 1,
+            include: { student: { select: { department: true } } }
+          }
+        }
+      });
+
+      for (const ev of unassignedEvents) {
+        const studentDept = ev.participants[0]?.student?.department;
+        if (studentDept) {
+          await prisma.schoolEvent.update({
+            where: { id: ev.id },
+            data: { department: studentDept }
+          }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      // Non-blocking auto-heal
+    }
+
     let eventWhere: any = {};
     let participantCountWhere: any = {};
 
@@ -20,8 +52,26 @@ export async function GET(req: Request) {
       eventWhere = {
         OR: [
           { department: { contains: userDept, mode: "insensitive" } },
-          { department: "ALL" },
-          { department: null }
+          {
+            AND: [
+              {
+                OR: [
+                  { department: null },
+                  { department: "ALL" },
+                  { department: "Semua Jurusan" }
+                ]
+              },
+              {
+                participants: {
+                  some: {
+                    student: {
+                      department: { contains: userDept, mode: "insensitive" }
+                    }
+                  }
+                }
+              }
+            ]
+          }
         ]
       };
       participantCountWhere = {

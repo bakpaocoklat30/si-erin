@@ -9,14 +9,27 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "POKJA") {
+    if (!session || !["POKJA", "ADMIN"].includes(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userDept = (session.user as any)?.department;
+    const userRole = (session.user as any)?.role;
+
+    let participantWhere: any = {};
+    if (userRole === "POKJA" && userDept && userDept.toLowerCase() !== "semua jurusan" && userDept.toUpperCase() !== "ALL") {
+      participantWhere = {
+        student: {
+          department: { contains: userDept, mode: "insensitive" }
+        }
+      };
     }
 
     const event = await prisma.schoolEvent.findUnique({
       where: { id: params.id },
       include: {
         participants: {
+          where: participantWhere,
           include: {
             student: {
               select: {
@@ -92,7 +105,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { name, startDate, endDate, location, description, letterIntro, letterClosing } = body;
+    const { name, startDate, endDate, location, description, letterIntro, letterClosing, department } = body;
 
     const event = await prisma.schoolEvent.update({
       where: { id: params.id },
@@ -101,7 +114,7 @@ export async function PATCH(
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate && { endDate: new Date(endDate) }),
         ...(location !== undefined && { location }),
-        
+        ...(department !== undefined && { department }),
         ...(letterIntro !== undefined && { letterIntro }),
         ...(letterClosing !== undefined && { letterClosing }),
       }
