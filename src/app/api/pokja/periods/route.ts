@@ -20,13 +20,46 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userRole = (session.user as any)?.role;
+    const userDepartment = (session.user as any)?.department;
+    const isPokjaScoped = userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL';
+    const isTkj = isPokjaScoped && (userDepartment.toLowerCase().includes('tkj') || userDepartment.toLowerCase().includes('komputer'));
+
+    let allIndustries: any[] = [];
+    try {
+      let industryWhere: any = {};
+      if (isPokjaScoped) {
+        industryWhere = {
+          OR: [
+            { department: { contains: userDepartment, mode: 'insensitive' } },
+            {
+              placements: {
+                some: {
+                  student: {
+                    department: { contains: userDepartment, mode: 'insensitive' }
+                  }
+                }
+              }
+            },
+            ...(isTkj ? [{ department: null }, { department: 'Semua Jurusan' }] : [])
+          ]
+        };
+      }
+
+      allIndustries = await db.industry.findMany({ 
+        where: industryWhere,
+        select: { id: true, name: true, address: true, sector: true, department: true },
+        orderBy: { name: 'asc' }
+      });
+    } catch (e) {
+      console.error('Error fetching industries:', e);
+      allIndustries = [];
+    }
+
     let periods: any[] = [];
     try {
-      const userRole = (session.user as any)?.role;
-      const userDepartment = (session.user as any)?.department;
-      
       let whereClause = {};
-      if (userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan') {
+      if (isPokjaScoped) {
         whereClause = {
           OR: [
             { department: { contains: userDepartment, mode: 'insensitive' } },
@@ -41,39 +74,21 @@ export async function GET(request: Request) {
         orderBy: { createdAt: 'desc' }
       });
       
+      const allowedIndustryIds = new Set(allIndustries.map(i => i.id));
       // Karena sekarang activeIndustries adalah tipe Json di skema, Prisma akan otomatis mengembalikannya sebagai array/object
-      periods = periods.map(p => ({
-        ...p,
-        activeIndustries: p.activeIndustries || []
-      }));
+      periods = periods.map(p => {
+        let activeInds = Array.isArray(p.activeIndustries) ? p.activeIndustries : [];
+        if (isPokjaScoped) {
+          activeInds = activeInds.filter((item: any) => allowedIndustryIds.has(item.industryId));
+        }
+        return {
+          ...p,
+          activeIndustries: activeInds
+        };
+      });
     } catch (e) {
       console.error('Error fetching periods:', e);
       periods = [];
-    }
-
-    let allIndustries: any[] = [];
-    try {
-      const userRole = (session.user as any)?.role;
-      const userDepartment = (session.user as any)?.department;
-      let industryWhere: any = {};
-      if (userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL') {
-        industryWhere = {
-          OR: [
-            { department: { contains: userDepartment, mode: 'insensitive' } },
-            { department: 'Semua Jurusan' },
-            { department: null }
-          ]
-        };
-      }
-
-      allIndustries = await db.industry.findMany({ 
-        where: industryWhere,
-        select: { id: true, name: true, address: true, department: true },
-        orderBy: { name: 'asc' }
-      });
-    } catch (e) {
-      console.error('Error fetching industries:', e);
-      allIndustries = [];
     }
 
     return NextResponse.json({ success: true, data: periods, industries: allIndustries });
@@ -127,10 +142,9 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const userRole = (session.user as any)?.role;
+    const userDepartment = (session.user as any)?.department;
+    const isPokjaScoped = userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL';
 
     const body = await request.json();
     const { id, name, startDate, endDate, isActive, activeIndustries, department } = body;
@@ -147,7 +161,47 @@ export async function PUT(request: Request) {
       if (endDate) updateData.endDate = new Date(endDate);
       if (department) updateData.department = department;
       if (typeof isActive === 'boolean') updateData.isActive = isActive;
-      if (activeIndustries !== undefined) updateData.activeIndustries = activeIndustries; // Masuk permanen ke kolom Json
+
+      if (activeIndustries !== undefined) {
+        if (isPokjaScoped) {
+          // Ambil konfigurasi industri yang ada saat ini di DB
+          const existing = await (db as any).internshipPeriod.findUnique({
+            where: { id },
+            select: { activeIndustries: true }
+          });
+          const currentAll = Array.isArray(existing?.activeIndustries) ? existing.activeIndustries : [];
+
+          // Dapatkan ID industri yang merupakan wewenang jurusan Pokja ini
+          const isTkj = userDepartment.toLowerCase().includes('tkj') || userDepartment.toLowerCase().includes('komputer');
+          const userDeptIndustries = await db.industry.findMany({
+            where: {
+              OR: [
+                { department: { contains: userDepartment, mode: 'insensitive' } },
+                {
+                  placements: {
+                    some: {
+                      student: {
+                        department: { contains: userDepartment, mode: 'insensitive' }
+                      }
+                    }
+                  }
+                },
+                ...(isTkj ? [{ department: null }, { department: 'Semua Jurusan' }] : [])
+              ]
+            },
+            select: { id: true }
+          });
+          const myDeptIndIds = new Set(userDeptIndustries.map(i => i.id));
+
+          // Pertahankan konfigurasi industri milik jurusan lain
+          const otherDeptIndustries = currentAll.filter((item: any) => !myDeptIndIds.has(item.industryId));
+
+          // Gabungkan konfigurasi baru milik jurusan ini dengan milik jurusan lain
+          updateData.activeIndustries = [...otherDeptIndustries, ...activeIndustries];
+        } else {
+          updateData.activeIndustries = activeIndustries;
+        }
+      }
 
       updated = await (db as any).internshipPeriod.update({
         where: { id },
