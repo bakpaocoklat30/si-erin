@@ -80,17 +80,18 @@ export async function getDriveClient() {
 /**
  * Mengunggah berkas lokal ke folder Google Drive
  */
-export async function uploadFileToDrive(filePath: string, fileName: string, mimeType: string = 'application/zip') {
+export async function uploadFileToDrive(filePath: string, fileName: string, mimeType: string = 'application/zip', parentId?: string) {
   const drive = await getDriveClient();
   const { folderId } = await getGDriveCredentials();
 
-  if (!folderId) {
+  const targetFolderId = (parentId && parentId.trim() !== '') ? parentId.trim() : (folderId || '').trim();
+  if (!targetFolderId) {
     throw new Error('GOOGLE_DRIVE_FOLDER_ID belum dikonfigurasi di Pengaturan Aplikasi!');
   }
 
   const fileMetadata: any = {
     name: fileName,
-    parents: [folderId.trim()],
+    parents: [targetFolderId],
   };
 
   const media = {
@@ -119,8 +120,21 @@ export async function listDriveBackups() {
     throw new Error('GOOGLE_DRIVE_FOLDER_ID belum dikonfigurasi di Pengaturan Aplikasi!');
   }
 
+  // Cari apakah ada folder "Backup ZIP" di dalam root folderId
+  let parentIds = [folderId.trim()];
+  try {
+    const folderSearch = await drive.files.list({
+      q: `'${folderId.trim()}' in parents and name = 'Backup ZIP' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      fields: 'files(id)',
+    });
+    if (folderSearch.data.files && folderSearch.data.files.length > 0) {
+      parentIds.push(folderSearch.data.files[0].id!);
+    }
+  } catch (e) {}
+
+  const parentQuery = parentIds.map(id => `'${id}' in parents`).join(' or ');
   const response = await drive.files.list({
-    q: `'${folderId.trim()}' in parents and trashed = false and mimeType = 'application/zip'`,
+    q: `(${parentQuery}) and trashed = false and mimeType = 'application/zip'`,
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
     fields: 'files(id, name, webViewLink, createdTime, size)',

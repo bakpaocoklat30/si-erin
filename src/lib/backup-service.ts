@@ -502,10 +502,12 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   }
 
   // ======================================================================
-  // 3. UNGGAH BERKAS ZIP KE ROOT FOLDER GOOGLE DRIVE
+  // 3. UNGGAH BERKAS ZIP KE FOLDER "Backup ZIP" DI GOOGLE DRIVE
   // ======================================================================
-  console.log('[BACKUP SERVICE] 3/4 Mengunggah arsip ZIP ke root folder Google Drive...');
-  const zipUploadResult = await uploadFileToDrive(zipFilePath, zipFileName, 'application/zip');
+  console.log('[BACKUP SERVICE] 3/4 Mengunggah arsip ZIP ke folder Backup ZIP Google Drive...');
+  const folderCache = new Map<string, string>();
+  const backupZipFolderId = await getOrCreateFolder(drive, 'Backup ZIP', rootDriveFolderId, folderCache);
+  const zipUploadResult = await uploadFileToDrive(zipFilePath, zipFileName, 'application/zip', backupZipFolderId);
 
   // Bersihkan berkas lokal sementara
   try {
@@ -515,28 +517,51 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
   // ======================================================================
   // 4. SINKRONISASI DOKUMEN TERSTRUKTUR KE FOLDER GOOGLE DRIVE
-  //    (Tahun Pelajaran -> Periode Prakerin -> Pengajuan / Jawaban / Kelas / CV / BPJS)
+  //    (Tahun Pelajaran -> Jurusan -> Periode Prakerin -> Subfolder Dokumen)
   // ======================================================================
   console.log('[BACKUP SERVICE] 4/4 Memulai sinkronisasi dokumen terstruktur ke folder Google Drive...');
 
-  const folderCache = new Map<string, string>();
   const activeYear = academicYears.find((y: any) => y.isActive) || academicYears[0];
   const defaultYearName = activeYear ? sanitizeFolderName(activeYear.year) : '2024-2025';
 
   const activePeriod = internshipPeriods.find((p: any) => p.isActive) || internshipPeriods[0];
   const defaultPeriodName = activePeriod ? sanitizeFolderName(activePeriod.name) : 'Periode 1';
 
-  // Helper untuk menentukan Tahun Pelajaran dan Periode dari siswa/kelas
+  // Helper untuk menentukan Tahun Pelajaran, Jurusan, dan Periode dari siswa/kelas
   function resolvePeriodAndYear(className?: string, studentDept?: string) {
     const matchedClass = classRooms.find((c: any) => c.name.toLowerCase() === (className || '').toLowerCase());
-    const matchedPeriod = matchedClass?.period || 
-                          internshipPeriods.find((p: any) => p.department?.toLowerCase().includes((studentDept || '').toLowerCase())) || 
-                          activePeriod;
+    const matchedClassDept = matchedClass ? departments.find((d: any) => d.id === matchedClass.departmentId) : null;
+
+    const matchedPeriod = matchedClass?.periodId 
+      ? internshipPeriods.find((p: any) => p.id === matchedClass.periodId)
+      : (matchedClass?.period || 
+         internshipPeriods.find((p: any) => p.department?.toLowerCase().includes((studentDept || '').toLowerCase())) || 
+         activePeriod);
 
     const periodName = sanitizeFolderName(matchedPeriod?.name || defaultPeriodName);
     const academicYearName = sanitizeFolderName(matchedPeriod?.academicYear?.year || defaultYearName);
 
-    return { periodName, academicYearName };
+    // Dapatkan nama Jurusan
+    let departmentName = studentDept || matchedClassDept?.name || matchedPeriod?.department;
+    if (!departmentName || departmentName.toUpperCase() === 'ALL' || departmentName.toLowerCase() === 'semua jurusan') {
+      const cUpper = (className || '').toUpperCase();
+      const matchedDept = departments.find((d: any) => 
+        (d.code && cUpper.includes(d.code.toUpperCase())) || 
+        (d.name && cUpper.includes(d.name.toUpperCase()))
+      );
+      departmentName = matchedDept?.name || 'Teknik Komputer dan Jaringan';
+    }
+    departmentName = sanitizeFolderName(departmentName);
+
+    return { periodName, academicYearName, departmentName };
+  }
+
+  // Helper untuk membuat/mengambil folder hierarki: [Tahun Pelajaran] -> [Jurusan] -> [Periode Prakerin]
+  async function getPeriodFolder(yearName: string, deptName: string, periodName: string) {
+    const yearFolderId = await getOrCreateFolder(drive, yearName, rootDriveFolderId, folderCache);
+    const deptFolderId = await getOrCreateFolder(drive, deptName, yearFolderId, folderCache);
+    const periodFolderId = await getOrCreateFolder(drive, periodName, deptFolderId, folderCache);
+    return { yearFolderId, deptFolderId, periodFolderId };
   }
 
   // Dapatkan data penempatan dan penugasan lengkap beserta relasinya untuk sinkronisasi dokumen
@@ -607,26 +632,26 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   const processedIndustryLetters = new Set<string>();
 
   // A. PROSES SURAT PENGAJUAN & SURAT BALASAN INDUSTRI
+  // 📁 Struktur Folder: [Tahun] / [Jurusan] / [Periode] / [Pengajuan | Jawaban] / [Nama Industri].pdf
   for (const placement of detailedPlacements) {
     const student = placement.student;
     const industry = placement.industry;
     if (!industry) continue;
 
-    const { periodName, academicYearName } = resolvePeriodAndYear(student?.className, student?.department);
+    const { periodName, academicYearName, departmentName } = resolvePeriodAndYear(student?.className, student?.department || industry?.department);
     const safeIndustryName = sanitizeIndustryFileName(industry.name);
 
     // 1. Surat Pengajuan Resmi (suratTugasUrl atau fallback letterFile)
     const suratTugasSource = placement.suratTugasUrl || (placement as any).letterFile;
     if (suratTugasSource && String(suratTugasSource).trim() !== '') {
-      const pengajuanKey = `PENGAJUAN:::${academicYearName}:::${periodName}:::${safeIndustryName}`;
+      const pengajuanKey = `PENGAJUAN:::${academicYearName}:::${departmentName}:::${periodName}:::${safeIndustryName}`;
       if (!processedIndustryLetters.has(pengajuanKey)) {
         processedIndustryLetters.add(pengajuanKey);
         try {
           const resolved = await resolveFileBuffer(suratTugasSource);
           if (resolved) {
-            // Dapatkan ID folder: Tahun Pelajaran -> Periode Prakerin -> Pengajuan
-            const yearFolderId = await getOrCreateFolder(drive, academicYearName, rootDriveFolderId, folderCache);
-            const periodFolderId = await getOrCreateFolder(drive, periodName, yearFolderId, folderCache);
+            // Dapatkan ID folder: Tahun Pelajaran -> Jurusan -> Periode Prakerin -> Pengajuan
+            const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
             const pengajuanFolderId = await getOrCreateFolder(drive, 'Pengajuan', periodFolderId, folderCache);
 
             const fileName = `${safeIndustryName}.pdf`;
@@ -637,7 +662,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
             syncDetails.push({
               type: 'PENGAJUAN',
-              path: `${academicYearName}/${periodName}/Pengajuan`,
+              path: `${academicYearName}/${departmentName}/${periodName}/Pengajuan`,
               fileName: fileName,
               action: uploadRes.action,
             });
@@ -646,7 +671,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           totalFailed++;
           syncDetails.push({
             type: 'PENGAJUAN',
-            path: `${academicYearName}/${periodName}/Pengajuan`,
+            path: `${academicYearName}/${departmentName}/${periodName}/Pengajuan`,
             fileName: `${safeIndustryName}.pdf`,
             action: 'failed',
             error: err?.message || String(err),
@@ -658,15 +683,14 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
     // 2. Surat Balasan / Jawaban Industri (suratBalasanUrl)
     if (placement.suratBalasanUrl && String(placement.suratBalasanUrl).trim() !== '') {
-      const jawabanKey = `JAWABAN:::${academicYearName}:::${periodName}:::${safeIndustryName}`;
+      const jawabanKey = `JAWABAN:::${academicYearName}:::${departmentName}:::${periodName}:::${safeIndustryName}`;
       if (!processedIndustryLetters.has(jawabanKey)) {
         processedIndustryLetters.add(jawabanKey);
         try {
           const resolved = await resolveFileBuffer(placement.suratBalasanUrl);
           if (resolved) {
-            // Dapatkan ID folder: Tahun Pelajaran -> Periode Prakerin -> Jawaban
-            const yearFolderId = await getOrCreateFolder(drive, academicYearName, rootDriveFolderId, folderCache);
-            const periodFolderId = await getOrCreateFolder(drive, periodName, yearFolderId, folderCache);
+            // Dapatkan ID folder: Tahun Pelajaran -> Jurusan -> Periode Prakerin -> Jawaban
+            const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
             const jawabanFolderId = await getOrCreateFolder(drive, 'Jawaban', periodFolderId, folderCache);
 
             const fileName = `${safeIndustryName}.pdf`;
@@ -677,7 +701,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
             syncDetails.push({
               type: 'JAWABAN',
-              path: `${academicYearName}/${periodName}/Jawaban`,
+              path: `${academicYearName}/${departmentName}/${periodName}/Jawaban`,
               fileName: fileName,
               action: uploadRes.action,
             });
@@ -686,7 +710,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           totalFailed++;
           syncDetails.push({
             type: 'JAWABAN',
-            path: `${academicYearName}/${periodName}/Jawaban`,
+            path: `${academicYearName}/${departmentName}/${periodName}/Jawaban`,
             fileName: `${safeIndustryName}.pdf`,
             action: 'failed',
             error: err?.message || String(err),
@@ -698,10 +722,11 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   }
 
   // B. PROSES DOKUMEN SISWA (CV & BPJS KETENAGAKERJAAN)
+  // 📁 Struktur Folder: [Tahun] / [Jurusan] / [Periode] / [Nama Kelas] / [CV | BPJS] / [cv_namasiswa | bpjs_namasiswa].pdf
   for (const student of students) {
     if (!student.cvUrl && !student.bpjsUrl) continue;
 
-    const { periodName, academicYearName } = resolvePeriodAndYear(student.className, student.department);
+    const { periodName, academicYearName, departmentName } = resolvePeriodAndYear(student.className, student.department);
     const safeClassName = sanitizeFolderName(student.className || 'Kelas Umum');
     const safeStudentName = sanitizeStudentFileName(student.name);
 
@@ -710,8 +735,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       try {
         const resolved = await resolveFileBuffer(student.cvUrl);
         if (resolved) {
-          const yearFolderId = await getOrCreateFolder(drive, academicYearName, rootDriveFolderId, folderCache);
-          const periodFolderId = await getOrCreateFolder(drive, periodName, yearFolderId, folderCache);
+          const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
           const classFolderId = await getOrCreateFolder(drive, safeClassName, periodFolderId, folderCache);
           const cvFolderId = await getOrCreateFolder(drive, 'CV', classFolderId, folderCache);
 
@@ -723,7 +747,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
           syncDetails.push({
             type: 'CV',
-            path: `${academicYearName}/${periodName}/${safeClassName}/CV`,
+            path: `${academicYearName}/${departmentName}/${periodName}/${safeClassName}/CV`,
             fileName: fileName,
             action: uploadRes.action,
           });
@@ -732,7 +756,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
         totalFailed++;
         syncDetails.push({
           type: 'CV',
-          path: `${academicYearName}/${periodName}/${safeClassName}/CV`,
+          path: `${academicYearName}/${departmentName}/${periodName}/${safeClassName}/CV`,
           fileName: `cv_${safeStudentName}.pdf`,
           action: 'failed',
           error: err?.message || String(err),
@@ -746,8 +770,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       try {
         const resolved = await resolveFileBuffer(student.bpjsUrl);
         if (resolved) {
-          const yearFolderId = await getOrCreateFolder(drive, academicYearName, rootDriveFolderId, folderCache);
-          const periodFolderId = await getOrCreateFolder(drive, periodName, yearFolderId, folderCache);
+          const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
           const classFolderId = await getOrCreateFolder(drive, safeClassName, periodFolderId, folderCache);
           const bpjsFolderId = await getOrCreateFolder(drive, 'BPJS', classFolderId, folderCache);
 
@@ -759,7 +782,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
           syncDetails.push({
             type: 'BPJS',
-            path: `${academicYearName}/${periodName}/${safeClassName}/BPJS`,
+            path: `${academicYearName}/${departmentName}/${periodName}/${safeClassName}/BPJS`,
             fileName: fileName,
             action: uploadRes.action,
           });
@@ -768,7 +791,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
         totalFailed++;
         syncDetails.push({
           type: 'BPJS',
-          path: `${academicYearName}/${periodName}/${safeClassName}/BPJS`,
+          path: `${academicYearName}/${departmentName}/${periodName}/${safeClassName}/BPJS`,
           fileName: `bpjs_${safeStudentName}.pdf`,
           action: 'failed',
           error: err?.message || String(err),
@@ -779,7 +802,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   }
 
   // C. PROSES DOKUMEN PENUGASAN & HASIL KEGIATAN (MONITORING / PENARIKAN / PENERJUNAN)
-  // 📁 Struktur Folder: [Tahun] / [Periode] / Penugasan / [Monitoring | Penarikan | Penerjunan] / [File Asli | Hasil Kegiatan]
+  // 📁 Struktur Folder: [Tahun] / [Jurusan] / [Periode] / Penugasan / [Monitoring | Penarikan | Penerjunan] / [File Asli | Laporan Kegiatan]
   for (const assign of detailedAssignments) {
     const teacher = assign.teacher;
     const industry = assign.industry;
@@ -787,6 +810,13 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
     const academicYearName = sanitizeFolderName(assign.period?.academicYear?.year || defaultYearName);
     const periodName = sanitizeFolderName(assign.period?.name || defaultPeriodName);
+    
+    let assignmentDept = assign.department || assign.period?.department || assign.teacher?.department || assign.industry?.department;
+    if (!assignmentDept || assignmentDept.toUpperCase() === 'ALL' || assignmentDept.toLowerCase() === 'semua jurusan') {
+      assignmentDept = 'Teknik Komputer dan Jaringan';
+    }
+    const departmentName = sanitizeFolderName(assignmentDept);
+
     const category = getAssignmentCategory(assign.purpose);
 
     const safeTeacherName = sanitizeFolderName(teacher.name || 'Guru').replace(/\s+/g, '_');
@@ -794,9 +824,8 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     const dateStr = assign.monitoringDate ? new Date(assign.monitoringDate).toISOString().slice(0, 10) : '';
 
     try {
-      // Dapatkan / Buat Folder Hierarki di Google Drive
-      const yearFolderId = await getOrCreateFolder(drive, academicYearName, rootDriveFolderId, folderCache);
-      const periodFolderId = await getOrCreateFolder(drive, periodName, yearFolderId, folderCache);
+      // Dapatkan / Buat Folder Hierarki di Google Drive: [Tahun] / [Jurusan] / [Periode] / Penugasan / [Kategori] / [File Asli | Laporan Kegiatan]
+      const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
       const penugasanFolderId = await getOrCreateFolder(drive, 'Penugasan', periodFolderId, folderCache);
       const tujuanFolderId = await getOrCreateFolder(drive, category, penugasanFolderId, folderCache);
       const fileAsliFolderId = await getOrCreateFolder(drive, 'File Asli', tujuanFolderId, folderCache);
@@ -814,7 +843,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
             syncDetails.push({
               type: 'PENUGASAN_TUGAS',
-              path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+              path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/File Asli`,
               fileName: fileName,
               action: uploadRes.action,
             });
@@ -823,7 +852,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           totalFailed++;
           syncDetails.push({
             type: 'PENUGASAN_TUGAS',
-            path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+            path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/File Asli`,
             fileName: `Surat_Tugas_${safeTeacherName}_${safeIndustryName}.pdf`,
             action: 'failed',
             error: err?.message || String(err),
@@ -844,7 +873,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
             syncDetails.push({
               type: 'PENUGASAN_SPPD',
-              path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+              path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/File Asli`,
               fileName: fileName,
               action: uploadRes.action,
             });
@@ -853,7 +882,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           totalFailed++;
           syncDetails.push({
             type: 'PENUGASAN_SPPD',
-            path: `${academicYearName}/${periodName}/Penugasan/${category}/File Asli`,
+            path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/File Asli`,
             fileName: `SPPD_${safeTeacherName}_${safeIndustryName}.pdf`,
             action: 'failed',
             error: err?.message || String(err),
@@ -874,7 +903,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
             syncDetails.push({
               type: 'PENUGASAN_HASIL',
-              path: `${academicYearName}/${periodName}/Penugasan/${category}/Laporan Kegiatan`,
+              path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Laporan Kegiatan`,
               fileName: fileName,
               action: uploadRes.action,
             });
@@ -883,7 +912,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           totalFailed++;
           syncDetails.push({
             type: 'PENUGASAN_HASIL',
-            path: `${academicYearName}/${periodName}/Penugasan/${category}/Laporan Kegiatan`,
+            path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Laporan Kegiatan`,
             fileName: `Hasil_Kegiatan_${safeTeacherName}_${safeIndustryName}.pdf`,
             action: 'failed',
             error: err?.message || String(err),
@@ -897,26 +926,23 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   }
 
   // D. PROSES SURAT IZIN SISWA (EVENT PARTICIPANT)
+  // 📁 Struktur Folder: [Tahun] / [Jurusan] / [Periode] / Surat Izin / Surat_Izin_[Kegiatan]_[NamaSiswa].pdf
   for (const part of detailedEventParticipants) {
     const student = part.student;
     if (!student || !part.letterUrl || String(part.letterUrl).trim() === '') continue;
 
-    const academicYearName = defaultYearName;
-    const periodName = defaultPeriodName;
+    const { periodName, academicYearName, departmentName } = resolvePeriodAndYear(student?.className, student?.department);
 
-    const safeClassName = sanitizeFolderName(student.className || 'Tanpa_Kelas');
-    const safeStudentName = sanitizeFolderName(student.name || 'Siswa').replace(/\s+/g, '_');
+    const safeStudentName = sanitizeFolderName(student?.name || 'Siswa').replace(/\s+/g, '_');
     const safeEventName = sanitizeFolderName(part.event?.name || 'Kegiatan_Lainnya').replace(/\s+/g, '_');
 
     try {
-      const yearFolderId = await getOrCreateFolder(drive, academicYearName, rootDriveFolderId, folderCache);
-      const periodFolderId = await getOrCreateFolder(drive, periodName, yearFolderId, folderCache);
-      const classFolderId = await getOrCreateFolder(drive, safeClassName, periodFolderId, folderCache);
-      const suratIzinFolderId = await getOrCreateFolder(drive, 'Surat Izin', classFolderId, folderCache);
+      const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
+      const suratIzinFolderId = await getOrCreateFolder(drive, 'Surat Izin', periodFolderId, folderCache);
 
       const resolved = await resolveFileBuffer(part.letterUrl);
       if (resolved) {
-        const fileName = "Surat_Izin_" + safeEventName + "_" + safeStudentName + ".pdf";
+        const fileName = `Surat_Izin_${safeEventName}_${safeStudentName}.pdf`;
         const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, 'application/pdf', resolved.buffer, suratIzinFolderId);
         
         if (uploadRes.action === 'created') totalSynced++;
@@ -924,7 +950,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
 
         syncDetails.push({
           type: 'SURAT_IZIN',
-          path: academicYearName + '/' + periodName + '/' + safeClassName + '/Surat Izin',
+          path: `${academicYearName}/${departmentName}/${periodName}/Surat Izin`,
           fileName: fileName,
           action: uploadRes.action,
         });
@@ -933,8 +959,8 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       totalFailed++;
       syncDetails.push({
         type: 'SURAT_IZIN',
-        path: academicYearName + '/' + periodName + '/' + safeClassName + '/Surat Izin',
-        fileName: "Surat_Izin_" + safeEventName + "_" + safeStudentName + ".pdf",
+        path: `${academicYearName}/${departmentName}/${periodName}/Surat Izin`,
+        fileName: `Surat_Izin_${safeEventName}_${safeStudentName}.pdf`,
         action: 'failed',
         error: err?.message || String(err),
       });
