@@ -70,7 +70,8 @@ services:
       WHATSAPP_DEFAULT_ENGINE: WEBJS
       WAHA_ZIP_LOGS: "false"
       WAHA_DASHBOARD_ENABLED: "true"
-      WAHA_DASHBOARD_NO_PASSWORD: "true"
+      WAHA_DASHBOARD_USERNAME: "admin"
+      WAHA_DASHBOARD_PASSWORD: "SierinSecurePass2026!"
       WAHA_NO_API_KEY: "true"
     ports:
       - "7005:3000" # 🔑 Host Port 7005 dipetakan ke Container Port 3000 (WAHA API & Dashboard)
