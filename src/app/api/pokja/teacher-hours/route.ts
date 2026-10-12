@@ -22,8 +22,74 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const className = searchParams.get('className');
 
-    // 1. Ambil semua alokasi jam guru beserta data guru dan jumlah total siswa bimbingan
+    const userDepartment = (session.user as any)?.department;
+    const userRole = (session.user as any)?.role;
+    const isPokjaScoped = userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL';
+
+    // Cari kelas-kelas yang terafiliasi dengan jurusan Pokja ini
+    let scopedClassNames: string[] = [];
+    if (isPokjaScoped) {
+      // 1. Dari tabel ClassRoom berdasarkan relasi Department atau nama kelas
+      try {
+        const deptClasses = await db.classRoom.findMany({
+          where: {
+            OR: [
+              {
+                department: {
+                  OR: [
+                    { name: { contains: userDepartment, mode: 'insensitive' } },
+                    { code: { contains: userDepartment, mode: 'insensitive' } }
+                  ]
+                }
+              },
+              { name: { contains: userDepartment, mode: 'insensitive' } }
+            ]
+          },
+          select: { name: true }
+        });
+        deptClasses.forEach(c => {
+          if (!scopedClassNames.includes(c.name)) scopedClassNames.push(c.name);
+        });
+      } catch (err) {
+        console.error('Error fetching dept classes in teacher-hours:', err);
+      }
+
+      // 2. Dari tabel Student yang terdaftar di jurusan ini
+      try {
+        const studentClasses = await db.student.findMany({
+          where: {
+            department: { contains: userDepartment, mode: 'insensitive' }
+          },
+          select: { className: true },
+          distinct: ['className']
+        });
+        studentClasses.forEach(s => {
+          if (s.className && !scopedClassNames.includes(s.className)) {
+            scopedClassNames.push(s.className);
+          }
+        });
+      } catch (err) {
+        console.error('Error fetching student classes in teacher-hours:', err);
+      }
+    } else {
+      try {
+        const allClassRooms = await db.classRoom.findMany({ select: { name: true } });
+        scopedClassNames = allClassRooms.map(c => c.name);
+      } catch (err) {
+        console.error('Error fetching all classes in teacher-hours:', err);
+      }
+    }
+
+    let allocationWhere: any = {};
+    if (className) {
+      allocationWhere.className = { equals: className.trim(), mode: 'insensitive' };
+    } else if (isPokjaScoped) {
+      allocationWhere.className = { in: scopedClassNames };
+    }
+
+    // 1. Ambil alokasi jam guru sesuai scope jurusan
     const allocations = await db.teacherHourAllocation.findMany({
+      where: allocationWhere,
       include: { 
         teacher: {
           select: {
@@ -144,6 +210,7 @@ export async function GET(request: Request) {
       success: true, 
       allocations,
       teachers,
+      classes: scopedClassNames,
       classStudents,
       periodInfo,
       coefficientInfo

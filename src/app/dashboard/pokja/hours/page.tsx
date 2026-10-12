@@ -25,7 +25,7 @@ export default function PokjaTeacherHoursPage() {
   const { theme } = useTheme();
 
   const userRole = (session?.user as any)?.role;
-  const userDepartment = (session?.user as any)?.department || 'Teknik Komputer dan Jaringan';
+  const userDepartment = (session?.user as any)?.department || '';
 
   const [allocations, setAllocations] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -66,17 +66,20 @@ export default function PokjaTeacherHoursPage() {
           if (res.teachers && res.teachers.length > 0) {
             setTeachers(res.teachers);
           }
+          if (res.classes && Array.isArray(res.classes)) {
+            setClassesList(res.classes);
+          }
         }
       })
       .catch(() => {});
 
-    // 2. Ambil master kelas
-    fetch(`/api/admin/master?type=class&t=${timestamp}`)
+    // 2. Ambil master kelas ter-filter jurusan dari /api/pokja/classes
+    fetch(`/api/pokja/classes?t=${timestamp}`)
       .then(res => res.json())
       .then(res => {
-        if (res.success) {
-          const clsNames = (res.data || []).map((c: any) => c.name);
-          setClassesList(clsNames);
+        if (res.success && res.classes) {
+          const clsNames = (res.classes || []).map((c: any) => c.name);
+          setClassesList(prev => Array.from(new Set([...prev, ...clsNames])));
         }
         setLoading(false);
       })
