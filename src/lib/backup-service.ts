@@ -588,7 +588,11 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       include: {
         student: {
           include: {
-            placement: true
+            placement: {
+              include: {
+                industry: true
+              }
+            }
           }
         },
         event: true
@@ -926,7 +930,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   }
 
   // D. PROSES SURAT IZIN SISWA (EVENT PARTICIPANT)
-  // 📁 Struktur Folder: [Tahun] / [Jurusan] / [Periode] / Surat Izin / Surat_Izin_[Kegiatan]_[NamaSiswa].pdf
+  // 📁 Struktur Folder: [Tahun] / [Jurusan] / [Periode] / Surat Izin / [Nama Event] / surat_izin_[nama_industri]_[nama_siswa/jurusan].pdf
   for (const part of detailedEventParticipants) {
     const student = part.student;
     if (!student || !part.letterUrl || String(part.letterUrl).trim() === '') continue;
@@ -934,23 +938,26 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     const { periodName, academicYearName, departmentName } = resolvePeriodAndYear(student?.className, student?.department);
 
     const safeStudentName = sanitizeFolderName(student?.name || 'Siswa').replace(/\s+/g, '_');
-    const safeEventName = sanitizeFolderName(part.event?.name || 'Kegiatan_Lainnya').replace(/\s+/g, '_');
+    const safeEventName = sanitizeFolderName(part.event?.name || 'Kegiatan_Lainnya');
+    const safeIndustryName = sanitizeFolderName(student?.placement?.industry?.name || 'Industri').replace(/\s+/g, '_');
 
     try {
       const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
-      const suratIzinFolderId = await getOrCreateFolder(drive, 'Surat Izin', periodFolderId, folderCache);
+      const suratIzinRootFolderId = await getOrCreateFolder(drive, 'Surat Izin', periodFolderId, folderCache);
+      const eventFolderId = await getOrCreateFolder(drive, safeEventName, suratIzinRootFolderId, folderCache);
 
       const resolved = await resolveFileBuffer(part.letterUrl);
       if (resolved) {
-        const fileName = `Surat_Izin_${safeEventName}_${safeStudentName}.pdf`;
-        const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, 'application/pdf', resolved.buffer, suratIzinFolderId);
+        // Penamaan berkas: Surat_Izin_[Nama_Industri]_[Nama_Siswa].pdf
+        const fileName = `Surat_Izin_${safeIndustryName}_${safeStudentName}.pdf`;
+        const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, 'application/pdf', resolved.buffer, eventFolderId);
         
         if (uploadRes.action === 'created') totalSynced++;
         else totalUpdated++;
 
         syncDetails.push({
           type: 'SURAT_IZIN',
-          path: `${academicYearName}/${departmentName}/${periodName}/Surat Izin`,
+          path: `${academicYearName}/${departmentName}/${periodName}/Surat Izin/${safeEventName}`,
           fileName: fileName,
           action: uploadRes.action,
         });
@@ -959,8 +966,8 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       totalFailed++;
       syncDetails.push({
         type: 'SURAT_IZIN',
-        path: `${academicYearName}/${departmentName}/${periodName}/Surat Izin`,
-        fileName: `Surat_Izin_${safeEventName}_${safeStudentName}.pdf`,
+        path: `${academicYearName}/${departmentName}/${periodName}/Surat Izin/${safeEventName}`,
+        fileName: `Surat_Izin_${safeIndustryName}_${safeStudentName}.pdf`,
         action: 'failed',
         error: err?.message || String(err),
       });
