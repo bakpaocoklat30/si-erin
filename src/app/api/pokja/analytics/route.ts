@@ -24,18 +24,45 @@ export async function GET(request: Request) {
     }
 
     const prisma = db as any;
+    const userDept = (session.user as any)?.department;
+    const userRole = (session.user as any)?.role;
+    const isPokjaScoped = userRole === 'POKJA' && userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL';
     
     // Parse query params for class filter
     const url = new URL(request.url);
     const classNameFilter = url.searchParams.get('className') || '';
     
     // Build conditions
-    const studentCondition = classNameFilter ? { className: classNameFilter } : {};
-    const placementCondition = classNameFilter ? { student: { className: classNameFilter } } : {};
+    const studentCondition: any = {};
+    if (isPokjaScoped) {
+      studentCondition.department = { contains: userDept, mode: 'insensitive' };
+    }
+    if (classNameFilter) {
+      studentCondition.className = classNameFilter;
+    }
+
+    const placementCondition: any = {};
+    if (isPokjaScoped) {
+      placementCondition.student = { department: { contains: userDept, mode: 'insensitive' } };
+    }
+    if (classNameFilter) {
+      placementCondition.student = {
+        ...(placementCondition.student || {}),
+        className: classNameFilter
+      };
+    }
+
+    const industryWhere: any = isPokjaScoped ? {
+      OR: [
+        { department: { contains: userDept, mode: 'insensitive' } },
+        { department: 'Semua Jurusan' },
+        { department: null }
+      ]
+    } : {};
 
     // 1. Ambil Statistik Ringkasan Utama
     const totalStudents = await prisma.student.count({ where: studentCondition });
-    const totalIndustries = await prisma.industry.count();
+    const totalIndustries = await prisma.industry.count({ where: industryWhere });
     const totalPlacements = await prisma.internshipPlacement.count({ where: placementCondition });
 
     // 2. Breakdown Status Pengajuan PKL
@@ -44,8 +71,9 @@ export async function GET(request: Request) {
     const statusPengajuan = await prisma.internshipPlacement.count({ where: { status: { in: ['PENGAJUAN_DIKIRIM', 'MENUNGGU_PERSETUJUAN_POKJA'] }, ...placementCondition } });
     const statusProses = await prisma.internshipPlacement.count({ where: { status: { in: ['DIPROSES_INDUSTRI', 'SURAT_DITERBITKAN', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SENT_DUDI', 'SURAT_TERBIT'] }, ...placementCondition } });
 
-    // 3. Hitung Total Kuota Terpakai vs Sisa Kuota Industri (Khusus untuk data global industri)
+    // 3. Hitung Total Kuota Terpakai vs Sisa Kuota Industri
     const industries = await prisma.industry.findMany({
+      where: industryWhere,
       select: {
         id: true,
         name: true,
@@ -53,6 +81,7 @@ export async function GET(request: Request) {
         phone: true,
         contactPerson: true,
         totalQuota: true,
+        department: true,
         placements: {
           where: placementCondition,
           select: { id: true, status: true }
@@ -66,9 +95,8 @@ export async function GET(request: Request) {
     const incompleteIndustriesList = industries.filter((ind: any) => !ind.address || !ind.phone || !ind.contactPerson).map((ind:any) => ind.name);
 
     const topIndustries = industries.map((ind: any) => {
-      // NOTE: jika difilter per kelas, kuota terpakai yang dihitung HANYA anak kelas tersebut!
       const activeCount = ind.placements.filter((p: any) => ['DITERIMA', 'DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'COMPLETED', 'DIPROSES_INDUSTRI', 'SURAT_DITERBITKAN', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SENT_DUDI', 'SURAT_TERBIT'].includes(p.status)).length;
-      totalQuotaAvailable += ind.totalQuota; // Kuota tersedia tetap global atau tidak? Biarkan global agar fair.
+      totalQuotaAvailable += ind.totalQuota;
       totalQuotaUsed += activeCount;
       return {
         id: ind.id,
@@ -91,8 +119,18 @@ export async function GET(request: Request) {
       total: dept._count.id
     }));
 
-    // 4.b Get Available Classes for Dropdown
+    // 4.b Get Available Classes for Dropdown (Scoped to Pokja's Department)
+    const classWhere: any = isPokjaScoped ? {
+      department: {
+        OR: [
+          { name: { contains: userDept, mode: 'insensitive' } },
+          { code: { contains: userDept, mode: 'insensitive' } }
+        ]
+      }
+    } : {};
+
     const classes = await prisma.classRoom.findMany({
+      where: classWhere,
       select: { name: true },
       orderBy: { name: 'asc' }
     });

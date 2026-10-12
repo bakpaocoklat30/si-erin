@@ -88,6 +88,7 @@ export async function GET() {
         workType: true,
         jobDescription: true,
         totalQuota: true,
+        department: true,
         createdAt: true,
         updatedAt: true,
         placements: {
@@ -205,7 +206,8 @@ export async function POST(request: Request) {
             website: cleanOptionalString(item.website),
             workType: cleanRequiredString(item.workType, 'Onsite'),
             jobDescription: cleanOptionalString(item.jobDescription),
-            totalQuota: cleanQuotaInteger(item.totalQuota || item.quota, item.isUnlimited)
+            totalQuota: cleanQuotaInteger(item.totalQuota || item.quota, item.isUnlimited),
+            department: cleanOptionalString(item.department) || (session.user as any)?.department || 'Semua Jurusan'
           };
 
           await db.industry.create({ data: payloadData });
@@ -255,7 +257,8 @@ export async function POST(request: Request) {
       website: cleanOptionalString(body.website),
       workType: cleanRequiredString(body.workType, 'Onsite'),
       jobDescription: cleanOptionalString(body.jobDescription),
-      totalQuota: cleanQuotaInteger(body.totalQuota, body.isUnlimited)
+      totalQuota: cleanQuotaInteger(body.totalQuota, body.isUnlimited),
+      department: cleanOptionalString(body.department) || (session.user as any)?.department || 'Semua Jurusan'
     };
 
     const newIndustry = await db.industry.create({ data: singlePayload });
@@ -324,7 +327,8 @@ export async function PUT(request: Request) {
       website: cleanOptionalString(body.website),
       workType: cleanRequiredString(body.workType, 'Onsite'),
       jobDescription: cleanOptionalString(body.jobDescription),
-      totalQuota: cleanQuotaInteger(body.totalQuota, body.isUnlimited)
+      totalQuota: cleanQuotaInteger(body.totalQuota, body.isUnlimited),
+      department: body.department !== undefined ? (cleanOptionalString(body.department) || 'Semua Jurusan') : undefined
     };
 
     const updated = await db.industry.update({

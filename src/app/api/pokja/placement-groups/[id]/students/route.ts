@@ -8,9 +8,25 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userDept = (session.user as any)?.department;
+    const userRole = (session.user as any)?.role;
+
     const { id } = params;
+    let whereCondition: any = { groupId: id };
+
+    if (userRole === 'POKJA' && userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
+      whereCondition.student = {
+        department: { contains: userDept, mode: 'insensitive' }
+      };
+    }
+
     const placements = await db.internshipPlacement.findMany({
-      where: { groupId: id },
+      where: whereCondition,
       include: {
         student: {
           select: {

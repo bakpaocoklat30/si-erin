@@ -56,16 +56,39 @@ export async function GET(request: Request) {
     ]);
 
     let filteredClasses = classRooms;
-    if (userRole === 'POKJA' && userDepartment && userDepartment !== 'ALL') {
-      filteredClasses = classRooms.filter(c => c.department?.name?.toLowerCase() === userDepartment.toLowerCase());
+    let filteredAllocations = allocations;
+    let filteredStudents = students;
+    let filteredTeachers = teachers;
+
+    if (userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL') {
+      const uDept = userDepartment.toLowerCase();
+      filteredClasses = classRooms.filter(c => {
+        const deptName = c.department?.name?.toLowerCase() || '';
+        const deptCode = c.department?.code?.toLowerCase() || '';
+        return deptName.includes(uDept) || uDept.includes(deptName) || deptCode === uDept;
+      });
+
+      const classNamesSet = new Set(filteredClasses.map(c => c.name.toLowerCase()));
+      filteredAllocations = allocations.filter(a => classNamesSet.has(a.className.toLowerCase()));
+      filteredStudents = students.filter(s => 
+        (s.department && s.department.toLowerCase().includes(uDept)) ||
+        (s.className && classNamesSet.has(s.className.toLowerCase()))
+      );
+
+      const deptTeachers = teachers.filter(t => 
+        t.department && (t.department.toLowerCase().includes(uDept) || uDept.includes(t.department.toLowerCase()))
+      );
+      if (deptTeachers.length > 0) {
+        filteredTeachers = deptTeachers;
+      }
     }
 
     return NextResponse.json({ 
       success: true, 
-      classRooms: filteredClasses.length > 0 ? filteredClasses : classRooms,
-      allocations,
-      teachers,
-      students,
+      classRooms: filteredClasses,
+      allocations: filteredAllocations,
+      teachers: filteredTeachers,
+      students: filteredStudents,
       academicYears,
       activeAcademicYear: activeAcademicYear ? activeAcademicYear.year : '2025/2026'
     });

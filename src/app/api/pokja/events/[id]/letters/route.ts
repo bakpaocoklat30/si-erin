@@ -37,16 +37,26 @@ export async function GET(
       }
     });
 
+    const userDept = (session.user as any)?.department;
+    const userRole = (session.user as any)?.role;
+
     if (!event) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const school = await prisma.schoolSetting.findFirst();
 
-    // Group students by industry
+    // Group students by industry (filtered by Pokja's department)
     const industryMap = new Map();
 
-    event.participants.forEach((p: any) => {
+    const filteredParticipants = event.participants.filter((p: any) => {
+      if (userRole === "POKJA" && userDept && userDept.toLowerCase() !== "semua jurusan" && userDept.toUpperCase() !== "ALL") {
+        return p.student?.department?.toLowerCase().includes(userDept.toLowerCase());
+      }
+      return true;
+    });
+
+    filteredParticipants.forEach((p: any) => {
       const industry = p.student?.placement?.industry;
       if (industry) {
         if (!industryMap.has(industry.id)) {
@@ -55,7 +65,7 @@ export async function GET(
             students: []
           });
         }
-                industryMap.get(industry.id).students.push({
+        industryMap.get(industry.id).students.push({
           ...p.student,
           participantStartDate: p.startDate,
           participantEndDate: p.endDate,

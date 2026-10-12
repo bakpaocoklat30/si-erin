@@ -18,8 +18,36 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Akses tidak diizinkan.' }, { status: 403 });
     }
 
-    // 1. Ambil seluruh penugasan monitoring
+    const userDept = (session.user as any)?.department;
+    const userRole = (session.user as any)?.role;
+
+    let assignmentWhere: any = {};
+    let placementIndustryWhere: any = {
+      status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
+    };
+    let teacherWhere: any = {
+      role: { in: ['PEMBIMBING', 'GURU', 'POKJA', 'ADMIN'] }
+    };
+
+    if (userRole === 'POKJA' && userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
+      assignmentWhere = {
+        OR: [
+          { department: { contains: userDept, mode: 'insensitive' } },
+          { teacher: { department: { contains: userDept, mode: 'insensitive' } } }
+        ]
+      };
+      placementIndustryWhere.student = {
+        department: { contains: userDept, mode: 'insensitive' }
+      };
+      teacherWhere.OR = [
+        { department: { contains: userDept, mode: 'insensitive' } },
+        { department: null }
+      ];
+    }
+
+    // 1. Ambil penugasan monitoring sesuai scope jurusan
     const assignments = await prisma.monitoringAssignment.findMany({
+      where: assignmentWhere,
       include: {
         industry: {
           select: {
@@ -33,13 +61,10 @@ export async function GET(req: NextRequest) {
             subDistrict: true,
             regency: true,
             province: true,
-            province: true,
             _count: {
               select: {
                 placements: {
-                  where: {
-                    status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
-                  }
+                  where: placementIndustryWhere
                 }
               }
             }
@@ -81,9 +106,7 @@ export async function GET(req: NextRequest) {
         _count: {
           select: {
             placements: {
-              where: {
-                status: { in: ['DISETUJUI_INDUSTRI', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'COMPLETED'] }
-              }
+              where: placementIndustryWhere
             }
           }
         }
@@ -95,9 +118,7 @@ export async function GET(req: NextRequest) {
 
     // 3. Ambil daftar guru pembimbing / pengajar yang bisa ditugaskan
     const teachers = await prisma.user.findMany({
-      where: {
-        role: { in: ['PEMBIMBING', 'GURU', 'POKJA', 'ADMIN'] }
-      },
+      where: teacherWhere,
       select: {
         id: true,
         name: true,
@@ -223,10 +244,13 @@ export async function POST(req: NextRequest) {
         ? `${industry.name} (${industry.address || industry.regency || ''})`
         : '');
 
+    const userDept = (session.user as any)?.department;
+
     const newAssignment = await prisma.monitoringAssignment.create({
       data: {
         industryId,
         teacherId,
+        department: userDept || 'ALL',
         companionTeachers: Array.isArray(companionTeachers) ? companionTeachers : [],
         targetIndustries: parsedTargetIndustries,
         periodId: periodId || null,

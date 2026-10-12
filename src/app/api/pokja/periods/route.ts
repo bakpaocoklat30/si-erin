@@ -53,7 +53,24 @@ export async function GET(request: Request) {
 
     let allIndustries: any[] = [];
     try {
-      allIndustries = await db.industry.findMany({ select: { id: true, name: true, address: true } });
+      const userRole = (session.user as any)?.role;
+      const userDepartment = (session.user as any)?.department;
+      let industryWhere: any = {};
+      if (userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL') {
+        industryWhere = {
+          OR: [
+            { department: { contains: userDepartment, mode: 'insensitive' } },
+            { department: 'Semua Jurusan' },
+            { department: null }
+          ]
+        };
+      }
+
+      allIndustries = await db.industry.findMany({ 
+        where: industryWhere,
+        select: { id: true, name: true, address: true, department: true },
+        orderBy: { name: 'asc' }
+      });
     } catch (e) {
       console.error('Error fetching industries:', e);
       allIndustries = [];
@@ -73,6 +90,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userDepartment = (session.user as any)?.department;
+    const userRole = (session.user as any)?.role;
+
     const body = await request.json();
     const { name, startDate, endDate, isActive, activeIndustries, department } = body;
 
@@ -88,7 +108,7 @@ export async function POST(request: Request) {
           name: name.trim(),
           startDate: new Date(startDate),
           endDate: new Date(endDate),
-          department: department || 'Semua Jurusan',
+          department: department || (userRole === 'POKJA' && userDepartment ? userDepartment : 'Semua Jurusan'),
           isActive: Boolean(isActive),
           activeIndustries: activeIndustries || [] // Masuk secara permanen ke kolom Json
         }

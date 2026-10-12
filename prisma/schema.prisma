@@ -141,6 +141,7 @@ model Industry {
   workType              String?                @default("Onsite") // Onsite, Remote, atau Hybrid
   jobDescription        String?                @db.Text
   totalQuota            Int                    @default(0)
+  department            String?
   placements            InternshipPlacement[]
   monitoringAssignments MonitoringAssignment[]
   createdAt             DateTime               @default(now())
@@ -323,6 +324,7 @@ model MonitoringAssignment {
   laporanUrl        String?           @db.Text
 
   status    String   @default("TERJADWAL") // TERJADWAL, SELESAI, DIBATALKAN
+  department String?
   notes     String?  @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -339,6 +341,7 @@ model PlacementGroup {
   industry   Industry         @relation(fields: [industryId], references: [id], onDelete: Cascade)
   periodId   String
   period     InternshipPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  department String?
   startDate  DateTime?
   endDate    DateTime?
   createdAt  DateTime         @default(now())
@@ -351,6 +354,7 @@ model SchoolEvent {
   startDate    DateTime
   endDate      DateTime
   location     String?
+  department   String?            @default("ALL")
   letterIntro  String?    @db.Text
   letterClosing String?   @db.Text
   createdAt    DateTime           @default(now())

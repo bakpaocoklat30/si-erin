@@ -9,12 +9,22 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "POKJA") {
+    if (!session || !["POKJA", "ADMIN"].includes(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userDept = (session.user as any)?.department;
+    const userRole = (session.user as any)?.role;
+
+    let whereCondition: any = { eventId: params.id };
+    if (userRole === "POKJA" && userDept && userDept.toLowerCase() !== "semua jurusan" && userDept.toUpperCase() !== "ALL") {
+      whereCondition.student = {
+        department: { contains: userDept, mode: "insensitive" }
+      };
+    }
+
     const participants = await prisma.eventParticipant.findMany({
-      where: { eventId: params.id },
+      where: whereCondition,
       include: {
         student: {
           include: {

@@ -281,16 +281,26 @@ const DEFAULT_SECTOR_CATEGORIES = [
 ];
 
 export default function PokjaIndustriesPage() {
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const { theme } = useTheme();
+
+  const userDept = (session?.user as any)?.department;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [industries, setIndustries] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>('ALL');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Auto set initial department filter to Pokja's own department
+  useEffect(() => {
+    if (userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
+      setSelectedDeptFilter(userDept);
+    }
+  }, [userDept]);
 
   // State Toggle Tampilan (Grid / Table List)
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -355,7 +365,8 @@ export default function PokjaIndustriesPage() {
     email: '',
     website: '',
     totalQuota: '5',
-    isUnlimited: false
+    isUnlimited: false,
+    department: 'Semua Jurusan'
   });
 
   // State Modal Import CSV
@@ -962,9 +973,29 @@ export default function PokjaIndustriesPage() {
       const matchAddress = ind.address?.toLowerCase().includes(term);
       const matchSector = ind.sector?.toLowerCase().includes(term);
       const matchNib = ind.nib?.toLowerCase().includes(term);
-      return matchName || matchAddress || matchSector || matchNib;
+      const matchSearch = matchName || matchAddress || matchSector || matchNib;
+      if (!matchSearch) return false;
+
+      if (selectedDeptFilter === 'ALL' || !selectedDeptFilter) return true;
+      if (selectedDeptFilter === 'Semua Jurusan') return ind.department === 'Semua Jurusan' || !ind.department;
+      return ind.department?.toLowerCase() === selectedDeptFilter.toLowerCase();
     });
-  }, [industries, searchTerm]);
+  }, [industries, searchTerm, selectedDeptFilter]);
+
+  // Daftar Jurusan dari Data Industri
+  const availableDepartments = useMemo(() => {
+    const list = new Set<string>();
+    if (userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
+      list.add(userDept);
+    }
+    list.add('Semua Jurusan');
+    industries.forEach((i: any) => {
+      if (i.department && i.department !== 'Semua Jurusan') {
+        list.add(i.department);
+      }
+    });
+    return Array.from(list);
+  }, [industries, userDept]);
 
   // EXPORT CSV DATA INDUSTRI DUDI
   const handleExportCsv = () => {
@@ -1092,7 +1123,8 @@ export default function PokjaIndustriesPage() {
       workType: 'Onsite',
       jobDescription: '',
       totalQuota: '5',
-      isUnlimited: false
+      isUnlimited: false,
+      department: userDept || 'Semua Jurusan'
     });
     setErrorMsg('');
     setShowModal(true);
@@ -1139,7 +1171,8 @@ export default function PokjaIndustriesPage() {
       workType: ind.workType || 'Onsite',
       jobDescription: ind.jobDescription || '',
       totalQuota: isUnlim ? '5' : String(ind.totalQuota || '5'),
-      isUnlimited: isUnlim
+      isUnlimited: isUnlim,
+      department: ind.department || userDept || 'Semua Jurusan'
     });
     setErrorMsg('');
     setShowModal(true);
@@ -1520,6 +1553,51 @@ export default function PokjaIndustriesPage() {
           </div>
         </div>
 
+        {/* DEPARTMENT FILTER TABS */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <span className="text-xs font-bold text-slate-500 mr-1 flex items-center space-x-1">
+            <Filter className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Filter Jurusan:</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedDeptFilter('ALL')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+              selectedDeptFilter === 'ALL'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                : isDark
+                ? 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 shadow-sm'
+            }`}
+          >
+            Semua Industri ({industries.length})
+          </button>
+          {availableDepartments.map((dept) => {
+            const isSelected = selectedDeptFilter.toLowerCase() === dept.toLowerCase();
+            const count = industries.filter(i => (i.department || 'Semua Jurusan').toLowerCase() === dept.toLowerCase()).length;
+            const isMyDept = userDept && dept.toLowerCase() === userDept.toLowerCase();
+            return (
+              <button
+                key={dept}
+                type="button"
+                onClick={() => setSelectedDeptFilter(dept)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center space-x-1 ${
+                  isSelected
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                    : isDark
+                    ? 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 shadow-sm'
+                }`}
+              >
+                <span>{isMyDept ? `Jurusan Saya (${dept})` : dept}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-500/10 text-slate-400'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {loading ? (
           <div className="p-16 text-center space-y-3">
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
@@ -1572,9 +1650,14 @@ export default function PokjaIndustriesPage() {
                         </div>
 
                         <div className="space-y-0.5 overflow-hidden">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block truncate">
-                            {ind.sector || 'Umum'}
-                          </span>
+                          <div className="flex items-center space-x-1.5 flex-wrap gap-1">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block truncate">
+                              {ind.sector || 'Umum'}
+                            </span>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                              {ind.department || 'Semua Jurusan'}
+                            </span>
+                          </div>
                           <h3 className={`font-black text-base leading-snug truncate ${
                             isDark ? 'text-white' : 'text-slate-900'
                           }`}>
@@ -1760,12 +1843,17 @@ export default function PokjaIndustriesPage() {
                         {/* 🏷️ 2. NIB & SEKTOR */}
                         <td className="p-4">
                           <div className="space-y-1">
-                            <span 
-                              className="text-xs font-black uppercase tracking-wider block"
-                              style={{ color: isDark ? '#a5b4fc' : '#312e81' }}
-                            >
-                              {ind.sector || 'Umum'}
-                            </span>
+                            <div className="flex items-center space-x-1.5 flex-wrap gap-1">
+                              <span 
+                                className="text-xs font-black uppercase tracking-wider block"
+                                style={{ color: isDark ? '#a5b4fc' : '#312e81' }}
+                              >
+                                {ind.sector || 'Umum'}
+                              </span>
+                              <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                {ind.department || 'Semua Jurusan'}
+                              </span>
+                            </div>
                             {ind.nib ? (
                               <code className="font-mono text-xs bg-slate-950 text-white dark:bg-slate-800 dark:text-indigo-200 px-2 py-0.5 rounded-md font-black inline-block border border-slate-700">
                                 NIB: {ind.nib}
@@ -2076,6 +2164,25 @@ export default function PokjaIndustriesPage() {
                         isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                       }`}
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">
+                      Jurusan Mitra / Penginput <span className="text-indigo-500 font-normal">(Scope Pokja)</span>
+                    </label>
+                    <select
+                      value={formData.department}
+                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      className={`w-full px-4 py-2.5 rounded-2xl border outline-none font-semibold ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                      }`}
+                    >
+                      {availableDepartments.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

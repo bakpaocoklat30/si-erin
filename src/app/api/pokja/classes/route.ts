@@ -33,13 +33,15 @@ export async function GET(request: Request) {
 
     // Filter berdasarkan jurusan jika Pokja memiliki spesifikasi departemen
     let classWhere: any = {};
-    if (userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan') {
+    const isPokjaScoped = userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL';
+
+    if (isPokjaScoped) {
       classWhere = {
         department: {
-          name: {
-            contains: userDepartment,
-            mode: 'insensitive'
-          }
+          OR: [
+            { name: { contains: userDepartment, mode: 'insensitive' } },
+            { code: { contains: userDepartment, mode: 'insensitive' } }
+          ]
         }
       };
     }
@@ -76,7 +78,19 @@ export async function GET(request: Request) {
     );
 
     // Ambil master daftar periode dan departemen untuk dropdown penugasan
+    let periodWhere: any = {};
+    if (isPokjaScoped) {
+      periodWhere = {
+        OR: [
+          { department: { contains: userDepartment, mode: 'insensitive' } },
+          { department: 'Semua Jurusan' },
+          { department: 'ALL' }
+        ]
+      };
+    }
+
     const periods = await db.internshipPeriod.findMany({ 
+      where: periodWhere,
       orderBy: { startDate: 'desc' },
       include: { academicYear: true }
     });
@@ -87,9 +101,12 @@ export async function GET(request: Request) {
     // Jika ada filter periodId atau academicYear
     if (periodIdFilter || academicYearFilter) {
       const classesInPeriod = await db.classRoom.findMany({
-        where: periodIdFilter 
-          ? { periodId: periodIdFilter } 
-          : { period: { academicYear: { year: academicYearFilter } } },
+        where: {
+          ...(classWhere),
+          ...(periodIdFilter 
+            ? { periodId: periodIdFilter } 
+            : { period: { academicYear: { year: academicYearFilter } } })
+        },
         select: { name: true }
       });
       const periodClassNames = classesInPeriod.map(c => c.name);
@@ -101,19 +118,34 @@ export async function GET(request: Request) {
         targetClassNames = periodClassNames;
       }
       
-      // Jika setelah filter period ternyata kosong, set ke array dummy agar tidak return semua
       if (targetClassNames.length === 0) {
         targetClassNames = ['__NO_MATCH__']; 
       }
+    } else if (targetClassNames.length === 0 && isPokjaScoped) {
+      // DEFAULT: Jika tidak ada filter kelas spesifik, gunakan seluruh kelas milik jurusan Pokja
+      targetClassNames = classRooms.map(c => c.name);
+      if (targetClassNames.length === 0) {
+        targetClassNames = ['__NO_MATCH__'];
+      }
     }
 
-    const studentCondition = targetClassNames.length > 0 
-      ? { OR: targetClassNames.map(name => ({ className: { equals: name, mode: 'insensitive' } })) } 
-      : {};
+    const studentCondition: any = targetClassNames.length > 0 
+      ? { 
+          AND: [
+            { OR: targetClassNames.map(name => ({ className: { equals: name, mode: 'insensitive' } })) },
+            ...(isPokjaScoped ? [{ department: { contains: userDepartment, mode: 'insensitive' } }] : [])
+          ]
+        } 
+      : (isPokjaScoped ? { department: { contains: userDepartment, mode: 'insensitive' } } : {});
       
-    const placementCondition = targetClassNames.length > 0 
-      ? { OR: targetClassNames.map(name => ({ student: { className: { equals: name, mode: 'insensitive' } } })) } 
-      : {};
+    const placementCondition: any = targetClassNames.length > 0 
+      ? { 
+          AND: [
+            { OR: targetClassNames.map(name => ({ student: { className: { equals: name, mode: 'insensitive' } } })) },
+            ...(isPokjaScoped ? [{ student: { department: { contains: userDepartment, mode: 'insensitive' } } }] : [])
+          ]
+        } 
+      : (isPokjaScoped ? { student: { department: { contains: userDepartment, mode: 'insensitive' } } } : {});
 
     const statusDiterima = await db.internshipPlacement.count({ where: { status: { in: ['DITERIMA', 'DISETUJUI_INDUSTRI', 'DITERIMA_INDUSTRI', 'COMPLETED'] }, ...placementCondition } });
     const statusDitolak = await db.internshipPlacement.count({ where: { status: { in: ['DITOLAK', 'DITOLAK_INDUSTRI', 'DITOLAK_POKJA'] }, ...placementCondition } });

@@ -10,7 +10,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userDept = (session.user as any)?.department;
+    const userRole = (session.user as any)?.role;
+
+    let groupWhere: any = {};
+    let placementWhere: any = { groupId: { not: null } };
+
+    if (userRole === 'POKJA' && userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
+      groupWhere = {
+        department: { contains: userDept, mode: 'insensitive' }
+      };
+      placementWhere.student = {
+        department: { contains: userDept, mode: 'insensitive' }
+      };
+    }
+
     const groups = await db.placementGroup.findMany({
+      where: groupWhere,
       include: {
         industry: {
           select: {
@@ -26,15 +42,13 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Also get student counts for each group in a single query
+    // Also get student counts for each group in a single query (department-scoped)
     const placementCounts = await db.internshipPlacement.groupBy({
       by: ['groupId'],
       _count: {
         groupId: true,
       },
-      where: {
-        groupId: { not: null }
-      }
+      where: placementWhere
     });
 
     const countMap = new Map();
@@ -60,6 +74,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userDept = (session.user as any)?.department;
     const body = await request.json();
     const { industryId, periodId, startDate, endDate } = body;
 
@@ -71,6 +86,7 @@ export async function POST(request: Request) {
       data: {
         industryId,
         periodId,
+        department: userDept || 'ALL',
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
       }
