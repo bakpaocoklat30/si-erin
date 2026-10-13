@@ -30,7 +30,6 @@ import {
   uploadOrUpdateFileInDrive 
 } from '@/lib/gdrive';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import sharp from 'sharp';
 
 const execPromise = util.promisify(exec);
 
@@ -459,18 +458,15 @@ async function generateDokumentasiFotoPdfBuffer(
       dayDatePhrase = `${dayName}, ${dayNum} ${monthName} ${yearNum}`;
     }
 
-    // Load semua buffer foto mentah & konversi ke JPEG terstandarisasi
+    // Load semua buffer foto mentah
     const resolvedPhotoList: Array<{ buffer: Buffer; caption: string }> = [];
     for (const p of photos) {
       const res = await resolveRawImageBuffer(p.url);
       if (res && res.buffer && res.buffer.length > 0) {
-        try {
-          const jpegBuf = await sharp(res.buffer).jpeg({ quality: 90 }).toBuffer();
-          resolvedPhotoList.push({
-            buffer: jpegBuf,
-            caption: sanitizePdfText(p.caption || ''),
-          });
-        } catch (convErr) {}
+        resolvedPhotoList.push({
+          buffer: res.buffer,
+          caption: sanitizePdfText(p.caption || ''),
+        });
       }
     }
 
@@ -624,9 +620,20 @@ async function generateDokumentasiFotoPdfBuffer(
 
       for (const item of chunk) {
         try {
-          const embedded = await doc.embedJpg(item.buffer);
-          const meta = await sharp(item.buffer).metadata();
-          const imgRatio = (meta.width || 4) / (meta.height || 3);
+          let embedded: any = null;
+          if (item.buffer.length > 4 && item.buffer[0] === 0x89 && item.buffer[1] === 0x50 && item.buffer[2] === 0x4E && item.buffer[3] === 0x47) {
+            embedded = await doc.embedPng(item.buffer);
+          } else {
+            try {
+              embedded = await doc.embedJpg(item.buffer);
+            } catch {
+              embedded = await doc.embedPng(item.buffer);
+            }
+          }
+
+          const imgWidth = embedded.width || 400;
+          const imgHeight = embedded.height || 300;
+          const imgRatio = imgWidth / imgHeight;
           let pw = maxPhotoW;
           let ph = pw / imgRatio;
           if (ph > maxPhotoH) {
@@ -1396,8 +1403,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           try {
             const rawRes = await resolveRawImageBuffer(photoItem.url);
             if (rawRes && rawRes.buffer && rawRes.buffer.length > 0) {
-              const jpegBuf = await sharp(rawRes.buffer).jpeg({ quality: 90 }).toBuffer();
-              const uploadRes = await uploadOrUpdateFileInDrive(drive, photoFileName, 'image/jpeg', jpegBuf, dokumentasiFolderId);
+              const uploadRes = await uploadOrUpdateFileInDrive(drive, photoFileName, rawRes.mimeType || 'image/jpeg', rawRes.buffer, dokumentasiFolderId);
               if (uploadRes.action === 'created') totalSynced++;
               else totalUpdated++;
 

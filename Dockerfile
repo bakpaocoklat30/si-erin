@@ -8,7 +8,7 @@
 # ----------------------------------------------------------------------
 
 # --- STAGE 1: Install Dependencies ---
-FROM node:18-alpine AS deps
+FROM node:20-alpine AS deps
 WORKDIR /app
 
 # 🛡️ FIX KRITIS: Instal libc6-compat, openssl, dan ca-certificates untuk Prisma ORM
@@ -21,7 +21,7 @@ COPY package.json package-lock.json* ./
 RUN npm install --legacy-peer-deps && npm cache clean --force
 
 # --- STAGE 2: Build Aplikasi ---
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
 # 🛡️ FIX KRITIS: Pastikan openssl juga terinstal di stage builder untuk Prisma Client Generation
@@ -43,7 +43,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # --- STAGE 3: Production Runner ---
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 # 🛡️ FIX KRITIS: Instal openssl di runtime runner agar Prisma Client dapat berjalan tanpa crash
