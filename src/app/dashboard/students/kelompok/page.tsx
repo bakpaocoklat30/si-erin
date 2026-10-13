@@ -236,10 +236,14 @@ export default function StudentKelompokPage() {
             </div>
 
             <div className="p-6 flex-1 overflow-auto flex justify-center items-center bg-slate-950/60 min-h-[400px]">
-              {activePreviewUrl.startsWith('data:application/pdf') || activePreviewUrl.endsWith('.pdf') ? (
-                <iframe src={activePreviewUrl} className="w-full h-[550px] rounded-2xl border border-slate-800" title="PDF Preview" />
-              ) : (
+              {activePreviewUrl.startsWith('data:image/') || 
+               activePreviewUrl.toLowerCase().endsWith('.png') || 
+               activePreviewUrl.toLowerCase().endsWith('.jpg') || 
+               activePreviewUrl.toLowerCase().endsWith('.jpeg') || 
+               activePreviewUrl.toLowerCase().endsWith('.webp') ? (
                 <img src={activePreviewUrl} alt="Preview" className="max-w-full max-h-[550px] object-contain rounded-2xl border border-slate-800 shadow-lg" />
+              ) : (
+                <iframe src={activePreviewUrl} className="w-full h-[550px] rounded-2xl border border-slate-800 bg-white" title="PDF Preview" />
               )}
             </div>
 

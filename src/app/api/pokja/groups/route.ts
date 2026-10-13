@@ -159,6 +159,31 @@ export async function GET(request: Request) {
     });
     const placementGroups = await db.placementGroup.findMany();
 
+    // 🔍 Cek keberadaan berkas dokumen fisik/database per placement ID secara presisi (hanya id: true, bebas OOM)
+    const [balasanList, tugasList, pengantaranList, penarikanList] = await Promise.all([
+      db.internshipPlacement.findMany({
+        where: { ...placementWhere, suratBalasanUrl: { not: null } },
+        select: { id: true }
+      }),
+      db.internshipPlacement.findMany({
+        where: { ...placementWhere, suratTugasUrl: { not: null } },
+        select: { id: true }
+      }),
+      db.internshipPlacement.findMany({
+        where: { ...placementWhere, suratPengantaranUrl: { not: null } },
+        select: { id: true }
+      }),
+      db.internshipPlacement.findMany({
+        where: { ...placementWhere, suratPenarikanUrl: { not: null } },
+        select: { id: true }
+      })
+    ]);
+
+    const hasBalasanSet = new Set(balasanList.map(p => p.id));
+    const hasTugasSet = new Set(tugasList.map(p => p.id));
+    const hasPengantaranSet = new Set(pengantaranList.map(p => p.id));
+    const hasPenarikanSet = new Set(penarikanList.map(p => p.id));
+
     const groupedMap: Record<string, any> = {};
 
     placements.forEach((placement: any) => {
@@ -199,26 +224,15 @@ export async function GET(request: Request) {
 
       const buildProxyUrl = (type: string, placementItem: any) => {
         let hasUrl = false;
-        const s = placementItem.status || '';
-        
-        // Kita tebak dari status karena field Base64 di-omit agar tidak OOM
-        if (type === 'tugas') {
-           const tugasStatuses = ['SURAT_DITERBITKAN', 'LETTER_ISSUED', 'KIRIM_SURAT', 'SENT_DUDI', 'DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'DITERIMA', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL'];
-           hasUrl = tugasStatuses.includes(s);
+        if (type === 'balasan') {
+          hasUrl = hasBalasanSet.has(placementItem.id);
+        } else if (type === 'tugas') {
+          hasUrl = hasTugasSet.has(placementItem.id);
+        } else if (type === 'pengantaran') {
+          hasUrl = hasPengantaranSet.has(placementItem.id);
+        } else if (type === 'penarikan') {
+          hasUrl = hasPenarikanSet.has(placementItem.id);
         }
-        else if (type === 'balasan') {
-           const balasanStatuses = ['DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'DITERIMA', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL'];
-           hasUrl = balasanStatuses.includes(s);
-        }
-        else if (type === 'pengantaran') {
-           const pengantaranStatuses = ['MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'DITERIMA', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL'];
-           hasUrl = pengantaranStatuses.includes(s);
-        }
-        else if (type === 'penarikan') {
-           const penarikanStatuses = ['MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'COMPLETED', 'SELESAI_PKL'];
-           hasUrl = penarikanStatuses.includes(s);
-        }
-        
         return hasUrl ? `/api/pokja/placements/surat?id=${placementItem.id}&type=${type}` : null;
       };
 
