@@ -20,19 +20,36 @@ export function saveBase64ToFile(base64String: string, folder: string = 'misc', 
   const match = base64String.match(/^data:([a-zA-Z0-9-+/]+);base64,(.+)$/);
   
   if (!match) {
-    // If it doesn't match the data URL format, but is purely base64 without prefix,
-    // we could try to handle it. However, it's safer to just return if it doesn't look like a standard data URL upload.
-    // Let's also check if it's a raw base64 string that is very long (indicative of a file).
-    if (base64String.length > 500 && !base64String.startsWith('/') && !base64String.startsWith('http')) {
-        // Assume it's a raw base64 string (defaulting to pdf)
-        const buffer = Buffer.from(base64String, 'base64');
-        return writeBufferToFile(buffer, folder, prefix, 'pdf');
+    if (base64String.length > 100 && !base64String.startsWith('/') && !base64String.startsWith('http')) {
+      try {
+        const cleanBase64 = base64String.replace(/[\r\n\s]+/g, '');
+        const buffer = Buffer.from(cleanBase64, 'base64');
+        let extension = folder === 'logos' ? 'png' : 'pdf';
+        
+        // Sniff magic bytes
+        if (buffer.length >= 4) {
+          if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+            extension = 'pdf';
+          } else if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+            extension = 'png';
+          } else if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+            extension = 'jpg';
+          } else if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+            extension = 'gif';
+          } else if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+            extension = 'webp';
+          }
+        }
+        return writeBufferToFile(buffer, folder, prefix, extension);
+      } catch (e) {
+        return base64String;
+      }
     }
     return base64String;
   }
 
-  const mimeType = match[1];
-  const base64Data = match[2];
+  const mimeType = match[1].toLowerCase();
+  const base64Data = match[2].replace(/[\r\n\s]+/g, '');
 
   let extension = 'bin';
   if (mimeType.includes('pdf')) {
@@ -41,6 +58,14 @@ export function saveBase64ToFile(base64String: string, folder: string = 'misc', 
     extension = 'png';
   } else if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
     extension = 'jpg';
+  } else if (mimeType.includes('webp')) {
+    extension = 'webp';
+  } else if (mimeType.includes('svg')) {
+    extension = 'svg';
+  } else if (mimeType.includes('gif')) {
+    extension = 'gif';
+  } else if (folder === 'logos') {
+    extension = 'png';
   }
 
   const buffer = Buffer.from(base64Data, 'base64');

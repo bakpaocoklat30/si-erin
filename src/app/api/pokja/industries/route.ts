@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { saveBase64ToFile } from '@/lib/file-utils';
 
 // ==========================================
 // HELPER SANITASI DATA (PREVENT PRISMA ERRORS)
@@ -69,6 +70,7 @@ export async function GET() {
         nib: true,
         sector: true,
         npwp: true,
+        logoUrl: true,
         province: true,
         regency: true,
         address: true,
@@ -184,20 +186,27 @@ export async function POST(request: Request) {
         if (!item.name || String(item.name).trim() === '') continue;
 
         try {
+          const rawLogo = cleanOptionalString(item.logoUrl || item.logo);
+          const processedLogo = rawLogo ? saveBase64ToFile(rawLogo, 'logos', 'logo') : null;
+
           const payloadData = {
             name: cleanRequiredString(item.name, 'Industri Tanpa Nama'),
             nib: cleanOptionalString(item.nib),
             sector: cleanRequiredString(item.sector || item.bidangUsaha, 'Umum'),
             npwp: cleanOptionalString(item.npwp),
-            logoUrl: cleanBase64Image(item.logoUrl || item.logo),
+            logoUrl: processedLogo,
 
+            province: cleanOptionalString(item.province || item.provinsi),
+            regency: cleanOptionalString(item.regency || item.kabupatenKota || item.kabupaten),
+            address: cleanRequiredString(item.address || item.alamatJalan || item.alamat, 'Alamat Belum Diisi'),
+            rt: cleanOptionalString(item.rt),
             rw: cleanOptionalString(item.rw),
-            dusun: cleanOptionalString(item.dusun),
+            dusun: cleanOptionalString(item.dusun || item.namaDusun),
             desaKelurahan: cleanOptionalString(item.desaKelurahan),
-            subDistrict: cleanOptionalString(item.subDistrict || item.kecamatanKabupaten),
-            postalCode: cleanOptionalString(item.postalCode),
-            latitude: cleanOptionalString(item.latitude),
-            longitude: cleanOptionalString(item.longitude),
+            subDistrict: cleanOptionalString(item.subDistrict || item.kecamatanKabupaten || item.kecamatan),
+            postalCode: cleanOptionalString(item.postalCode || item.kodePos),
+            latitude: cleanOptionalString(item.latitude || item.lintang),
+            longitude: cleanOptionalString(item.longitude || item.bujur),
 
             contactPerson: cleanRequiredString(item.contactPerson || item.hrd, 'HRD Perusahaan'),
             phone: cleanRequiredString(item.phone || item.nomorTelp, '-'),
@@ -231,12 +240,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Nama DUDI/Industri wajib diisi!' }, { status: 400 });
     }
 
+    const rawLogo = cleanOptionalString(body.logoUrl);
+    const processedLogo = rawLogo ? saveBase64ToFile(rawLogo, 'logos', 'logo') : null;
+
     const singlePayload = {
       name: cleanRequiredString(body.name),
       nib: cleanOptionalString(body.nib),
       sector: cleanRequiredString(body.sector, 'Umum'),
       npwp: cleanOptionalString(body.npwp),
-      logoUrl: cleanBase64Image(body.logoUrl),
+      logoUrl: processedLogo,
 
       province: cleanOptionalString(body.province),
       regency: cleanOptionalString(body.regency),
@@ -301,12 +313,27 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Nama DUDI/Industri wajib diisi!' }, { status: 400 });
     }
 
+    // Resolusi logo URL secara aman: jangan pernah timpa logo lama jika tidak ada perubahan
+    let finalLogoUrl: string | null = null;
+    if (body.removeLogo === true) {
+      finalLogoUrl = null;
+    } else if (body.logoUrl && typeof body.logoUrl === 'string' && body.logoUrl.trim() !== '') {
+      finalLogoUrl = saveBase64ToFile(body.logoUrl.trim(), 'logos', 'logo');
+    } else {
+      // Ambil logo yang sudah ada di database agar tidak hilang terhapus menjadi null
+      const existing = await db.industry.findUnique({
+        where: { id: id },
+        select: { logoUrl: true }
+      });
+      finalLogoUrl = existing?.logoUrl ?? null;
+    }
+
     const updatePayload = {
       name: cleanRequiredString(body.name),
       nib: cleanOptionalString(body.nib),
       sector: cleanRequiredString(body.sector, 'Umum'),
       npwp: cleanOptionalString(body.npwp),
-      logoUrl: cleanBase64Image(body.logoUrl),
+      logoUrl: finalLogoUrl,
 
       province: cleanOptionalString(body.province),
       regency: cleanOptionalString(body.regency),

@@ -296,17 +296,7 @@ export default function PokjaIndustriesPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Auto set initial department filter to Pokja's own department if it has industries
-  useEffect(() => {
-    if (userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
-      const hasMatchingIndustries = industries.some(
-        (i: any) => (i.department || '').toLowerCase() === userDept.toLowerCase()
-      );
-      if (hasMatchingIndustries) {
-        setSelectedDeptFilter(userDept);
-      }
-    }
-  }, [userDept, industries]);
+  // Default selectedDeptFilter adalah 'ALL' agar seluruh industri tampil dan tidak tiba-tiba hilang setelah update data
 
   // State Toggle Tampilan (Grid / Table List)
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -350,6 +340,7 @@ export default function PokjaIndustriesPage() {
     sector: '',
     npwp: '',
     logoUrl: '',
+    removeLogo: false,
 
     province: '',
     regency: '',
@@ -863,7 +854,7 @@ export default function PokjaIndustriesPage() {
       const reader = new FileReader();
       reader.onload = (event) => {
         const base64 = sanitizeBase64(event.target?.result);
-        setFormData(prev => ({ ...prev, logoUrl: base64 }));
+        setFormData(prev => ({ ...prev, logoUrl: base64, removeLogo: false }));
         setSuccessMsg('Logo dari clipboard berhasil ditangkap!');
         setTimeout(() => setSuccessMsg(''), 3000);
       };
@@ -873,7 +864,7 @@ export default function PokjaIndustriesPage() {
       item.getAsString((text) => {
         const trimmed = sanitizeString(text);
         if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-          setFormData(prev => ({ ...prev, logoUrl: trimmed }));
+          setFormData(prev => ({ ...prev, logoUrl: trimmed, removeLogo: false }));
           setSuccessMsg('URL / Base64 gambar dari clipboard berhasil ditempel ke logo!');
           setTimeout(() => setSuccessMsg(''), 3000);
         }
@@ -944,7 +935,7 @@ export default function PokjaIndustriesPage() {
           const reader = new FileReader();
           reader.onload = (event) => {
             const base64 = sanitizeBase64(event.target?.result);
-            setFormData(prev => ({ ...prev, logoUrl: base64 }));
+            setFormData(prev => ({ ...prev, logoUrl: base64, removeLogo: false }));
             setSuccessMsg('Logo dari clipboard berhasil ditempel!');
             setTimeout(() => setSuccessMsg(''), 3000);
           };
@@ -958,7 +949,7 @@ export default function PokjaIndustriesPage() {
         const text = await navigator.clipboard.readText();
         const trimmed = sanitizeString(text);
         if (trimmed && (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://'))) {
-          setFormData(prev => ({ ...prev, logoUrl: trimmed }));
+          setFormData(prev => ({ ...prev, logoUrl: trimmed, removeLogo: false }));
           setSuccessMsg('URL / Base64 gambar dari clipboard berhasil ditempel!');
           setTimeout(() => setSuccessMsg(''), 3000);
         } else {
@@ -984,7 +975,12 @@ export default function PokjaIndustriesPage() {
 
       if (selectedDeptFilter === 'ALL' || !selectedDeptFilter) return true;
       if (selectedDeptFilter === 'Semua Jurusan') return ind.department === 'Semua Jurusan' || !ind.department;
-      return ind.department?.toLowerCase() === selectedDeptFilter.toLowerCase();
+      // Untuk filter jurusan tertentu (misal TKJ): tampilkan industri khusus jurusan tsb ATAU industri 'Semua Jurusan'
+      return (
+        ind.department?.toLowerCase() === selectedDeptFilter.toLowerCase() ||
+        ind.department === 'Semua Jurusan' ||
+        !ind.department
+      );
     });
   }, [industries, searchTerm, selectedDeptFilter]);
 
@@ -1108,6 +1104,7 @@ export default function PokjaIndustriesPage() {
       sector: defaultSector,
       npwp: '',
       logoUrl: '',
+      removeLogo: false,
 
       province: '',
       regency: '',
@@ -1156,6 +1153,7 @@ export default function PokjaIndustriesPage() {
       sector: ind.sector || (categories.length > 0 ? categories[0].name : 'Telekomunikasi'),
       npwp: ind.npwp || '',
       logoUrl: ind.logoUrl || '',
+      removeLogo: false,
 
       province: ind.province || '',
       regency: ind.regency || '',
@@ -1178,7 +1176,7 @@ export default function PokjaIndustriesPage() {
       jobDescription: ind.jobDescription || '',
       totalQuota: isUnlim ? '5' : String(ind.totalQuota || '5'),
       isUnlimited: isUnlim,
-      department: ind.department || userDept || 'Semua Jurusan'
+      department: ind.department || 'Semua Jurusan'
     });
     setErrorMsg('');
     setShowModal(true);
@@ -1197,7 +1195,7 @@ export default function PokjaIndustriesPage() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = sanitizeBase64(event.target?.result);
-      setFormData(prev => ({ ...prev, logoUrl: base64 }));
+      setFormData(prev => ({ ...prev, logoUrl: base64, removeLogo: false }));
     };
     reader.readAsDataURL(file);
   };
@@ -1221,7 +1219,8 @@ export default function PokjaIndustriesPage() {
         name: sanitizeString(formData.name),
         nib: sanitizeString(formData.nib),
         npwp: sanitizeString(formData.npwp),
-        logoUrl: sanitizeBase64(formData.logoUrl),
+        logoUrl: formData.logoUrl ? sanitizeBase64(formData.logoUrl) : '',
+        removeLogo: formData.removeLogo || false,
         totalQuota: formData.isUnlimited ? -1 : parseInt(formData.totalQuota, 10) || 5
       };
 
@@ -1580,7 +1579,13 @@ export default function PokjaIndustriesPage() {
           </button>
           {availableDepartments.map((dept) => {
             const isSelected = selectedDeptFilter.toLowerCase() === dept.toLowerCase();
-            const count = industries.filter(i => (i.department || 'Semua Jurusan').toLowerCase() === dept.toLowerCase()).length;
+            const count = industries.filter(i => {
+              const d = (i.department || 'Semua Jurusan').toLowerCase();
+              if (dept.toLowerCase() === 'semua jurusan') {
+                return d === 'semua jurusan';
+              }
+              return d === dept.toLowerCase() || d === 'semua jurusan';
+            }).length;
             const isMyDept = userDept && dept.toLowerCase() === userDept.toLowerCase();
             return (
               <button
@@ -2034,6 +2039,21 @@ export default function PokjaIndustriesPage() {
                         <ClipboardCheck className="w-3.5 h-3.5 text-emerald-500" />
                         <span>Paste Logo dari Clipboard</span>
                       </button>
+
+                      {formData.logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, logoUrl: '', removeLogo: true }));
+                            if (logoInputRef.current) logoInputRef.current.value = '';
+                          }}
+                          className="px-4 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer border border-rose-200 dark:border-rose-800 shadow-sm"
+                          title="Hapus Logo Industri"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Hapus Logo</span>
+                        </button>
+                      )}
                     </div>
                     <p className="text-[10px] text-slate-400 font-medium">PNG/JPG maks 3MB atau tekan Ctrl+V saat modal terbuka.</p>
                   </div>
