@@ -2953,7 +2953,7 @@ export default function PokjaMonitoringPage() {
                                 className="flex flex-col rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 shadow-sm"
                               >
                                 {/* Thumbnail Foto */}
-                                <div className="relative group aspect-video overflow-hidden bg-slate-950 flex items-center justify-center">
+                                <div className="relative group aspect-video overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                                   <img
                                     src={getSafeFileUrl(photoUrl)}
                                     alt={`Foto Kegiatan ${slotIndex + 1}`}

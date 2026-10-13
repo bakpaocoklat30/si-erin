@@ -1453,16 +1453,16 @@ export function generateDokumentasiFotoHtml(
           : `<strong>Foto ${photoGlobalIndex}.</strong> Dokumentasi Pelaksanaan Kegiatan ${activityType} PKL di ${primaryIndustryName}`;
 
         return `
-          <div style="margin-bottom: ${chunk.length === 1 ? '14px' : '10px'}; border: 1px solid #475569; border-radius: 6px; padding: 6px; background: #ffffff; page-break-inside: avoid; box-sizing: border-box;">
-            <div style="height: ${frameHeight}; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #0f172a; border-radius: 4px;">
+          <div style="margin-bottom: ${chunk.length === 1 ? '16px' : '12px'}; page-break-inside: avoid; box-sizing: border-box; text-align: center;">
+            <div style="height: ${frameHeight}; width: 100%; display: flex; align-items: center; justify-content: center; background: #ffffff;">
               <img 
                 src="${safeUrl}" 
                 alt="Foto Dokumentasi ${photoGlobalIndex}" 
-                style="max-width: 100%; max-height: ${frameHeight}; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto;" 
+                style="max-width: 100%; max-height: ${frameHeight}; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto; border: 1.5px solid #1e293b; border-radius: 4px;" 
                 onerror="this.onerror=null; this.src='/images/logo-sekolah.png';"
               />
             </div>
-            <div style="margin-top: 5px; text-align: center; font-size: 9.5pt; font-family: 'Times New Roman', Times, serif; color: #0f172a; line-height: 1.35;">
+            <div style="margin-top: 6px; text-align: center; font-size: 9.5pt; font-family: 'Times New Roman', Times, serif; color: #000000; line-height: 1.35;">
               ${displayCaption}
             </div>
           </div>
