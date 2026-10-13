@@ -1193,6 +1193,8 @@ export function generateLaporanHasilKegiatanHtml(
  * Format Kertas: F4 (Folio 215mm x 330mm)
  * Maksimal 2 Foto per halaman
  * Nomor Surat di pojok kanan surat
+ * Mendukung beberapa PT dalam 1 SPPD & penugasan dalam 1 dokumen terpadu
+ * Keterangan foto kustom / dinamis per foto (opsional)
  */
 export function generateDokumentasiFotoHtml(
   assignment: MonitoringAssignmentData,
@@ -1220,8 +1222,26 @@ export function generateDokumentasiFotoHtml(
     activityType = 'PENARIKAN';
   }
 
-  const primaryIndustryName = assignment.industry?.name || 'DUDI / Industri Mitra';
-  const primaryAddress = assignment.industry?.address || assignment.industry?.regency || '-';
+  // Dukungan Multi-PT (Industri Utama + Industri Rute Kunjungan Tambahan dalam 1 Dokumen)
+  const rawTargetIndustries = parseTargetIndustries(assignment.targetIndustries);
+  const allIndustries = [
+    {
+      name: assignment.industry?.name || 'DUDI / Industri Mitra',
+      address: assignment.industry?.address || assignment.industry?.regency || '-',
+    },
+    ...rawTargetIndustries.map((ind: any) => ({
+      name: ind.name,
+      address: ind.address || ind.regency || '-',
+    })),
+  ];
+
+  const primaryIndustryName = allIndustries[0].name;
+  const hasMultipleIndustries = allIndustries.length > 1;
+
+  // Judul gabungan industri
+  const industryTitle = hasMultipleIndustries
+    ? allIndustries.map(i => i.name.toUpperCase()).join(' & ')
+    : primaryIndustryName.toUpperCase();
 
   // Helper aman URL foto
   const getSafeUrl = (url: string): string => {
@@ -1233,15 +1253,34 @@ export function generateDokumentasiFotoHtml(
     return url;
   };
 
-  // Parse list foto kegiatan
+  // Parse list foto kegiatan (dukung string atau object { url, caption })
+  interface PhotoEntry {
+    url: string;
+    caption: string;
+  }
+
   const rawPhotos = (assignment as any).activityPhotos;
-  let activityPhotos: string[] = [];
+  let activityPhotos: PhotoEntry[] = [];
   if (Array.isArray(rawPhotos)) {
-    activityPhotos = rawPhotos.filter(Boolean);
+    activityPhotos = rawPhotos
+      .map((item: any) => {
+        if (typeof item === 'string') return { url: item, caption: '' };
+        if (item && typeof item === 'object') return { url: item.url || '', caption: item.caption || '' };
+        return null;
+      })
+      .filter((p): p is PhotoEntry => Boolean(p && p.url));
   } else if (typeof rawPhotos === 'string') {
     try {
       const parsed = JSON.parse(rawPhotos);
-      if (Array.isArray(parsed)) activityPhotos = parsed.filter(Boolean);
+      if (Array.isArray(parsed)) {
+        activityPhotos = parsed
+          .map((item: any) => {
+            if (typeof item === 'string') return { url: item, caption: '' };
+            if (item && typeof item === 'object') return { url: item.url || '', caption: item.caption || '' };
+            return null;
+          })
+          .filter((p): p is PhotoEntry => Boolean(p && p.url));
+      }
     } catch (e) {}
   }
 
@@ -1272,16 +1311,16 @@ export function generateDokumentasiFotoHtml(
       <div>NIP. \${nip_pengirim}</div>
     `
     : `
-      <div style="height: 100px;"></div>
+      <div style="height: 80px;"></div>
       <div style="font-weight: bold; text-decoration: underline;">${headmasterName}</div>
       <div>Pembina Utama Muda, IV/c</div>
       <div>NIP. ${headmasterNip}</div>
     `;
 
-  // Bagi foto menjadi maksimal 2 foto per halaman
-  const photoChunks: string[][] = [];
+  // Bagi foto menjadi maksimal 2 foto per halaman F4
+  const photoChunks: PhotoEntry[][] = [];
   if (activityPhotos.length === 0) {
-    photoChunks.push([]); // 1 halaman kosong
+    photoChunks.push([]); // 1 halaman tanpa foto
   } else {
     for (let i = 0; i < activityPhotos.length; i += 2) {
       photoChunks.push(activityPhotos.slice(i, i + 2));
@@ -1304,8 +1343,8 @@ export function generateDokumentasiFotoHtml(
         </div>
 
         <!-- NOMOR SURAT DI POJOK KANAN SURAT -->
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-          <table style="border: none; font-size: 11pt; font-family: 'Times New Roman', Times, serif;">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+          <table style="border: none; font-size: 10.5pt; font-family: 'Times New Roman', Times, serif;">
             <tr>
               <td style="padding: 1px 4px; border: none; font-weight: bold;">Nomor Surat</td>
               <td style="padding: 1px 4px; border: none;">:</td>
@@ -1315,27 +1354,43 @@ export function generateDokumentasiFotoHtml(
         </div>
 
         <!-- JUDUL DOKUMENTASI KEGIATAN -->
-        <div style="text-align: center; margin-bottom: 12px;">
-          <div style="font-size: 12.5pt; font-weight: bold; text-decoration: underline; letter-spacing: 0.5px; text-transform: uppercase;">
+        <div style="text-align: center; margin-bottom: 10px;">
+          <div style="font-size: 12pt; font-weight: bold; text-decoration: underline; letter-spacing: 0.5px; text-transform: uppercase;">
             DOKUMENTASI KEGIATAN ${activityType} PKL SMK NEGERI 1 ADIWERNA
           </div>
-          <div style="font-size: 11.5pt; font-weight: bold; text-transform: uppercase; margin-top: 3px;">
-            DI ${primaryIndustryName.toUpperCase()}
+          <div style="font-size: 11pt; font-weight: bold; text-transform: uppercase; margin-top: 2px;">
+            DI ${industryTitle}
           </div>
         </div>
 
-        <!-- IDENTITAS & DATA RINGKAS -->
-        <div style="margin-bottom: 12px; border: 1px solid #94a3b8; border-radius: 6px; padding: 6px 12px; background: #f8fafc; font-size: 10.5pt;">
+        <!-- IDENTITAS & DATA RINGKAS (MENDUKUNG MULTI-PT) -->
+        <div style="margin-bottom: 12px; border: 1px solid #94a3b8; border-radius: 6px; padding: 6px 12px; background: #f8fafc; font-size: 10pt;">
           <table style="width: 100%; border: none; line-height: 1.35; font-family: 'Times New Roman', Times, serif;">
             <tr>
               <td style="width: 140px; font-weight: bold; vertical-align: top;">Perusahaan / Industri</td>
-              <td style="width: 14px; vertical-align: top;">:</td>
-              <td style="vertical-align: top; font-weight: bold;">${primaryIndustryName}</td>
+              <td style="width: 12px; vertical-align: top;">:</td>
+              <td style="vertical-align: top; font-weight: bold;">
+                ${
+                  hasMultipleIndustries
+                    ? `<ol style="margin: 0; padding-left: 18px;">
+                        ${allIndustries.map(ind => `<li>${ind.name}</li>`).join('')}
+                       </ol>`
+                    : primaryIndustryName
+                }
+              </td>
             </tr>
             <tr>
               <td style="font-weight: bold; vertical-align: top;">Alamat Industri</td>
               <td style="vertical-align: top;">:</td>
-              <td style="vertical-align: top;">${primaryAddress}</td>
+              <td style="vertical-align: top;">
+                ${
+                  hasMultipleIndustries
+                    ? `<ul style="margin: 0; padding-left: 18px; list-style-type: circle;">
+                        ${allIndustries.map(ind => `<li><strong>${ind.name}:</strong> ${ind.address}</li>`).join('')}
+                       </ul>`
+                    : allIndustries[0].address
+                }
+              </td>
             </tr>
             <tr>
               <td style="font-weight: bold; vertical-align: top;">Waktu Pelaksanaan</td>
@@ -1360,23 +1415,23 @@ export function generateDokumentasiFotoHtml(
     } else {
       pageHeaderHtml = `
         <!-- HEADER HALAMAN LANJUTAN -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.5px solid #000; padding-bottom: 6px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #000; padding-bottom: 5px; margin-bottom: 12px;">
           <div>
-            <div style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase;">
-              DOKUMENTASI KEGIATAN ${activityType} PKL SMK NEGERI 1 ADIWERNA DI ${primaryIndustryName.toUpperCase()}
+            <div style="font-size: 10pt; font-weight: bold; text-transform: uppercase;">
+              DOKUMENTASI KEGIATAN ${activityType} PKL SMK NEGERI 1 ADIWERNA DI ${industryTitle}
             </div>
-            <div style="font-size: 9.5pt; color: #334155;">
-              Lembar ${pageNum} dari ${totalPages}
+            <div style="font-size: 9pt; color: #475569;">
+              Lembar ${pageNum} dari ${totalPages} (Format F4 / Folio)
             </div>
           </div>
-          <div style="text-align: right; font-size: 10pt;">
+          <div style="text-align: right; font-size: 9.5pt;">
             <div style="font-weight: bold;">Nomor Surat: ${docNumber}</div>
           </div>
         </div>
       `;
     }
 
-    // Render maksimal 2 foto per halaman
+    // Render maksimal 2 foto per halaman F4
     let photosHtml = '';
     if (chunk.length === 0) {
       photosHtml = `
@@ -1385,13 +1440,28 @@ export function generateDokumentasiFotoHtml(
         </div>
       `;
     } else {
-      const photoCards = chunk.map((photoUrl, idxInChunk) => {
+      let frameHeight = '85mm';
+      if (isFirstPage && isLastPage) {
+        frameHeight = chunk.length === 1 ? '98mm' : '65mm';
+      } else if (isFirstPage) {
+        frameHeight = chunk.length === 1 ? '120mm' : '82mm';
+      } else if (isLastPage) {
+        frameHeight = chunk.length === 1 ? '125mm' : '85mm';
+      } else {
+        frameHeight = chunk.length === 1 ? '135mm' : '100mm';
+      }
+
+      const photoCards = chunk.map((photoItem, idxInChunk) => {
         const photoGlobalIndex = pageIndex * 2 + idxInChunk + 1;
-        const frameHeight = isFirstPage ? (chunk.length === 1 ? '120mm' : '86mm') : (chunk.length === 1 ? '135mm' : '105mm');
-        const safeUrl = getSafeUrl(photoUrl);
+        const safeUrl = getSafeUrl(photoItem.url);
+
+        const customCaption = photoItem.caption && photoItem.caption.trim();
+        const displayCaption = customCaption
+          ? `<strong>Foto ${photoGlobalIndex}.</strong> ${customCaption}`
+          : `<strong>Foto ${photoGlobalIndex}.</strong> Dokumentasi Kegiatan ${activityType} PKL di ${primaryIndustryName}`;
 
         return `
-          <div style="margin-bottom: ${chunk.length === 1 ? '16px' : '10px'}; border: 1px solid #475569; border-radius: 6px; padding: 6px; background: #ffffff; page-break-inside: avoid; box-sizing: border-box;">
+          <div style="margin-bottom: ${chunk.length === 1 ? '14px' : '8px'}; border: 1px solid #64748b; border-radius: 6px; padding: 5px; background: #ffffff; page-break-inside: avoid; box-sizing: border-box;">
             <div style="height: ${frameHeight}; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #0f172a; border-radius: 4px;">
               <img 
                 src="${safeUrl}" 
@@ -1400,8 +1470,8 @@ export function generateDokumentasiFotoHtml(
                 onerror="this.onerror=null; this.src='/images/logo-sekolah.png';"
               />
             </div>
-            <div style="margin-top: 4px; text-align: center; font-size: 10pt; font-family: 'Times New Roman', Times, serif; color: #0f172a;">
-              <strong>Foto ${photoGlobalIndex}.</strong> Dokumentasi Kegiatan ${activityType} PKL di ${primaryIndustryName}
+            <div style="margin-top: 4px; text-align: center; font-size: 9.5pt; font-family: 'Times New Roman', Times, serif; color: #0f172a; line-height: 1.3;">
+              ${displayCaption}
             </div>
           </div>
         `;
@@ -1418,19 +1488,19 @@ export function generateDokumentasiFotoHtml(
     let signatureHtml = '';
     if (isLastPage) {
       signatureHtml = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 12px; page-break-inside: avoid;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; page-break-inside: avoid;">
           <!-- Kolom Kiri: Mengetahui Kepala Sekolah -->
-          <div style="width: 52%; font-size: 10.5pt; line-height: 1.35;">
+          <div style="width: 52%; font-size: 10pt; line-height: 1.35;">
             <div>Mengetahui,</div>
             <div>Kepala SMK Negeri 1 Adiwerna</div>
             ${tteSignatureLeftHtml}
           </div>
 
           <!-- Kolom Kanan: Guru Petugas / Penyusun -->
-          <div style="width: 44%; font-size: 10.5pt; line-height: 1.35;">
+          <div style="width: 44%; font-size: 10pt; line-height: 1.35;">
             <div>Adiwerna, &nbsp;${signatureDate}</div>
             <div>Guru Petugas,</div>
-            <div style="height: 100px;"></div>
+            <div style="height: 80px;"></div>
             <div style="font-weight: bold; text-decoration: underline;">${teacher.name}</div>
             <div>NIP. ${teacher.nip || teacher.username || '-'}</div>
           </div>
@@ -1439,7 +1509,7 @@ export function generateDokumentasiFotoHtml(
     }
 
     return `
-      <div class="sheet-page" style="${!isFirstPage ? 'page-break-before: always; break-before: page; padding-top: 10px;' : ''}">
+      <div class="sheet-page" style="${!isFirstPage ? 'page-break-before: always; break-before: page;' : ''}">
         ${pageHeaderHtml}
         ${photosHtml}
         ${signatureHtml}
@@ -1455,31 +1525,62 @@ export function generateDokumentasiFotoHtml(
   <style>
     @page {
       size: 215mm 330mm; /* Standar Ukuran Kertas F4 / Folio Kedinasan */
-      margin: 12mm 18mm;
+      margin: 12mm 15mm 15mm 15mm;
     }
     *, *::before, *::after {
       box-sizing: border-box;
     }
     body {
       font-family: 'Times New Roman', Times, serif;
-      font-size: 11pt;
-      line-line: 1.35;
+      font-size: 10.5pt;
+      line-height: 1.35;
       color: #000;
       background: #fff;
       margin: 0 auto;
       padding: 0;
-      max-width: 178mm;
+      width: 215mm;
+      max-width: 100%;
+    }
+    .sheet-page {
+      box-sizing: border-box;
+      width: 215mm;
+      min-height: 330mm;
+      padding: 12mm 15mm 15mm 15mm;
+      margin: 0 auto;
+      position: relative;
+      background: #fff;
     }
     @media print {
       body {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
         padding: 0;
-        max-width: 100%;
+        margin: 0;
+        width: 215mm;
       }
       .no-print { display: none !important; }
       .sheet-page {
+        page-break-after: always;
+        break-after: page;
+        min-height: 330mm;
+        height: 330mm;
+        padding: 0;
+        margin: 0;
+      }
+      .sheet-page:last-child {
         page-break-after: auto;
+        break-after: auto;
+      }
+    }
+    @media screen {
+      body {
+        background: #f1f5f9;
+        padding: 24px 0;
+      }
+      .sheet-page {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-bottom: 24px;
+        border-radius: 4px;
       }
     }
     table {

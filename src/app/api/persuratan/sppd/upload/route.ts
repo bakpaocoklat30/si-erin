@@ -54,7 +54,10 @@ export async function POST(request: Request) {
     if (action === 'DELETE_PHOTO') {
       const photoUrl = formData.get('photoUrl') as string;
       const currentPhotos = parsePhotos(assignment.activityPhotos);
-      const updatedPhotos = currentPhotos.filter(p => p !== photoUrl);
+      const updatedPhotos = currentPhotos.filter(p => {
+        const u = typeof p === 'string' ? p : p?.url;
+        return u !== photoUrl;
+      });
 
       // Opsional: Hapus file fisik jika berada di folder uploads
       if (photoUrl && photoUrl.startsWith('/uploads/')) {
@@ -72,10 +75,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Foto berhasil dihapus', activityPhotos: updatedPhotos });
     }
 
+    // Aksi: Update Keterangan Foto Kegiatan
+    if (action === 'UPDATE_PHOTO_CAPTION') {
+      const photoUrl = formData.get('photoUrl') as string;
+      const caption = (formData.get('caption') as string || '').trim();
+      const currentPhotos = parsePhotos(assignment.activityPhotos);
+      const updatedPhotos = currentPhotos.map(p => {
+        const u = typeof p === 'string' ? p : p?.url;
+        if (u === photoUrl) {
+          return { url: u, caption };
+        }
+        return typeof p === 'string' ? { url: p, caption: '' } : p;
+      });
+
+      await db.monitoringAssignment.update({
+        where: { id },
+        data: { activityPhotos: updatedPhotos }
+      });
+
+      return NextResponse.json({ success: true, message: 'Keterangan foto berhasil disimpan', activityPhotos: updatedPhotos });
+    }
+
     const type = (formData.get('type') as string || '').toUpperCase();
     const updateData: any = {};
 
-    // Aksi: Upload Foto Kegiatan (Maksimal 3 Foto)
+    // Aksi: Upload Foto Kegiatan (Maksimal 20 Foto)
     if (type === 'PHOTO' || type === 'FOTO' || type === 'FOTO_KEGIATAN') {
       const currentPhotos = parsePhotos(assignment.activityPhotos);
       const rawFiles = formData.getAll('photos') as File[];
@@ -92,7 +116,8 @@ export async function POST(request: Request) {
         }, { status: 400 });
       }
 
-      const newPhotoUrls: string[] = [];
+      const initialCaption = (formData.get('caption') as string || '').trim();
+      const newPhotoObjects: any[] = [];
       for (let i = 0; i < uploadFiles.length; i++) {
         const pFile = uploadFiles[i];
         const bytes = await pFile.arrayBuffer();
@@ -111,10 +136,13 @@ export async function POST(request: Request) {
         const fileName = `FOTO_MONITORING_${id}_${Date.now()}_${i}.${pExt}`;
         const filePath = path.join(uploadsDir, fileName);
         fs.writeFileSync(filePath, buffer);
-        newPhotoUrls.push(`/uploads/${fileName}`);
+        newPhotoObjects.push({
+          url: `/uploads/${fileName}`,
+          caption: initialCaption,
+        });
       }
 
-      const updatedPhotos = [...currentPhotos, ...newPhotoUrls];
+      const updatedPhotos = [...currentPhotos, ...newPhotoObjects];
       await db.monitoringAssignment.update({
         where: { id },
         data: { activityPhotos: updatedPhotos }
@@ -122,7 +150,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
-        message: `Berhasil mengunggah ${newPhotoUrls.length} foto kegiatan!`,
+        message: `Berhasil mengunggah ${newPhotoObjects.length} foto kegiatan!`,
         activityPhotos: updatedPhotos
       });
     }

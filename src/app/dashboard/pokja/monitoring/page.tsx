@@ -64,6 +64,7 @@ import {
   calculateDurationDays,
   CompanionTeacher,
   AdditionalIndustryItem,
+  parseTargetIndustries,
 } from '@/lib/monitoring-templates';
 
 
@@ -148,7 +149,7 @@ export default function PokjaMonitoringPage() {
     teacherName: string;
     type: 'LAPORAN' | 'SPPD' | 'TUGAS';
     laporanUrl?: string | null;
-    activityPhotos?: string[];
+    activityPhotos?: any[];
     uploading: boolean;
     uploadingPhoto: boolean;
   }>({
@@ -166,7 +167,7 @@ export default function PokjaMonitoringPage() {
   const [galleryModal, setGalleryModal] = useState<{
     isOpen: boolean;
     title: string;
-    photos: string[];
+    photos: any[];
     activeIndex: number;
   }>({
     isOpen: false,
@@ -174,6 +175,11 @@ export default function PokjaMonitoringPage() {
     photos: [],
     activeIndex: 0,
   });
+
+  const [photoUploadCaption, setPhotoUploadCaption] = useState<string>('');
+  const [editingPhotoIndex, setEditingPhotoIndex] = useState<number | null>(null);
+  const [editCaptionValue, setEditCaptionValue] = useState<string>('');
+  const [savingCaption, setSavingCaption] = useState<boolean>(false);
 
   const getSafeFileUrl = (url?: string | null): string => {
     if (!url) return '';
@@ -245,6 +251,9 @@ export default function PokjaMonitoringPage() {
     const formData = new FormData();
     formData.append('id', uploadModal.assignmentId);
     formData.append('type', 'PHOTO');
+    if (photoUploadCaption && photoUploadCaption.trim()) {
+      formData.append('caption', photoUploadCaption.trim());
+    }
     for (let i = 0; i < files.length; i++) {
       formData.append('photos', files[i]);
     }
@@ -257,6 +266,7 @@ export default function PokjaMonitoringPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setUploadModal(prev => ({ ...prev, activityPhotos: data.activityPhotos || [] }));
+        setPhotoUploadCaption('');
         setMessage({ type: 'success', text: `Berhasil mengunggah ${files.length} foto kegiatan!` });
         fetchData();
       } else {
@@ -342,6 +352,39 @@ export default function PokjaMonitoringPage() {
       alert('Terjadi kesalahan koneksi.');
     } finally {
       setUploadModal(prev => ({ ...prev, uploadingPhoto: false }));
+    }
+  };
+
+  // Simpan / Perbarui Keterangan Foto Kegiatan (Opsional)
+  const handleSavePhotoCaption = async (photoUrl: string, captionText: string) => {
+    if (!uploadModal.assignmentId || !photoUrl) return;
+
+    setSavingCaption(true);
+    const formData = new FormData();
+    formData.append('id', uploadModal.assignmentId);
+    formData.append('action', 'UPDATE_PHOTO_CAPTION');
+    formData.append('photoUrl', photoUrl);
+    formData.append('caption', captionText.trim());
+
+    try {
+      const res = await fetch('/api/persuratan/sppd/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setUploadModal(prev => ({ ...prev, activityPhotos: data.activityPhotos || [] }));
+        setEditingPhotoIndex(null);
+        setEditCaptionValue('');
+        setMessage({ type: 'success', text: 'Keterangan foto berhasil disimpan!' });
+        fetchData();
+      } else {
+        alert(data.error || 'Gagal menyimpan keterangan foto.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi saat menyimpan keterangan foto.');
+    } finally {
+      setSavingCaption(false);
     }
   };
 
@@ -1842,35 +1885,28 @@ export default function PokjaMonitoringPage() {
 
                                 return (
                                   <>
-                                    {/* Tombol Upload Foto (Bisa Lebih dari 1 Foto Sekaligus) */}
-                                    <label
-                                      className={`inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                                        isUploadingThis
-                                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                                          : 'bg-emerald-600/15 hover:bg-emerald-600 text-emerald-400 hover:text-white border-emerald-500/30 shadow-sm'
-                                      }`}
-                                      title="Unggah Foto Dokumentasi Kegiatan (Bisa Memilih Lebih dari 1 Foto)"
+                                    {/* Tombol Kelola & Upload Foto (Membuka Modal dengan Opsi Keterangan) */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setUploadModal({
+                                          isOpen: true,
+                                          assignmentId: assignment.id!,
+                                          industryName: assignment.industry?.name || 'Industri',
+                                          teacherName: assignment.teacher?.name || 'Guru',
+                                          type: 'LAPORAN',
+                                          laporanUrl: assignment.laporanUrl || null,
+                                          activityPhotos: photos,
+                                          uploading: false,
+                                          uploadingPhoto: false,
+                                        });
+                                      }}
+                                      className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer bg-emerald-600/15 hover:bg-emerald-600 text-emerald-400 hover:text-white border-emerald-500/30 shadow-sm"
+                                      title="Buka Modal Upload & Atur Keterangan Foto Kegiatan"
                                     >
-                                      {isUploadingThis ? (
-                                        <RefreshCw className="w-3 h-3 animate-spin" />
-                                      ) : (
-                                        <Camera className="w-3 h-3" />
-                                      )}
-                                      <span>{isUploadingThis ? 'Mengunggah...' : '+ Upload Foto'}</span>
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        className="hidden"
-                                        disabled={isUploadingThis}
-                                        onChange={(e) => {
-                                          if (e.target.files && e.target.files.length > 0) {
-                                            handleDirectPhotoUpload(assignment.id as string, e.target.files);
-                                            e.target.value = '';
-                                          }
-                                        }}
-                                      />
-                                    </label>
+                                      <Camera className="w-3 h-3" />
+                                      <span>+ Foto ({photos.length})</span>
+                                    </button>
 
                                     {/* Tombol Cetak Foto: AKTIF JIKA FOTO SUDAH DIUPLOAD */}
                                     {hasPhotos ? (
@@ -2862,79 +2898,225 @@ export default function PokjaMonitoringPage() {
                   </label>
                 </div>
 
-                {/* BAGIAN 2: Upload Foto Dokumentasi Kegiatan (Maks 20 Foto) */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                      <Camera className="w-4 h-4 text-emerald-500" />
-                      <span>Foto Dokumentasi Kegiatan</span>
-                    </label>
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                      {uploadModal.activityPhotos?.length || 0} Foto
-                    </span>
-                  </div>
+                {/* BAGIAN 2: Upload Foto Dokumentasi Kegiatan (Maks 20 Foto, Format F4, Multi-PT) */}
+                {(() => {
+                  const activeUploadAssignment = assignments.find((a) => a.id === uploadModal.assignmentId);
+                  const primaryInd = activeUploadAssignment?.industry?.name || uploadModal.industryName;
+                  const addInds = activeUploadAssignment?.targetIndustries
+                    ? parseTargetIndustries(activeUploadAssignment.targetIndustries).map((i: any) => i.name)
+                    : [];
+                  const visitedIndustries = Array.from(new Set([primaryInd, ...addInds].filter(Boolean)));
+                  const photoList = uploadModal.activityPhotos || [];
 
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Unggah dokumentasi foto saat kegiatan di industri (bisa memilih lebih dari 1 foto sekaligus). Dokumen cetak F4 akan otomatis membagi foto maksimal 2 per halaman.
-                  </p>
+                  return (
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                          <Camera className="w-4 h-4 text-emerald-500" />
+                          <span>Foto Dokumentasi Kegiatan (Format Cetak F4)</span>
+                        </label>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                          {photoList.length} Foto
+                        </span>
+                      </div>
 
-                  {/* Grid Preview Foto */}
-                  {uploadModal.activityPhotos && uploadModal.activityPhotos.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
-                      {uploadModal.activityPhotos.map((photoUrl, slotIndex) => (
-                        <div key={slotIndex} className="relative group rounded-xl overflow-hidden aspect-video border border-slate-300 dark:border-slate-700 bg-black/10">
-                          <img
-                            src={getSafeFileUrl(photoUrl)}
-                            alt={`Foto Kegiatan ${slotIndex + 1}`}
-                            className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                            onClick={() =>
-                              setGalleryModal({
-                                isOpen: true,
-                                title: `Dokumentasi Kunjungan: ${uploadModal.industryName}`,
-                                photos: uploadModal.activityPhotos || [],
-                                activeIndex: slotIndex,
-                              })
-                            }
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePhoto(photoUrl)}
-                            disabled={uploadModal.uploadingPhoto}
-                            className="absolute top-1 right-1 p-1 rounded-lg bg-rose-600/90 text-white hover:bg-rose-600 transition-all cursor-pointer opacity-90 group-hover:opacity-100 shadow"
-                            title="Hapus foto ini"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-sm">
-                            Foto {slotIndex + 1}
-                          </span>
+                      {/* Notifikasi / Info jika kunjungan ke beberapa PT dalam 1 SPPD */}
+                      {visitedIndustries.length > 1 ? (
+                        <div className="bg-indigo-500/10 border border-indigo-500/25 rounded-xl p-2.5 text-xs text-indigo-400 dark:text-indigo-300">
+                          <div className="flex items-center gap-1.5 font-bold mb-0.5">
+                            <Building2 className="w-3.5 h-3.5" />
+                            <span>Kunjungan Multi-Industri ({visitedIndustries.length} PT / DUDI)</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                            Foto kegiatan di seluruh PT akan otomatis disatukan dalam 1 dokumen cetak F4 terpadu (maks. 2 foto/halaman). Anda dapat menyematkan nama PT pada keterangan foto (opsional).
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="py-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-center text-slate-400">
-                      <Camera className="w-8 h-8 mx-auto mb-1.5 opacity-40" />
-                      <p className="text-xs font-semibold">Belum ada foto kegiatan yang diunggah</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">Gunakan tombol di bawah untuk memilih foto</p>
-                    </div>
-                  )}
+                      ) : (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                          Unggah dokumentasi foto saat kegiatan. Dokumen cetak F4 (Folio) akan otomatis membagi foto maksimal 2 per halaman dengan nomor surat di pojok kanan.
+                        </p>
+                      )}
 
-                  {/* Tombol / Input Tambah Foto */}
-                  {(uploadModal.activityPhotos?.length || 0) < 20 && (
-                    <label className="cursor-pointer flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-all mt-2">
-                      <Camera className={`w-4 h-4 ${uploadModal.uploadingPhoto ? 'animate-bounce' : ''}`} />
-                      <span>{uploadModal.uploadingPhoto ? 'Sedang Mengunggah...' : `+ Tambah Foto Kegiatan (Pilih 1 atau Lebih)`}</span>
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        multiple
-                        onChange={handlePhotoUpload}
-                        disabled={uploadModal.uploadingPhoto}
-                      />
-                    </label>
-                  )}
-                </div>
+                      {/* Grid Foto yang Sudah Diunggah */}
+                      {photoList.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                          {photoList.map((photoItemRaw, slotIndex) => {
+                            const photoUrl = typeof photoItemRaw === 'string' ? photoItemRaw : photoItemRaw?.url;
+                            const photoCaption = typeof photoItemRaw === 'object' ? (photoItemRaw?.caption || '') : '';
+                            const isEditingThis = editingPhotoIndex === slotIndex;
+
+                            return (
+                              <div
+                                key={slotIndex}
+                                className="flex flex-col rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 shadow-sm"
+                              >
+                                {/* Thumbnail Foto */}
+                                <div className="relative group aspect-video overflow-hidden bg-slate-950 flex items-center justify-center">
+                                  <img
+                                    src={getSafeFileUrl(photoUrl)}
+                                    alt={`Foto Kegiatan ${slotIndex + 1}`}
+                                    className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                                    onClick={() =>
+                                      setGalleryModal({
+                                        isOpen: true,
+                                        title: `Dokumentasi: ${uploadModal.industryName}`,
+                                        photos: photoList,
+                                        activeIndex: slotIndex,
+                                      })
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeletePhoto(photoUrl)}
+                                    disabled={uploadModal.uploadingPhoto}
+                                    className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-rose-600/90 text-white hover:bg-rose-600 transition-all cursor-pointer opacity-90 group-hover:opacity-100 shadow"
+                                    title="Hapus foto ini"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-sm">
+                                    Foto {slotIndex + 1}
+                                  </span>
+                                </div>
+
+                                {/* Keterangan Foto & Aksi Edit */}
+                                <div className="p-2.5 flex flex-col justify-between flex-1 gap-1.5 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800">
+                                  {isEditingThis ? (
+                                    <div className="space-y-1.5">
+                                      <input
+                                        type="text"
+                                        value={editCaptionValue}
+                                        onChange={(e) => setEditCaptionValue(e.target.value)}
+                                        placeholder="Keterangan foto (opsional)..."
+                                        className="w-full text-xs px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                        autoFocus
+                                      />
+                                      {visitedIndustries.length > 0 && (
+                                        <div className="flex flex-wrap gap-1">
+                                          {visitedIndustries.map((indName, idx) => (
+                                            <button
+                                              key={idx}
+                                              type="button"
+                                              onClick={() => setEditCaptionValue(`Kegiatan di ${indName}`)}
+                                              className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 hover:bg-indigo-500/20 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                                            >
+                                              {indName}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <div className="flex items-center justify-end gap-1.5 pt-0.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingPhotoIndex(null);
+                                            setEditCaptionValue('');
+                                          }}
+                                          className="px-2 py-1 text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer"
+                                        >
+                                          Batal
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSavePhotoCaption(photoUrl, editCaptionValue)}
+                                          disabled={savingCaption}
+                                          className="px-2.5 py-1 text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all cursor-pointer"
+                                        >
+                                          {savingCaption ? 'Menyimpan...' : 'Simpan'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between gap-1.5">
+                                      <div className="text-[11px] leading-snug truncate">
+                                        {photoCaption ? (
+                                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                            {photoCaption}
+                                          </span>
+                                        ) : (
+                                          <span className="text-slate-400 italic text-[10px]">
+                                            Tanpa keterangan khusus
+                                          </span>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingPhotoIndex(slotIndex);
+                                          setEditCaptionValue(photoCaption);
+                                        }}
+                                        className="shrink-0 p-1 rounded-md text-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors cursor-pointer"
+                                        title="Ubah / Tambah Keterangan"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="py-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-center text-slate-400">
+                          <Camera className="w-8 h-8 mx-auto mb-1.5 opacity-40" />
+                          <p className="text-xs font-semibold">Belum ada foto kegiatan yang diunggah</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Gunakan form di bawah untuk memilih foto</p>
+                        </div>
+                      )}
+
+                      {/* Input Keterangan Opsional & Upload Foto Baru */}
+                      {photoList.length < 20 && (
+                        <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 space-y-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                Keterangan / Nama PT untuk Foto Berikutnya:
+                              </label>
+                              <span className="text-[10px] text-slate-400">Tidak wajib isi (opsional)</span>
+                            </div>
+                            <input
+                              type="text"
+                              value={photoUploadCaption}
+                              onChange={(e) => setPhotoUploadCaption(e.target.value)}
+                              placeholder="Misal: Foto kunjungan monitoring di PT Serayu Multi Connection..."
+                              className="w-full text-xs px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                            />
+                            {visitedIndustries.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                <span className="text-[10px] text-slate-400">Pilih cepat PT:</span>
+                                {visitedIndustries.map((indName, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => setPhotoUploadCaption(`Kegiatan di ${indName}`)}
+                                    className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer border border-transparent hover:border-emerald-500/30"
+                                    title={`Gunakan: Kegiatan di ${indName}`}
+                                  >
+                                    {indName}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <label className="cursor-pointer flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-all">
+                            <Camera className={`w-4 h-4 ${uploadModal.uploadingPhoto ? 'animate-bounce' : ''}`} />
+                            <span>{uploadModal.uploadingPhoto ? 'Sedang Mengunggah...' : '+ Pilih Foto Kegiatan (Bisa Lebih dari 1 Foto)'}</span>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              multiple
+                              onChange={handlePhotoUpload}
+                              disabled={uploadModal.uploadingPhoto}
+                            />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="mt-5 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -2974,82 +3156,97 @@ export default function PokjaMonitoringPage() {
         )}
 
         {/* MODAL LIGHTBOX / GALERI FOTO KEGIATAN */}
-        {galleryModal.isOpen && galleryModal.photos.length > 0 && (
-          <div
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200"
-            onClick={() => setGalleryModal(prev => ({ ...prev, isOpen: false }))}
-          >
-            <div className="relative max-w-4xl w-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
-              <div className="w-full flex items-center justify-between text-white pb-3">
-                <div>
-                  <h4 className="font-bold text-sm">{galleryModal.title}</h4>
-                  <p className="text-xs text-slate-400">
-                    Foto {galleryModal.activeIndex + 1} dari {galleryModal.photos.length}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setGalleryModal(prev => ({ ...prev, isOpen: false }))}
-                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-all"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+        {galleryModal.isOpen && galleryModal.photos.length > 0 && (() => {
+          const activePhoto = galleryModal.photos[galleryModal.activeIndex];
+          const activePhotoUrl = typeof activePhoto === 'string' ? activePhoto : activePhoto?.url || '';
+          const activePhotoCaption = typeof activePhoto === 'object' ? activePhoto?.caption || '' : '';
 
-              <div className="relative w-full max-h-[75vh] flex items-center justify-center overflow-hidden rounded-2xl bg-black/50 border border-white/10">
-                <img
-                  src={galleryModal.photos[galleryModal.activeIndex]}
-                  alt={`Dokumentasi ${galleryModal.activeIndex + 1}`}
-                  className="max-h-[75vh] w-auto max-w-full object-contain rounded-xl"
-                />
+          return (
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200"
+              onClick={() => setGalleryModal(prev => ({ ...prev, isOpen: false }))}
+            >
+              <div className="relative max-w-4xl w-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+                <div className="w-full flex items-center justify-between text-white pb-3">
+                  <div>
+                    <h4 className="font-bold text-sm">{galleryModal.title}</h4>
+                    <p className="text-xs text-slate-400">
+                      Foto {galleryModal.activeIndex + 1} dari {galleryModal.photos.length}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setGalleryModal(prev => ({ ...prev, isOpen: false }))}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="relative w-full max-h-[75vh] flex flex-col items-center justify-center overflow-hidden rounded-2xl bg-black/50 border border-white/10 p-2">
+                  <img
+                    src={getSafeFileUrl(activePhotoUrl)}
+                    alt={`Dokumentasi ${galleryModal.activeIndex + 1}`}
+                    className="max-h-[65vh] w-auto max-w-full object-contain rounded-xl"
+                  />
+
+                  {activePhotoCaption && (
+                    <div className="mt-2.5 text-center text-xs font-medium text-slate-200 bg-black/70 px-4 py-1.5 rounded-full border border-white/10 backdrop-blur-sm max-w-xl truncate">
+                      {activePhotoCaption}
+                    </div>
+                  )}
+
+                  {galleryModal.photos.length > 1 && (
+                    <>
+                      <button
+                        onClick={() =>
+                          setGalleryModal(prev => ({
+                            ...prev,
+                            activeIndex: (prev.activeIndex - 1 + prev.photos.length) % prev.photos.length,
+                          }))
+                        }
+                        className="absolute left-3 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white cursor-pointer transition-all border border-white/20"
+                        title="Sebelumnya"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() =>
+                          setGalleryModal(prev => ({
+                            ...prev,
+                            activeIndex: (prev.activeIndex + 1) % prev.photos.length,
+                          }))
+                        }
+                        className="absolute right-3 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white cursor-pointer transition-all border border-white/20"
+                        title="Selanjutnya"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+                </div>
 
                 {galleryModal.photos.length > 1 && (
-                  <>
-                    <button
-                      onClick={() =>
-                        setGalleryModal(prev => ({
-                          ...prev,
-                          activeIndex: (prev.activeIndex - 1 + prev.photos.length) % prev.photos.length,
-                        }))
-                      }
-                      className="absolute left-3 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white cursor-pointer transition-all border border-white/20"
-                      title="Sebelumnya"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() =>
-                        setGalleryModal(prev => ({
-                          ...prev,
-                          activeIndex: (prev.activeIndex + 1) % prev.photos.length,
-                        }))
-                      }
-                      className="absolute right-3 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white cursor-pointer transition-all border border-white/20"
-                      title="Selanjutnya"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </>
+                  <div className="flex items-center gap-2 mt-3 overflow-x-auto max-w-full pb-1">
+                    {galleryModal.photos.map((p, idx) => {
+                      const pUrl = typeof p === 'string' ? p : p?.url || '';
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => setGalleryModal(prev => ({ ...prev, activeIndex: idx }))}
+                          className={`shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                            galleryModal.activeIndex === idx ? 'border-indigo-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={getSafeFileUrl(pUrl)} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
-
-              {galleryModal.photos.length > 1 && (
-                <div className="flex items-center gap-2 mt-3">
-                  {galleryModal.photos.map((p, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setGalleryModal(prev => ({ ...prev, activeIndex: idx }))}
-                      className={`w-14 h-10 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
-                        galleryModal.activeIndex === idx ? 'border-indigo-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      <img src={p} alt="" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* MODAL PRATINJAU DOKUMEN HASIL SCAN (PDF / GAMBAR) */}
         {docViewerModal.isOpen && docViewerModal.url && (
