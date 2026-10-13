@@ -96,6 +96,51 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Keterangan foto berhasil disimpan', activityPhotos: updatedPhotos });
     }
 
+    // Aksi: Ganti Foto dengan Hasil Crop
+    if (action === 'REPLACE_PHOTO' || action === 'CROP_PHOTO') {
+      const oldPhotoUrl = formData.get('oldPhotoUrl') as string;
+      const file = formData.get('file') as File;
+      if (!file) {
+        return NextResponse.json({ error: 'Berkas foto hasil crop tidak ditemukan' }, { status: 400 });
+      }
+
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const fileName = `FOTO_MONITORING_${id}_${Date.now()}_crop.jpg`;
+      const filePath = path.join(uploadsDir, fileName);
+      fs.writeFileSync(filePath, buffer);
+      const newUrl = `/uploads/${fileName}`;
+
+      const currentPhotos = parsePhotos(assignment.activityPhotos);
+      const updatedPhotos = currentPhotos.map(p => {
+        const u = typeof p === 'string' ? p : p?.url;
+        if (u === oldPhotoUrl) {
+          const cap = typeof p === 'object' ? p?.caption || '' : '';
+          return { url: newUrl, caption: cap };
+        }
+        return p;
+      });
+
+      // Hapus file fisik lama jika ada
+      if (oldPhotoUrl && oldPhotoUrl.startsWith('/uploads/')) {
+        const oldPhysical = path.join(process.cwd(), 'public', oldPhotoUrl);
+        if (fs.existsSync(oldPhysical)) {
+          try { fs.unlinkSync(oldPhysical); } catch (e) {}
+        }
+      }
+
+      await db.monitoringAssignment.update({
+        where: { id },
+        data: { activityPhotos: updatedPhotos }
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Foto berhasil diperbarui dengan hasil crop!',
+        activityPhotos: updatedPhotos
+      });
+    }
+
     const type = (formData.get('type') as string || '').toUpperCase();
     const updateData: any = {};
 

@@ -52,7 +52,9 @@ import {
   Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
+  Crop,
 } from 'lucide-react';
+import PhotoCropModal from '@/components/PhotoCropModal';
 import {
   generateSuratTugasHtml,
   generateSppdHtml,
@@ -180,6 +182,22 @@ export default function PokjaMonitoringPage() {
   const [editingPhotoIndex, setEditingPhotoIndex] = useState<number | null>(null);
   const [editCaptionValue, setEditCaptionValue] = useState<string>('');
   const [savingCaption, setSavingCaption] = useState<boolean>(false);
+
+  const [cropModal, setCropModal] = useState<{
+    isOpen: boolean;
+    assignmentId: string;
+    imageUrl: string;
+    isNewUpload: boolean;
+    targetOldUrl?: string;
+    initialCaption?: string;
+  }>({
+    isOpen: false,
+    assignmentId: '',
+    imageUrl: '',
+    isNewUpload: false,
+    targetOldUrl: '',
+    initialCaption: '',
+  });
 
   const getSafeFileUrl = (url?: string | null): string => {
     if (!url) return '';
@@ -385,6 +403,59 @@ export default function PokjaMonitoringPage() {
       alert('Terjadi kesalahan koneksi saat menyimpan keterangan foto.');
     } finally {
       setSavingCaption(false);
+    }
+  };
+
+  // Simpan Foto Hasil Pemotongan / Crop
+  const handleSaveCrop = async (croppedFile: File, newCaption?: string) => {
+    if (!cropModal.assignmentId) return;
+
+    const formData = new FormData();
+    formData.append('id', cropModal.assignmentId);
+
+    if (cropModal.isNewUpload) {
+      formData.append('type', 'PHOTO');
+      formData.append('photos', croppedFile);
+      if (newCaption) {
+        formData.append('caption', newCaption.trim());
+      }
+    } else if (cropModal.targetOldUrl) {
+      formData.append('action', 'REPLACE_PHOTO');
+      formData.append('oldPhotoUrl', cropModal.targetOldUrl);
+      formData.append('file', croppedFile);
+    }
+
+    try {
+      const res = await fetch('/api/persuratan/sppd/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setUploadModal((prev) => ({ ...prev, activityPhotos: data.activityPhotos || [] }));
+        // Jika mengganti foto lama dan caption diubah di cropper, sinkronkan
+        if (!cropModal.isNewUpload && cropModal.targetOldUrl && newCaption !== undefined && newCaption !== cropModal.initialCaption) {
+          const updatedNewPhoto = data.activityPhotos?.find((p: any) => {
+            const u = typeof p === 'string' ? p : p?.url;
+            return u && u.includes('_crop');
+          });
+          const nUrl = typeof updatedNewPhoto === 'string' ? updatedNewPhoto : updatedNewPhoto?.url;
+          if (nUrl) {
+            const capForm = new FormData();
+            capForm.append('id', cropModal.assignmentId);
+            capForm.append('action', 'UPDATE_PHOTO_CAPTION');
+            capForm.append('photoUrl', nUrl);
+            capForm.append('caption', newCaption.trim());
+            await fetch('/api/persuratan/sppd/upload', { method: 'POST', body: capForm });
+          }
+        }
+        setMessage({ type: 'success', text: 'Foto berhasil dipotong dan diperbarui!' });
+        fetchData();
+      } else {
+        alert(data.error || 'Gagal menyimpan foto hasil crop.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi saat menyimpan foto hasil crop.');
     }
   };
 
@@ -3041,17 +3112,36 @@ export default function PokjaMonitoringPage() {
                                           </span>
                                         )}
                                       </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setEditingPhotoIndex(slotIndex);
-                                          setEditCaptionValue(photoCaption);
-                                        }}
-                                        className="shrink-0 p-1 rounded-md text-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors cursor-pointer"
-                                        title="Ubah / Tambah Keterangan"
-                                      >
-                                        <Edit3 className="w-3.5 h-3.5" />
-                                      </button>
+                                      <div className="flex items-center space-x-1 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setCropModal({
+                                              isOpen: true,
+                                              assignmentId: uploadModal.assignmentId,
+                                              imageUrl: getSafeFileUrl(photoUrl),
+                                              isNewUpload: false,
+                                              targetOldUrl: photoUrl,
+                                              initialCaption: photoCaption,
+                                            });
+                                          }}
+                                          className="p-1 rounded-md text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                                          title="Crop & Atur Aspek Rasio Foto"
+                                        >
+                                          <Crop className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingPhotoIndex(slotIndex);
+                                            setEditCaptionValue(photoCaption);
+                                          }}
+                                          className="p-1 rounded-md text-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors cursor-pointer"
+                                          title="Ubah / Tambah Keterangan"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -3102,18 +3192,51 @@ export default function PokjaMonitoringPage() {
                             )}
                           </div>
 
-                          <label className="cursor-pointer flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-all">
-                            <Camera className={`w-4 h-4 ${uploadModal.uploadingPhoto ? 'animate-bounce' : ''}`} />
-                            <span>{uploadModal.uploadingPhoto ? 'Sedang Mengunggah...' : '+ Pilih Foto Kegiatan (Bisa Lebih dari 1 Foto)'}</span>
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept="image/*"
-                              multiple
-                              onChange={handlePhotoUpload}
-                              disabled={uploadModal.uploadingPhoto}
-                            />
-                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                            {/* Tombol 1: Pilih & Crop Foto dengan Rasio F4 (4:3) */}
+                            <label className="cursor-pointer flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold transition-all shadow-sm">
+                              <Crop className="w-4 h-4" />
+                              <span>+ Pilih & Crop Foto (Aspek Rasio F4)</span>
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (loadEvt) => {
+                                      if (loadEvt.target?.result) {
+                                        setCropModal({
+                                          isOpen: true,
+                                          assignmentId: uploadModal.assignmentId,
+                                          imageUrl: loadEvt.target.result as string,
+                                          isNewUpload: true,
+                                          initialCaption: photoUploadCaption,
+                                        });
+                                      }
+                                    };
+                                    reader.readAsDataURL(file);
+                                    e.target.value = '';
+                                  }
+                                }}
+                              />
+                            </label>
+
+                            {/* Tombol 2: Upload Langsung (Multi Foto) */}
+                            <label className="cursor-pointer flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500 text-xs font-bold transition-all">
+                              <Camera className={`w-4 h-4 ${uploadModal.uploadingPhoto ? 'animate-bounce' : ''}`} />
+                              <span>{uploadModal.uploadingPhoto ? 'Mengunggah...' : '+ Upload Langsung (Bisa >1 Foto)'}</span>
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                multiple
+                                onChange={handlePhotoUpload}
+                                disabled={uploadModal.uploadingPhoto}
+                              />
+                            </label>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -3335,7 +3458,16 @@ export default function PokjaMonitoringPage() {
             </div>
           </div>
         )}
-</div>
+
+        {/* MODAL CROP & EDITOR FOTO KEGIATAN */}
+        <PhotoCropModal
+          isOpen={cropModal.isOpen}
+          onClose={() => setCropModal((prev) => ({ ...prev, isOpen: false }))}
+          imageUrl={cropModal.imageUrl}
+          initialCaption={cropModal.initialCaption}
+          onSaveCrop={handleSaveCrop}
+        />
+      </div>
   );
 }
 
