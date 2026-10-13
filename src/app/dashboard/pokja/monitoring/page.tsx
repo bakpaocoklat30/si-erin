@@ -57,6 +57,7 @@ import {
   generateSuratTugasHtml,
   generateSppdHtml,
   generateLaporanHasilKegiatanHtml,
+  generateDokumentasiFotoHtml,
   MonitoringAssignmentData,
   formatIndonesianDate,
   formatIndonesianDateRange,
@@ -227,14 +228,16 @@ export default function PokjaMonitoringPage() {
     }
   };
 
-  // Upload Foto Kegiatan (Maksimal 3 Foto)
+  const [uploadingRowPhotoId, setUploadingRowPhotoId] = useState<string | null>(null);
+
+  // Upload Foto Kegiatan dari Modal (Bisa Lebih dari 1 Foto, Maks 20 Foto)
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !uploadModal.assignmentId) return;
 
     const currentCount = uploadModal.activityPhotos?.length || 0;
-    if (currentCount + files.length > 3) {
-      alert(`Maksimal 3 foto kegiatan. Saat ini sudah ada ${currentCount} foto, Anda hanya dapat menambahkan ${3 - currentCount} foto lagi.`);
+    if (currentCount + files.length > 20) {
+      alert(`Maksimal 20 foto kegiatan. Saat ini sudah ada ${currentCount} foto, Anda hanya dapat menambahkan ${20 - currentCount} foto lagi.`);
       return;
     }
 
@@ -254,7 +257,7 @@ export default function PokjaMonitoringPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setUploadModal(prev => ({ ...prev, activityPhotos: data.activityPhotos || [] }));
-        setMessage({ type: 'success', text: 'Foto kegiatan berhasil diunggah!' });
+        setMessage({ type: 'success', text: `Berhasil mengunggah ${files.length} foto kegiatan!` });
         fetchData();
       } else {
         alert(data.error || 'Gagal mengunggah foto.');
@@ -264,6 +267,50 @@ export default function PokjaMonitoringPage() {
     } finally {
       setUploadModal(prev => ({ ...prev, uploadingPhoto: false }));
       if (e.target) e.target.value = '';
+    }
+  };
+
+  // Upload Foto Kegiatan Langsung dari Baris Tabel (Bisa Lebih dari 1 Foto)
+  const handleDirectPhotoUpload = async (assignmentId: string, files: FileList | null) => {
+    if (!files || files.length === 0 || !assignmentId) return;
+
+    const targetAssignment = assignments.find(a => a.id === assignmentId);
+    const rawPhotos = targetAssignment?.activityPhotos;
+    const currentPhotos: string[] = Array.isArray(rawPhotos)
+      ? rawPhotos
+      : (typeof rawPhotos === 'string'
+        ? (() => { try { return JSON.parse(rawPhotos); } catch { return []; } })()
+        : []);
+
+    if (currentPhotos.length + files.length > 20) {
+      alert(`Maksimal 20 foto kegiatan. Saat ini sudah ada ${currentPhotos.length} foto, Anda hanya dapat menambahkan ${20 - currentPhotos.length} foto lagi.`);
+      return;
+    }
+
+    setUploadingRowPhotoId(assignmentId);
+    const formData = new FormData();
+    formData.append('id', assignmentId);
+    formData.append('type', 'PHOTO');
+    for (let i = 0; i < files.length; i++) {
+      formData.append('photos', files[i]);
+    }
+
+    try {
+      const res = await fetch('/api/persuratan/sppd/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMessage({ type: 'success', text: `Berhasil mengunggah ${files.length} foto kegiatan!` });
+        await fetchData();
+      } else {
+        alert(data.error || 'Gagal mengunggah foto.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi saat mengunggah foto.');
+    } finally {
+      setUploadingRowPhotoId(null);
     }
   };
 
@@ -339,10 +386,10 @@ export default function PokjaMonitoringPage() {
   const [targetIndustries, setTargetIndustries] = useState<AdditionalIndustryItem[]>([]);
   const [selectedAddIndustryId, setSelectedAddIndustryId] = useState('');
 
-  // Modal State: Print Preview (Surat Tugas / SPPD / Laporan)
+  // Modal State: Print Preview (Surat Tugas / SPPD / Laporan / Foto Dokumentasi)
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
-    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN';
+    type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN' | 'FOTO_DOKUMENTASI';
     assignment: MonitoringAssignmentData | null;
     useTteTags: boolean;
   }>({
@@ -1115,13 +1162,15 @@ export default function PokjaMonitoringPage() {
     }
   };
 
-  const handlePrintDocument = (type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN', assignment: MonitoringAssignmentData, useTte: boolean) => {
+  const handlePrintDocument = (type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN' | 'FOTO_DOKUMENTASI', assignment: MonitoringAssignmentData, useTte: boolean) => {
     const html =
       type === 'SURAT_TUGAS'
         ? generateSuratTugasHtml(assignment, { schoolSetting, useTteTags: useTte })
         : type === 'SPPD'
         ? generateSppdHtml(assignment, { schoolSetting, useTteTags: useTte })
-        : generateLaporanHasilKegiatanHtml(assignment, { schoolSetting, useTteTags: useTte });
+        : type === 'LAPORAN'
+        ? generateLaporanHasilKegiatanHtml(assignment, { schoolSetting, useTteTags: useTte })
+        : generateDokumentasiFotoHtml(assignment, { schoolSetting, useTteTags: useTte });
 
     const printWin = window.open('', '_blank');
     if (printWin) {
@@ -1136,13 +1185,15 @@ export default function PokjaMonitoringPage() {
   };
 
   // Handler: Buka di Tab Baru
-  const handleOpenInNewTab = (type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN', assignment: MonitoringAssignmentData, useTte: boolean) => {
+  const handleOpenInNewTab = (type: 'SURAT_TUGAS' | 'SPPD' | 'LAPORAN' | 'FOTO_DOKUMENTASI', assignment: MonitoringAssignmentData, useTte: boolean) => {
     const html =
       type === 'SURAT_TUGAS'
         ? generateSuratTugasHtml(assignment, { schoolSetting, useTteTags: useTte })
         : type === 'SPPD'
         ? generateSppdHtml(assignment, { schoolSetting, useTteTags: useTte })
-        : generateLaporanHasilKegiatanHtml(assignment, { schoolSetting, useTteTags: useTte });
+        : type === 'LAPORAN'
+        ? generateLaporanHasilKegiatanHtml(assignment, { schoolSetting, useTteTags: useTte })
+        : generateDokumentasiFotoHtml(assignment, { schoolSetting, useTteTags: useTte });
 
     const newWin = window.open('', '_blank');
     if (newWin) {
@@ -1161,7 +1212,10 @@ export default function PokjaMonitoringPage() {
     if (previewModal.type === 'SPPD') {
       return generateSppdHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
     }
-    return generateLaporanHasilKegiatanHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
+    if (previewModal.type === 'LAPORAN') {
+      return generateLaporanHasilKegiatanHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
+    }
+    return generateDokumentasiFotoHtml(previewModal.assignment, { schoolSetting, useTteTags: previewModal.useTteTags });
   }, [previewModal, schoolSetting]);
 
   if (loading && assignments.length === 0) {
@@ -1728,9 +1782,53 @@ export default function PokjaMonitoringPage() {
                             </div>
                           </div>
 
-                          {/* 3. Laporan Kegiatan */}
+                          {/* 3. Laporan Kunjungan */}
                           <div className="flex flex-col space-y-1">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">3. Laporan Kunjungan</span>
+                            <div className="flex items-center flex-wrap gap-1.5">
+                              {/* Tombol Lihat Hasil Scan Unggahan (Jika sudah diunggah) */}
+                              {assignment.laporanUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDocViewerModal({
+                                      isOpen: true,
+                                      title: `Hasil Scan Laporan - ${assignment.industry?.name || 'Industri'}`,
+                                      url: assignment.laporanUrl!,
+                                      subtitle: `Petugas: ${assignment.teacher?.name || 'Guru'} • Laporan Resmi Telah Diunggah`,
+                                    })
+                                  }
+                                  className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold shadow-md shadow-emerald-600/30 transition-all cursor-pointer animate-in fade-in"
+                                  title="Buka Dokumen Hasil Scan yang Telah Diunggah"
+                                >
+                                  <FileCheck2 className="w-3.5 h-3.5" /> <span>Hasil Scan</span>
+                                </button>
+                              )}
+
+                              {/* Tombol Format Blanko Cetak A4 */}
+                              <button
+                                onClick={() => setPreviewModal({ isOpen: true, type: 'LAPORAN', assignment, useTteTags: false })}
+                                className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/30 transition-all cursor-pointer"
+                                title="Pratinjau Format Blanko Cetak A4"
+                              >
+                                <Eye className="w-3 h-3" /> <span>{assignment.laporanUrl ? "Format A4" : "Preview"}</span>
+                              </button>
+
+                              {/* Tombol Unduh DOCX */}
+                              <a
+                                href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=laporan&tte=false`}
+                                download
+                                className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/20 transition-all cursor-pointer"
+                                title="Unduh DOCX Format Laporan"
+                              >
+                                <Download className="w-3 h-3" /> <span>DOCX</span>
+                              </a>
+                            </div>
+                          </div>
+
+                          {/* 4. Dokumentasi Foto Kegiatan */}
+                          <div className="flex flex-col space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">4. Foto Kegiatan</span>
                             <div className="flex items-center flex-wrap gap-1.5">
                               {(() => {
                                 const rawPhotos = assignment.activityPhotos;
@@ -1739,49 +1837,73 @@ export default function PokjaMonitoringPage() {
                                   : (typeof rawPhotos === 'string'
                                     ? (() => { try { return JSON.parse(rawPhotos); } catch { return []; } })()
                                     : []);
+                                const hasPhotos = photos.length > 0;
+                                const isUploadingThis = uploadingRowPhotoId === assignment.id;
 
                                 return (
                                   <>
-                                    {/* Tombol Lihat Hasil Scan Unggahan (Jika sudah diunggah) */}
-                                    {assignment.laporanUrl && (
+                                    {/* Tombol Upload Foto (Bisa Lebih dari 1 Foto Sekaligus) */}
+                                    <label
+                                      className={`inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                                        isUploadingThis
+                                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                          : 'bg-emerald-600/15 hover:bg-emerald-600 text-emerald-400 hover:text-white border-emerald-500/30 shadow-sm'
+                                      }`}
+                                      title="Unggah Foto Dokumentasi Kegiatan (Bisa Memilih Lebih dari 1 Foto)"
+                                    >
+                                      {isUploadingThis ? (
+                                        <RefreshCw className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <Camera className="w-3 h-3" />
+                                      )}
+                                      <span>{isUploadingThis ? 'Mengunggah...' : '+ Upload Foto'}</span>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        disabled={isUploadingThis}
+                                        onChange={(e) => {
+                                          if (e.target.files && e.target.files.length > 0) {
+                                            handleDirectPhotoUpload(assignment.id as string, e.target.files);
+                                            e.target.value = '';
+                                          }
+                                        }}
+                                      />
+                                    </label>
+
+                                    {/* Tombol Cetak Foto: AKTIF JIKA FOTO SUDAH DIUPLOAD */}
+                                    {hasPhotos ? (
                                       <button
                                         type="button"
                                         onClick={() =>
-                                          setDocViewerModal({
+                                          setPreviewModal({
                                             isOpen: true,
-                                            title: `Hasil Scan Laporan - ${assignment.industry?.name || 'Industri'}`,
-                                            url: assignment.laporanUrl!,
-                                            subtitle: `Petugas: ${assignment.teacher?.name || 'Guru'} • Laporan Resmi Telah Diunggah`,
+                                            type: 'FOTO_DOKUMENTASI',
+                                            assignment,
+                                            useTteTags: false,
                                           })
                                         }
-                                        className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold shadow-md shadow-emerald-600/30 transition-all cursor-pointer animate-in fade-in"
-                                        title="Buka Dokumen Hasil Scan yang Telah Diunggah"
+                                        className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold shadow-md shadow-indigo-600/30 transition-all cursor-pointer animate-in fade-in"
+                                        title="Cetak Dokumentasi Kegiatan (Format F4, Maks 2 Foto/Halaman)"
                                       >
-                                        <FileCheck2 className="w-3.5 h-3.5" /> <span>Hasil Scan</span>
+                                        <Printer className="w-3 h-3" />
+                                        <span>Cetak Foto ({photos.length})</span>
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        disabled
+                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-800 text-slate-500 text-[10px] font-bold border border-slate-700/50 cursor-not-allowed opacity-60"
+                                        title="Tombol cetak akan aktif setelah foto kegiatan diunggah"
+                                      >
+                                        <Printer className="w-3 h-3" />
+                                        <span>Cetak Foto</span>
                                       </button>
                                     )}
 
-                                    {/* Tombol Format Blanko Cetak A4 */}
-                                    <button
-                                      onClick={() => setPreviewModal({ isOpen: true, type: 'LAPORAN', assignment, useTteTags: false })}
-                                      className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/30 transition-all cursor-pointer"
-                                      title="Pratinjau Format Blanko Cetak A4"
-                                    >
-                                      <Eye className="w-3 h-3" /> <span>{assignment.laporanUrl ? "Format A4" : "Preview"}</span>
-                                    </button>
-
-                                    {/* Tombol Unduh DOCX */}
-                                    <a
-                                      href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=laporan&tte=false`}
-                                      download
-                                      className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/20 transition-all cursor-pointer"
-                                      title="Unduh DOCX Format Laporan"
-                                    >
-                                      <Download className="w-3 h-3" /> <span>DOCX</span>
-                                    </a>
-
-                                    {/* Foto Kegiatan */}
-                                    {photos.length > 0 && (
+                                    {/* Tombol Pratinjau / Galeri Foto */}
+                                    {hasPhotos && (
                                       <button
                                         type="button"
                                         onClick={() =>
@@ -1792,11 +1914,11 @@ export default function PokjaMonitoringPage() {
                                             activeIndex: 0,
                                           })
                                         }
-                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-teal-500/15 hover:bg-teal-600 text-teal-400 hover:text-white text-[10px] font-bold border border-teal-500/30 transition-all cursor-pointer"
-                                        title="Lihat Foto Dokumentasi Kegiatan"
+                                        className="inline-flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-600 text-teal-400 hover:text-white text-[10px] font-bold border border-teal-500/20 transition-all cursor-pointer"
+                                        title="Lihat Galeri Foto Kegiatan"
                                       >
                                         <ImageIcon className="w-3 h-3" />
-                                        <span>{photos.length} Foto</span>
+                                        <span>Lihat</span>
                                       </button>
                                     )}
                                   </>
@@ -2474,8 +2596,10 @@ export default function PokjaMonitoringPage() {
                     <FileSignature className="w-5 h-5" />
                   ) : previewModal.type === 'SPPD' ? (
                     <FileText className="w-5 h-5" />
-                  ) : (
+                  ) : previewModal.type === 'LAPORAN' ? (
                     <ClipboardCheck className="w-5 h-5 text-amber-400" />
+                  ) : (
+                    <Camera className="w-5 h-5 text-emerald-400" />
                   )}
                 </div>
                 <div>
@@ -2484,7 +2608,9 @@ export default function PokjaMonitoringPage() {
                       ? 'Surat Perintah Tugas Monitoring'
                       : previewModal.type === 'SPPD'
                       ? 'Surat Perintah Perjalanan Dinas (SPPD)'
-                      : 'Laporan Hasil Kegiatan Monitoring'}
+                      : previewModal.type === 'LAPORAN'
+                      ? 'Laporan Hasil Kegiatan Monitoring'
+                      : 'Dokumentasi Foto Kegiatan PKL (Ukuran F4)'}
                   </h3>
                   <p className="text-xs text-slate-400">
                     Tujuan: <strong className="text-white">{previewModal.assignment.industry.name}</strong> • Petugas:{' '}
@@ -2524,25 +2650,27 @@ export default function PokjaMonitoringPage() {
                   className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
-                  <span>Cetak A4</span>
+                  <span>{previewModal.type === 'FOTO_DOKUMENTASI' ? 'Cetak F4 (Folio)' : 'Cetak A4'}</span>
                 </button>
 
                 {/* Download Real DOCX Button */}
-                <a
-                  href={`/api/pokja/monitoring/${previewModal.assignment.id}/download-docx?type=${
-                    previewModal.type === 'SURAT_TUGAS'
-                      ? 'tugas'
-                      : previewModal.type === 'SPPD'
-                      ? 'sppd'
-                      : 'laporan'
-                  }&tte=${previewModal.useTteTags}`}
-                  download
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
-                  title="Unduh berkas resmi Microsoft Word (.docx)"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Unduh DOCX</span>
-                </a>
+                {previewModal.type !== 'FOTO_DOKUMENTASI' && (
+                  <a
+                    href={`/api/pokja/monitoring/${previewModal.assignment.id}/download-docx?type=${
+                      previewModal.type === 'SURAT_TUGAS'
+                        ? 'tugas'
+                        : previewModal.type === 'SPPD'
+                        ? 'sppd'
+                        : 'laporan'
+                    }&tte=${previewModal.useTteTags}`}
+                    download
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                    title="Unduh berkas resmi Microsoft Word (.docx)"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Unduh DOCX</span>
+                  </a>
+                )}
 
                 {/* Open in New Tab */}
                 <button
@@ -2582,7 +2710,11 @@ export default function PokjaMonitoringPage() {
             <div className="px-6 py-3 border-t border-slate-800/30 flex items-center justify-between bg-slate-950/40">
               <div className="flex items-center space-x-2 text-xs text-slate-400">
                 <FileText className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Dokumen Resmi SMK Negeri 1 Adiwerna • Presisi 1 Halaman A4</span>
+                <span>
+                  {previewModal.type === 'FOTO_DOKUMENTASI'
+                    ? 'Dokumentasi Resmi SMK Negeri 1 Adiwerna • Ukuran F4 (Folio) • Maksimal 2 Foto / Halaman'
+                    : 'Dokumen Resmi SMK Negeri 1 Adiwerna • Presisi 1 Halaman A4'}
+                </span>
               </div>
               <div className="flex items-center space-x-2">
                 <button
@@ -2593,22 +2725,24 @@ export default function PokjaMonitoringPage() {
                   className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs font-semibold border border-indigo-500/30 transition-all cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>Cetak A4</span>
+                  <span>{previewModal.type === 'FOTO_DOKUMENTASI' ? 'Cetak F4 (Folio)' : 'Cetak A4'}</span>
                 </button>
-                <a
-                  href={`/api/pokja/monitoring/${previewModal.assignment.id}/download-docx?type=${
-                    previewModal.type === 'SURAT_TUGAS'
-                      ? 'tugas'
-                      : previewModal.type === 'SPPD'
-                      ? 'sppd'
-                      : 'laporan'
-                  }&tte=${previewModal.useTteTags}`}
-                  download
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white text-xs font-semibold border border-blue-500/30 transition-all cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Unduh DOCX</span>
-                </a>
+                {previewModal.type !== 'FOTO_DOKUMENTASI' && (
+                  <a
+                    href={`/api/pokja/monitoring/${previewModal.assignment.id}/download-docx?type=${
+                      previewModal.type === 'SURAT_TUGAS'
+                        ? 'tugas'
+                        : previewModal.type === 'SPPD'
+                        ? 'sppd'
+                        : 'laporan'
+                    }&tte=${previewModal.useTteTags}`}
+                    download
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white text-xs font-semibold border border-blue-500/30 transition-all cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Unduh DOCX</span>
+                  </a>
+                )}
                 <button
                   type="button"
                   onClick={() => setPreviewModal((prev) => ({ ...prev, isOpen: false }))}
@@ -2728,74 +2862,68 @@ export default function PokjaMonitoringPage() {
                   </label>
                 </div>
 
-                {/* BAGIAN 2: Upload Foto Dokumentasi Kegiatan (Maks 3 Foto) */}
+                {/* BAGIAN 2: Upload Foto Dokumentasi Kegiatan (Maks 20 Foto) */}
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                       <Camera className="w-4 h-4 text-emerald-500" />
-                      <span>Foto Kegiatan Monitoring</span>
+                      <span>Foto Dokumentasi Kegiatan</span>
                     </label>
                     <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                      {uploadModal.activityPhotos?.length || 0} / 3 Foto
+                      {uploadModal.activityPhotos?.length || 0} Foto
                     </span>
                   </div>
 
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Unggah dokumentasi foto saat melakukan monitoring di industri (maksimal 3 foto). Foto akan otomatis tercetak rapi di lembar laporan kegiatan A4.
+                    Unggah dokumentasi foto saat kegiatan di industri (bisa memilih lebih dari 1 foto sekaligus). Dokumen cetak F4 akan otomatis membagi foto maksimal 2 per halaman.
                   </p>
 
                   {/* Grid Preview Foto */}
-                  <div className="grid grid-cols-3 gap-2.5 pt-1">
-                    {[0, 1, 2].map((slotIndex) => {
-                      const photoUrl = uploadModal.activityPhotos?.[slotIndex];
-                      if (photoUrl) {
-                        return (
-                          <div key={slotIndex} className="relative group rounded-xl overflow-hidden aspect-video border border-slate-300 dark:border-slate-700 bg-black/10">
-                            <img
-                              src={photoUrl}
-                              alt={`Foto Kegiatan ${slotIndex + 1}`}
-                              className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                              onClick={() =>
-                                setGalleryModal({
-                                  isOpen: true,
-                                  title: `Dokumentasi Kunjungan: ${uploadModal.industryName}`,
-                                  photos: uploadModal.activityPhotos || [],
-                                  activeIndex: slotIndex,
-                                })
-                              }
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePhoto(photoUrl)}
-                              disabled={uploadModal.uploadingPhoto}
-                              className="absolute top-1 right-1 p-1 rounded-lg bg-rose-600/90 text-white hover:bg-rose-600 transition-all cursor-pointer opacity-90 group-hover:opacity-100 shadow"
-                              title="Hapus foto ini"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-sm">
-                              Foto {slotIndex + 1}
-                            </span>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div
-                          key={slotIndex}
-                          className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-900/30 aspect-video flex flex-col items-center justify-center text-slate-400"
-                        >
-                          <Camera className="w-4 h-4 mb-1 opacity-50" />
-                          <span className="text-[10px] font-medium">Slot {slotIndex + 1}</span>
+                  {uploadModal.activityPhotos && uploadModal.activityPhotos.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                      {uploadModal.activityPhotos.map((photoUrl, slotIndex) => (
+                        <div key={slotIndex} className="relative group rounded-xl overflow-hidden aspect-video border border-slate-300 dark:border-slate-700 bg-black/10">
+                          <img
+                            src={getSafeFileUrl(photoUrl)}
+                            alt={`Foto Kegiatan ${slotIndex + 1}`}
+                            className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                            onClick={() =>
+                              setGalleryModal({
+                                isOpen: true,
+                                title: `Dokumentasi Kunjungan: ${uploadModal.industryName}`,
+                                photos: uploadModal.activityPhotos || [],
+                                activeIndex: slotIndex,
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePhoto(photoUrl)}
+                            disabled={uploadModal.uploadingPhoto}
+                            className="absolute top-1 right-1 p-1 rounded-lg bg-rose-600/90 text-white hover:bg-rose-600 transition-all cursor-pointer opacity-90 group-hover:opacity-100 shadow"
+                            title="Hapus foto ini"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-sm">
+                            Foto {slotIndex + 1}
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-center text-slate-400">
+                      <Camera className="w-8 h-8 mx-auto mb-1.5 opacity-40" />
+                      <p className="text-xs font-semibold">Belum ada foto kegiatan yang diunggah</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Gunakan tombol di bawah untuk memilih foto</p>
+                    </div>
+                  )}
 
                   {/* Tombol / Input Tambah Foto */}
-                  {(uploadModal.activityPhotos?.length || 0) < 3 && (
+                  {(uploadModal.activityPhotos?.length || 0) < 20 && (
                     <label className="cursor-pointer flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-all mt-2">
                       <Camera className={`w-4 h-4 ${uploadModal.uploadingPhoto ? 'animate-bounce' : ''}`} />
-                      <span>{uploadModal.uploadingPhoto ? 'Sedang Mengunggah...' : `+ Tambah Foto (${3 - (uploadModal.activityPhotos?.length || 0)} slot tersisa)`}</span>
+                      <span>{uploadModal.uploadingPhoto ? 'Sedang Mengunggah...' : `+ Tambah Foto Kegiatan (Pilih 1 atau Lebih)`}</span>
                       <input
                         type="file"
                         className="hidden"
@@ -2809,7 +2937,30 @@ export default function PokjaMonitoringPage() {
                 </div>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+              <div className="mt-5 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  {uploadModal.activityPhotos && uploadModal.activityPhotos.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const found = assignments.find((a) => a.id === uploadModal.assignmentId);
+                        if (found) {
+                          setPreviewModal({
+                            isOpen: true,
+                            type: 'FOTO_DOKUMENTASI',
+                            assignment: found,
+                            useTteTags: false,
+                          });
+                        }
+                      }}
+                      className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all cursor-pointer"
+                      title="Cetak Dokumentasi Foto Kegiatan (Format F4)"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Cetak Dokumentasi F4</span>
+                    </button>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => setUploadModal(prev => ({ ...prev, isOpen: false }))}

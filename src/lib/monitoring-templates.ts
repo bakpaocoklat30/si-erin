@@ -1188,3 +1188,308 @@ export function generateLaporanHasilKegiatanHtml(
 </body>
 </html>`;
 }
+/**
+ * 📸 GENERATOR DOKUMENTASI FOTO KEGIATAN (MONITORING / PENERJUNAN / PENARIKAN)
+ * Format Kertas: F4 (Folio 215mm x 330mm)
+ * Maksimal 2 Foto per halaman
+ * Nomor Surat di pojok kanan surat
+ */
+export function generateDokumentasiFotoHtml(
+  assignment: MonitoringAssignmentData,
+  options?: GeneratorOptions
+): string {
+  const useTte = options?.useTteTags !== false;
+  const docNumber =
+    assignment.letterNumber && assignment.letterNumber.trim() !== '' && assignment.letterNumber !== '${nomor_naskah}'
+      ? assignment.letterNumber.trim()
+      : assignment.sppdNumber && assignment.sppdNumber.trim() !== '' && assignment.sppdNumber !== '${nomor_naskah}'
+      ? assignment.sppdNumber.trim()
+      : useTte
+      ? '${nomor_naskah}'
+      : '800.1.11.1 /        /2026';
+
+  const teacher = assignment.teacher || { name: 'Guru Petugas', nip: '-' };
+  const companionTeachers = parseCompanionTeachers(assignment.companionTeachers);
+
+  // Tentukan jenis penugasan dinamis: MONITORING / PENERJUNAN / PENARIKAN
+  const purposeLower = (assignment.purpose || '').toLowerCase();
+  let activityType = 'MONITORING';
+  if (purposeLower.includes('penerjunan') || purposeLower.includes('pengantaran')) {
+    activityType = 'PENERJUNAN';
+  } else if (purposeLower.includes('penarikan') || purposeLower.includes('penjemputan')) {
+    activityType = 'PENARIKAN';
+  }
+
+  const primaryIndustryName = assignment.industry?.name || 'DUDI / Industri Mitra';
+  const primaryAddress = assignment.industry?.address || assignment.industry?.regency || '-';
+
+  // Helper aman URL foto
+  const getSafeUrl = (url: string): string => {
+    if (!url) return '';
+    if (url.startsWith('/uploads/')) {
+      const filename = url.replace('/uploads/', '');
+      return `/api/files/uploads/${filename}`;
+    }
+    return url;
+  };
+
+  // Parse list foto kegiatan
+  const rawPhotos = (assignment as any).activityPhotos;
+  let activityPhotos: string[] = [];
+  if (Array.isArray(rawPhotos)) {
+    activityPhotos = rawPhotos.filter(Boolean);
+  } else if (typeof rawPhotos === 'string') {
+    try {
+      const parsed = JSON.parse(rawPhotos);
+      if (Array.isArray(parsed)) activityPhotos = parsed.filter(Boolean);
+    } catch (e) {}
+  }
+
+  // Tanggal pelaksanaan
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const startDate = new Date(assignment.monitoringDate);
+  const startDay = isNaN(startDate.getTime()) ? '' : days[startDate.getDay()];
+  const returnDate = assignment.returnDate ? new Date(assignment.returnDate) : null;
+  const isMultiDay = returnDate && !isNaN(returnDate.getTime()) && returnDate.getTime() !== startDate.getTime();
+
+  let dayDatePhrase = '';
+  if (isMultiDay && returnDate) {
+    const endDay = days[returnDate.getDay()];
+    dayDatePhrase = `${startDay} - ${endDay}, ${formatIndonesianDateRange(startDate, returnDate)}`;
+  } else {
+    dayDatePhrase = `${startDay}, ${formatIndonesianDate(assignment.monitoringDate)}`;
+  }
+
+  const signatureDate = formatIndonesianDate(assignment.returnDate || assignment.monitoringDate);
+  const headmasterName = options?.schoolSetting?.headmaster || 'Joko Pramono, S.Pd., M.Ds';
+  const headmasterNip = options?.schoolSetting?.headmasterNip || '19690317 199802 1 004';
+
+  const tteSignatureLeftHtml = useTte
+    ? `
+      <div style="font-size: 8pt; color: #4b5563; margin-top: 15px; margin-bottom: 5px;">\${ttd_pengirim}</div>
+      <div style="font-weight: bold; text-decoration: underline;">\${nama_pengirim}</div>
+      <div>Pembina Utama Muda, IV/c</div>
+      <div>NIP. \${nip_pengirim}</div>
+    `
+    : `
+      <div style="height: 100px;"></div>
+      <div style="font-weight: bold; text-decoration: underline;">${headmasterName}</div>
+      <div>Pembina Utama Muda, IV/c</div>
+      <div>NIP. ${headmasterNip}</div>
+    `;
+
+  // Bagi foto menjadi maksimal 2 foto per halaman
+  const photoChunks: string[][] = [];
+  if (activityPhotos.length === 0) {
+    photoChunks.push([]); // 1 halaman kosong
+  } else {
+    for (let i = 0; i < activityPhotos.length; i += 2) {
+      photoChunks.push(activityPhotos.slice(i, i + 2));
+    }
+  }
+
+  const totalPages = photoChunks.length;
+
+  const pagesHtml = photoChunks.map((chunk, pageIndex) => {
+    const isFirstPage = pageIndex === 0;
+    const isLastPage = pageIndex === totalPages - 1;
+    const pageNum = pageIndex + 1;
+
+    let pageHeaderHtml = '';
+    if (isFirstPage) {
+      pageHeaderHtml = `
+        <!-- KOP SURAT RESMI (HALAMAN 1) -->
+        <div style="text-align: center; margin-bottom: 8px;">
+          <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
+        </div>
+
+        <!-- NOMOR SURAT DI POJOK KANAN SURAT -->
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+          <table style="border: none; font-size: 11pt; font-family: 'Times New Roman', Times, serif;">
+            <tr>
+              <td style="padding: 1px 4px; border: none; font-weight: bold;">Nomor Surat</td>
+              <td style="padding: 1px 4px; border: none;">:</td>
+              <td style="padding: 1px 4px; border: none; font-weight: bold;">${docNumber}</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- JUDUL DOKUMENTASI KEGIATAN -->
+        <div style="text-align: center; margin-bottom: 12px;">
+          <div style="font-size: 12.5pt; font-weight: bold; text-decoration: underline; letter-spacing: 0.5px; text-transform: uppercase;">
+            DOKUMENTASI KEGIATAN ${activityType} PKL SMK NEGERI 1 ADIWERNA
+          </div>
+          <div style="font-size: 11.5pt; font-weight: bold; text-transform: uppercase; margin-top: 3px;">
+            DI ${primaryIndustryName.toUpperCase()}
+          </div>
+        </div>
+
+        <!-- IDENTITAS & DATA RINGKAS -->
+        <div style="margin-bottom: 12px; border: 1px solid #94a3b8; border-radius: 6px; padding: 6px 12px; background: #f8fafc; font-size: 10.5pt;">
+          <table style="width: 100%; border: none; line-height: 1.35; font-family: 'Times New Roman', Times, serif;">
+            <tr>
+              <td style="width: 140px; font-weight: bold; vertical-align: top;">Perusahaan / Industri</td>
+              <td style="width: 14px; vertical-align: top;">:</td>
+              <td style="vertical-align: top; font-weight: bold;">${primaryIndustryName}</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; vertical-align: top;">Alamat Industri</td>
+              <td style="vertical-align: top;">:</td>
+              <td style="vertical-align: top;">${primaryAddress}</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; vertical-align: top;">Waktu Pelaksanaan</td>
+              <td style="vertical-align: top;">:</td>
+              <td style="vertical-align: top;">${dayDatePhrase}</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; vertical-align: top;">Guru Petugas</td>
+              <td style="vertical-align: top;">:</td>
+              <td style="vertical-align: top;">${teacher.name} (NIP. ${teacher.nip || teacher.username || '-'})</td>
+            </tr>
+            ${companionTeachers.length > 0 ? `
+            <tr>
+              <td style="font-weight: bold; vertical-align: top;">Guru Pendamping</td>
+              <td style="vertical-align: top;">:</td>
+              <td style="vertical-align: top;">${companionTeachers.map(c => c.name).join(', ')}</td>
+            </tr>
+            ` : ''}
+          </table>
+        </div>
+      `;
+    } else {
+      pageHeaderHtml = `
+        <!-- HEADER HALAMAN LANJUTAN -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.5px solid #000; padding-bottom: 6px; margin-bottom: 14px;">
+          <div>
+            <div style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase;">
+              DOKUMENTASI KEGIATAN ${activityType} PKL SMK NEGERI 1 ADIWERNA DI ${primaryIndustryName.toUpperCase()}
+            </div>
+            <div style="font-size: 9.5pt; color: #334155;">
+              Lembar ${pageNum} dari ${totalPages}
+            </div>
+          </div>
+          <div style="text-align: right; font-size: 10pt;">
+            <div style="font-weight: bold;">Nomor Surat: ${docNumber}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render maksimal 2 foto per halaman
+    let photosHtml = '';
+    if (chunk.length === 0) {
+      photosHtml = `
+        <div style="padding: 40px; text-align: center; border: 2px dashed #94a3b8; border-radius: 8px; color: #64748b; font-style: italic; margin-top: 20px;">
+          (Belum ada foto dokumentasi kegiatan yang diunggah)
+        </div>
+      `;
+    } else {
+      const photoCards = chunk.map((photoUrl, idxInChunk) => {
+        const photoGlobalIndex = pageIndex * 2 + idxInChunk + 1;
+        const frameHeight = isFirstPage ? (chunk.length === 1 ? '120mm' : '86mm') : (chunk.length === 1 ? '135mm' : '105mm');
+        const safeUrl = getSafeUrl(photoUrl);
+
+        return `
+          <div style="margin-bottom: ${chunk.length === 1 ? '16px' : '10px'}; border: 1px solid #475569; border-radius: 6px; padding: 6px; background: #ffffff; page-break-inside: avoid; box-sizing: border-box;">
+            <div style="height: ${frameHeight}; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #0f172a; border-radius: 4px;">
+              <img 
+                src="${safeUrl}" 
+                alt="Foto Dokumentasi ${photoGlobalIndex}" 
+                style="max-width: 100%; max-height: ${frameHeight}; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto;" 
+                onerror="this.onerror=null; this.src='/images/logo-sekolah.png';"
+              />
+            </div>
+            <div style="margin-top: 4px; text-align: center; font-size: 10pt; font-family: 'Times New Roman', Times, serif; color: #0f172a;">
+              <strong>Foto ${photoGlobalIndex}.</strong> Dokumentasi Kegiatan ${activityType} PKL di ${primaryIndustryName}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      photosHtml = `
+        <div style="width: 100%;">
+          ${photoCards}
+        </div>
+      `;
+    }
+
+    // Tanda tangan di lembar terakhir
+    let signatureHtml = '';
+    if (isLastPage) {
+      signatureHtml = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 12px; page-break-inside: avoid;">
+          <!-- Kolom Kiri: Mengetahui Kepala Sekolah -->
+          <div style="width: 52%; font-size: 10.5pt; line-height: 1.35;">
+            <div>Mengetahui,</div>
+            <div>Kepala SMK Negeri 1 Adiwerna</div>
+            ${tteSignatureLeftHtml}
+          </div>
+
+          <!-- Kolom Kanan: Guru Petugas / Penyusun -->
+          <div style="width: 44%; font-size: 10.5pt; line-height: 1.35;">
+            <div>Adiwerna, &nbsp;${signatureDate}</div>
+            <div>Guru Petugas,</div>
+            <div style="height: 100px;"></div>
+            <div style="font-weight: bold; text-decoration: underline;">${teacher.name}</div>
+            <div>NIP. ${teacher.nip || teacher.username || '-'}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="sheet-page" style="${!isFirstPage ? 'page-break-before: always; break-before: page; padding-top: 10px;' : ''}">
+        ${pageHeaderHtml}
+        ${photosHtml}
+        ${signatureHtml}
+      </div>
+    `;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Dokumentasi Kegiatan ${activityType} PKL - ${primaryIndustryName}</title>
+  <style>
+    @page {
+      size: 215mm 330mm; /* Standar Ukuran Kertas F4 / Folio Kedinasan */
+      margin: 12mm 18mm;
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 11pt;
+      line-line: 1.35;
+      color: #000;
+      background: #fff;
+      margin: 0 auto;
+      padding: 0;
+      max-width: 178mm;
+    }
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 0;
+        max-width: 100%;
+      }
+      .no-print { display: none !important; }
+      .sheet-page {
+        page-break-after: auto;
+      }
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  ${pagesHtml}
+</body>
+</html>`;
+}

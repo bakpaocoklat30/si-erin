@@ -86,9 +86,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Tidak ada berkas foto yang dipilih' }, { status: 400 });
       }
 
-      if (currentPhotos.length + uploadFiles.length > 3) {
+      if (currentPhotos.length + uploadFiles.length > 20) {
         return NextResponse.json({
-          error: `Maksimal 3 foto kegiatan diperbolehkan. Saat ini sudah ada ${currentPhotos.length} foto, mencoba menambah ${uploadFiles.length} foto lagi.`
+          error: `Maksimal 20 foto kegiatan diperbolehkan. Saat ini sudah ada ${currentPhotos.length} foto, mencoba menambah ${uploadFiles.length} foto lagi.`
         }, { status: 400 });
       }
 
