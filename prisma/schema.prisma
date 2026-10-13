@@ -322,6 +322,7 @@ model MonitoringAssignment {
   suratTugasUrl     String?           @db.Text
   sppdUrl           String?           @db.Text
   laporanUrl        String?           @db.Text
+  activityPhotos    Json?             @default("[]") // Array of photo URLs, max 3 photos
 
   status    String   @default("TERJADWAL") // TERJADWAL, SELESAI, DIBATALKAN
   department String?

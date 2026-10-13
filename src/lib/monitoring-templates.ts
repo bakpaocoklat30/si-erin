@@ -104,6 +104,7 @@ export interface MonitoringAssignmentData {
   suratTugasUrl?: string | null;
   sppdUrl?: string | null;
   laporanUrl?: string | null;
+  activityPhotos?: string[] | any;
   status?: string;
   notes?: string | null;
 }
@@ -976,11 +977,11 @@ export function generateLaporanHasilKegiatanHtml(
       ? '${nomor_naskah}'
       : '800.1.11.1 /        /2026';
 
-  const teacher = assignment.teacher;
+  const teacher = assignment.teacher || { name: 'Guru Pembimbing', nip: '-' };
   const rawTargetIndustries = parseTargetIndustries(assignment.targetIndustries);
   const allIndustries = [
     {
-      name: assignment.industry.name,
+      name: assignment.industry?.name || 'DUDI / Industri',
       address: assignment.industry.address || assignment.industry.regency || '',
     },
     ...rawTargetIndustries.map((ind: any) => ({
@@ -1021,6 +1022,16 @@ export function generateLaporanHasilKegiatanHtml(
   }
 
   const signatureDate = formatIndonesianDate(assignment.returnDate || assignment.monitoringDate);
+  const rawPhotos = (assignment as any).activityPhotos;
+  let activityPhotos: string[] = [];
+  if (Array.isArray(rawPhotos)) {
+    activityPhotos = rawPhotos.filter(Boolean);
+  } else if (typeof rawPhotos === 'string') {
+    try {
+      const parsed = JSON.parse(rawPhotos);
+      if (Array.isArray(parsed)) activityPhotos = parsed.filter(Boolean);
+    } catch (e) {}
+  }
   const headmasterName = options?.schoolSetting?.headmaster || 'Joko Pramono, S.Pd., M.Ds';
   const headmasterNip = options?.schoolSetting?.headmasterNip || '19690317 199802 1 004';
 
@@ -1130,6 +1141,20 @@ export function generateLaporanHasilKegiatanHtml(
       ${laporanSingkatHtml}
     </div>
   </div>
+
+  ${activityPhotos.length > 0 ? `
+  <!-- DOKUMENTASI FOTO KEGIATAN MONITORING (MAKS 3 FOTO) -->
+  <div style="margin-top: 10px; margin-bottom: 12px; page-break-inside: avoid;">
+    <div style="font-weight: bold; margin-bottom: 6px; font-size: 10.5pt;">Dokumentasi Foto Kegiatan :</div>
+    <div style="display: flex; gap: 8px; justify-content: flex-start; align-items: center;">
+      ${activityPhotos.slice(0, 3).map((url: string, idx: number) => `
+        <div style="flex: 1; max-width: 175px; height: 110px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #f8fafc; text-align: center; display: flex; align-items: center; justify-content: center;">
+          <img src="${url}" alt="Foto ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none';" />
+        </div>
+      `).join('')}
+    </div>
+  </div>
+  ` : ''}
 
   <!-- CATATAN DENGAN GARIS-GARIS BERGARIS (RULED LINES) -->
   <div style="margin-top: 14px; margin-bottom: 24px;">

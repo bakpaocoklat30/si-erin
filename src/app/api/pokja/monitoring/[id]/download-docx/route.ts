@@ -68,15 +68,18 @@ export async function GET(
     let docxBuffer: Buffer;
     let filename: string;
 
+    const teacherName = sanitizeFilename(assignment.teacher?.name || 'Guru');
+    const industryName = sanitizeFilename(assignment.industry?.name || 'Industri');
+
     if (type === 'sppd') {
       docxBuffer = await generateSppdDocx(assignment as any, options);
-      filename = `SPPD_Monitoring_${sanitizeFilename(assignment.teacher.name)}_${sanitizeFilename(assignment.industry.name)}.docx`;
+      filename = `SPPD_Monitoring_${teacherName}_${industryName}.docx`;
     } else if (type === 'laporan') {
       docxBuffer = await generateLaporanDocx(assignment as any, options);
-      filename = `Laporan_Hasil_Kegiatan_${sanitizeFilename(assignment.teacher.name)}_${sanitizeFilename(assignment.industry.name)}.docx`;
+      filename = `Laporan_Hasil_Kegiatan_${teacherName}_${industryName}.docx`;
     } else {
       docxBuffer = await generateSuratTugasDocx(assignment as any, options);
-      filename = `Surat_Tugas_Monitoring_${sanitizeFilename(assignment.teacher.name)}_${sanitizeFilename(assignment.industry.name)}.docx`;
+      filename = `Surat_Tugas_Monitoring_${teacherName}_${industryName}.docx`;
     }
 
     return new NextResponse(docxBuffer as any, {

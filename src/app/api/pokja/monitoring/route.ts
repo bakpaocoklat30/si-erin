@@ -35,26 +35,24 @@ export async function GET(req: NextRequest) {
       assignmentWhere = {
         OR: [
           { department: { contains: userDept, mode: 'insensitive' } },
-          {
-            AND: [
-              { OR: [{ department: null }, { department: 'ALL' }] },
-              {
-                OR: [
-                  { industry: { department: { contains: userDept, mode: 'insensitive' } } },
-                  { industry: { placements: { some: { student: { department: { contains: userDept, mode: 'insensitive' } } } } } }
-                ]
-              }
-            ]
-          }
+          { department: 'Semua Jurusan' },
+          { department: null },
+          { department: 'ALL' },
+          { industry: { department: { contains: userDept, mode: 'insensitive' } } },
+          { industry: { department: 'Semua Jurusan' } },
+          { industry: { department: null } },
+          { industry: { placements: { some: { student: { department: { contains: userDept, mode: 'insensitive' } } } } } }
         ]
       };
       placementIndustryWhere.student = {
         department: { contains: userDept, mode: 'insensitive' }
       };
-      // Tampilkan hanya industri yang terafiliasi dengan jurusan pokja ini
+      // Tampilkan industri mitra jurusan pokja ini serta industri umum
       industryWhere = {
         OR: [
           { department: { contains: userDept, mode: 'insensitive' } },
+          { department: 'Semua Jurusan' },
+          { department: null },
           { placements: { some: { student: { department: { contains: userDept, mode: 'insensitive' } } } } }
         ]
       };

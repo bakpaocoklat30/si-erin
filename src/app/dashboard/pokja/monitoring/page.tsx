@@ -47,6 +47,10 @@ import {
   Loader2,
   UploadCloud,
   Building,
+  Camera,
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   generateSuratTugasHtml,
@@ -140,17 +144,36 @@ export default function PokjaMonitoringPage() {
     assignmentId: string;
     industryName: string;
     teacherName: string;
-    type: 'LAPORAN' | 'SPPD' | 'LAPORAN';
+    type: 'LAPORAN' | 'SPPD' | 'TUGAS';
+    laporanUrl?: string | null;
+    activityPhotos?: string[];
     uploading: boolean;
+    uploadingPhoto: boolean;
   }>({
     isOpen: false,
     assignmentId: '',
     industryName: '',
     teacherName: '',
     type: 'LAPORAN',
+    laporanUrl: null,
+    activityPhotos: [],
     uploading: false,
+    uploadingPhoto: false,
   });
 
+  const [galleryModal, setGalleryModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    photos: string[];
+    activeIndex: number;
+  }>({
+    isOpen: false,
+    title: '',
+    photos: [],
+    activeIndex: 0,
+  });
+
+  // Upload Berkas Dokumen Laporan (PDF / Scan)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uploadModal.assignmentId) return;
@@ -159,7 +182,7 @@ export default function PokjaMonitoringPage() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('id', uploadModal.assignmentId);
-    formData.append('type', uploadModal.type);
+    formData.append('type', 'LAPORAN');
 
     try {
       const res = await fetch('/api/persuratan/sppd/upload', {
@@ -168,8 +191,8 @@ export default function PokjaMonitoringPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        alert('Berkas berhasil diunggah!');
-        setUploadModal(prev => ({ ...prev, isOpen: false }));
+        setUploadModal(prev => ({ ...prev, laporanUrl: data.url }));
+        setMessage({ type: 'success', text: 'Berkas Laporan Kunjungan berhasil diunggah!' });
         fetchData();
       } else {
         alert(data.error || 'Gagal mengunggah berkas.');
@@ -178,6 +201,78 @@ export default function PokjaMonitoringPage() {
       alert('Terjadi kesalahan koneksi.');
     } finally {
       setUploadModal(prev => ({ ...prev, uploading: false }));
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  // Upload Foto Kegiatan (Maksimal 3 Foto)
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !uploadModal.assignmentId) return;
+
+    const currentCount = uploadModal.activityPhotos?.length || 0;
+    if (currentCount + files.length > 3) {
+      alert(`Maksimal 3 foto kegiatan. Saat ini sudah ada ${currentCount} foto, Anda hanya dapat menambahkan ${3 - currentCount} foto lagi.`);
+      return;
+    }
+
+    setUploadModal(prev => ({ ...prev, uploadingPhoto: true }));
+    const formData = new FormData();
+    formData.append('id', uploadModal.assignmentId);
+    formData.append('type', 'PHOTO');
+    for (let i = 0; i < files.length; i++) {
+      formData.append('photos', files[i]);
+    }
+
+    try {
+      const res = await fetch('/api/persuratan/sppd/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setUploadModal(prev => ({ ...prev, activityPhotos: data.activityPhotos || [] }));
+        setMessage({ type: 'success', text: 'Foto kegiatan berhasil diunggah!' });
+        fetchData();
+      } else {
+        alert(data.error || 'Gagal mengunggah foto.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi saat mengunggah foto.');
+    } finally {
+      setUploadModal(prev => ({ ...prev, uploadingPhoto: false }));
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  // Hapus Satu Foto Kegiatan
+  const handleDeletePhoto = async (photoUrl: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus foto kegiatan ini?')) return;
+    if (!uploadModal.assignmentId) return;
+
+    setUploadModal(prev => ({ ...prev, uploadingPhoto: true }));
+    const formData = new FormData();
+    formData.append('id', uploadModal.assignmentId);
+    formData.append('action', 'DELETE_PHOTO');
+    formData.append('photoUrl', photoUrl);
+
+    try {
+      const res = await fetch('/api/persuratan/sppd/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setUploadModal(prev => ({ ...prev, activityPhotos: data.activityPhotos || [] }));
+        setMessage({ type: 'success', text: 'Foto kegiatan berhasil dihapus!' });
+        fetchData();
+      } else {
+        alert(data.error || 'Gagal menghapus foto.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi.');
+    } finally {
+      setUploadModal(prev => ({ ...prev, uploadingPhoto: false }));
     }
   };
 
@@ -556,44 +651,14 @@ export default function PokjaMonitoringPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    setLoadingStage('Membangun koneksi ke server...');
+    setLoadingStage('Memuat data monitoring...');
     try {
       const res = await fetch('/api/pokja/monitoring', { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP error');
-
-      const total = parseInt(res.headers.get('content-length') || '0', 10);
-      const reader = res.body?.getReader();
-      let json;
-
-      if (!reader) {
-        setLoadingStage('Memproses JSON monitoring...');
-        json = await res.json();
-      } else {
-        let receivedLength = 0;
-        const chunks = [];
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          receivedLength += value.length;
-          if (total) {
-            const percent = Math.round((receivedLength / total) * 100);
-            setLoadingStage(`Mengunduh data monitoring... ${percent}%`);
-          } else {
-            setLoadingStage(`Mengunduh data monitoring... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
-          }
-        }
-        setLoadingStage('Mengekstrak paket JSON monitoring...');
-        const chunksAll = new Uint8Array(receivedLength);
-        let position = 0;
-        for (let chunk of chunks) {
-          chunksAll.set(chunk, position);
-          position += chunk.length;
-        }
-        const result = new TextDecoder('utf-8').decode(chunksAll);
-        setLoadingStage('Parsing struktur data UI monitoring...');
-        json = JSON.parse(result);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error || 'HTTP error');
       }
+      const json = await res.json();
 
       if (json.success && json.data) {
         setAssignments(json.data.assignments || []);
@@ -605,7 +670,8 @@ export default function PokjaMonitoringPage() {
         setMessage({ type: 'error', text: json.error || 'Gagal memuat data monitoring' });
       }
     } catch (err: any) {
-      setMessage({ type: 'error', text: 'Terjadi kesalahan jaringan' });
+      console.error('Fetch monitoring error:', err);
+      setMessage({ type: 'error', text: err?.message || 'Terjadi kesalahan jaringan' });
     } finally {
       setLoadingStage('');
       setLoading(false);
@@ -1623,46 +1689,64 @@ export default function PokjaMonitoringPage() {
                           {/* 3. Laporan Kegiatan */}
                           <div className="flex flex-col space-y-1">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">3. Laporan Kunjungan</span>
-                            <div className="flex items-center space-x-1.5">
-                                {(() => {
-                                  const hasLetterNumber = Boolean(assignment.letterNumber && assignment.letterNumber.trim() !== '' && assignment.letterNumber.trim() !== '${nomor_naskah}');
-                                  const canAccessLaporan = hasLetterNumber || Boolean(assignment.suratTugasUrl) || Boolean(assignment.sppdUrl) || Boolean(assignment.laporanUrl) || assignment.status === 'SELESAI_TTE' || assignment.status === 'TERBIT_TTE';
-                                if (canAccessLaporan) {
-                                  return (
-                                    <>
-                                      <button
-                                        onClick={() => setPreviewModal({ isOpen: true, type: 'LAPORAN', assignment, useTteTags: false })}
-                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/30 transition-all cursor-pointer"
-                                        title="Pratinjau"
-                                      >
-                                        <Eye className="w-3 h-3" /> <span>Preview</span>
-                                      </button>
-                                      <a
-                                        href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=laporan&tte=false`}
-                                        download
-                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/20 transition-all cursor-pointer"
-                                        title="Unduh DOCX"
-                                      >
-                                        <Download className="w-3 h-3" /> <span>DOCX</span>
-                                      </a>
-                                    </>
-                                  );
-                                }
+                            <div className="flex items-center flex-wrap gap-1.5">
+                              {(() => {
+                                const rawPhotos = assignment.activityPhotos;
+                                const photos: string[] = Array.isArray(rawPhotos)
+                                  ? rawPhotos
+                                  : (typeof rawPhotos === 'string'
+                                    ? (() => { try { return JSON.parse(rawPhotos); } catch { return []; } })()
+                                    : []);
+
                                 return (
-                                  <button disabled className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 text-[10px] font-semibold border border-slate-200 dark:border-slate-800 cursor-not-allowed opacity-60">
-                                    <Eye className="w-3 h-3" /> <span>Preview</span>
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => setPreviewModal({ isOpen: true, type: 'LAPORAN', assignment, useTteTags: false })}
+                                      className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/30 transition-all cursor-pointer"
+                                      title="Pratinjau Format Laporan"
+                                    >
+                                      <Eye className="w-3 h-3" /> <span>Preview</span>
+                                    </button>
+                                    <a
+                                      href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=laporan&tte=false`}
+                                      download
+                                      className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/20 transition-all cursor-pointer"
+                                      title="Unduh DOCX Format Laporan"
+                                    >
+                                      <Download className="w-3 h-3" /> <span>DOCX</span>
+                                    </a>
+                                    {photos.length > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setGalleryModal({
+                                            isOpen: true,
+                                            title: `Dokumentasi Kunjungan: ${assignment.industry?.name || 'Monitoring'}`,
+                                            photos,
+                                            activeIndex: 0,
+                                          })
+                                        }
+                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-600 text-emerald-400 hover:text-white text-[10px] font-bold border border-emerald-500/30 transition-all cursor-pointer"
+                                        title="Lihat Foto Dokumentasi Kegiatan"
+                                      >
+                                        <ImageIcon className="w-3 h-3" />
+                                        <span>{photos.length} Foto</span>
+                                      </button>
+                                    )}
+                                    {assignment.laporanUrl && (
+                                      <a
+                                        href={assignment.laporanUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-sky-500/15 hover:bg-sky-600 text-sky-400 hover:text-white text-[10px] font-bold border border-sky-500/30 transition-all cursor-pointer"
+                                        title="Lihat Dokumen Hasil yang Diunggah"
+                                      >
+                                        <ShieldCheck className="w-3 h-3" /> <span>Hasil Kegiatan</span>
+                                      </a>
+                                    )}
+                                  </>
                                 );
                               })()}
-                              {assignment.laporanUrl && (
-                                <a
-                                  href={assignment.laporanUrl} target="_blank" rel="noreferrer"
-                                  className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/30 transition-all cursor-pointer"
-                                  title="Lihat Dokumen Hasil"
-                                >
-                                  <ShieldCheck className="w-3 h-3" /> <span>Hasil Kegiatan</span>
-                                </a>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -1671,19 +1755,28 @@ export default function PokjaMonitoringPage() {
                       {/* Aksi Edit & Hapus */}
                       <td className="py-4 px-4 text-right">
                         <div className="flex items-center justify-end space-x-1.5">
-                                                    <button
-                            onClick={() =>
+                          <button
+                            onClick={() => {
+                              const rawPhotos = assignment.activityPhotos;
+                              const photos: string[] = Array.isArray(rawPhotos)
+                                ? rawPhotos
+                                : (typeof rawPhotos === 'string'
+                                  ? (() => { try { return JSON.parse(rawPhotos); } catch { return []; } })()
+                                  : []);
                               setUploadModal({
                                 isOpen: true,
                                 assignmentId: assignment.id!,
-                                industryName: assignment.industry.name,
-                                teacherName: assignment.teacher.name,
+                                industryName: assignment.industry?.name || 'Industri',
+                                teacherName: assignment.teacher?.name || 'Guru',
                                 type: 'LAPORAN',
+                                laporanUrl: assignment.laporanUrl || null,
+                                activityPhotos: photos,
                                 uploading: false,
-                              })
-                            }
+                                uploadingPhoto: false,
+                              });
+                            }}
                             className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-sm border border-slate-200 dark:border-slate-700"
-                            title="Unggah Hasil Penugasan"
+                            title="Unggah Dokumen & Foto Kegiatan"
                           >
                             <Upload className="w-4 h-4" />
                           </button>
@@ -2514,49 +2607,227 @@ export default function PokjaMonitoringPage() {
         </div>
       )}
     
-        {/* MODAL UNGGAH HASIL KUNJUNGAN */}
+        {/* MODAL UNGGAH HASIL KUNJUNGAN & FOTO DOKUMENTASI */}
         {uploadModal.isOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className={`w-full max-w-md rounded-3xl border shadow-2xl p-6 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-              <div className="flex items-center justify-between mb-6">
+            <div className={`w-full max-w-lg rounded-3xl border shadow-2xl p-6 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center space-x-3">
                   <div className="p-2.5 rounded-2xl bg-indigo-500/10 text-indigo-500">
-                    <Upload className="w-5 h-5" />
+                    <UploadCloud className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100">Unggah Hasil Kunjungan</h3>
-                    <p className="text-[10px] font-semibold text-slate-500 line-clamp-1">{uploadModal.teacherName} - {uploadModal.industryName}</p>
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100">Hasil & Dokumentasi Monitoring</h3>
+                    <p className="text-[11px] font-semibold text-slate-500 line-clamp-1">{uploadModal.teacherName} • {uploadModal.industryName}</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => !uploadModal.uploading && setUploadModal(prev => ({ ...prev, isOpen: false }))}
+                  onClick={() => !uploadModal.uploading && !uploadModal.uploadingPhoto && setUploadModal(prev => ({ ...prev, isOpen: false }))}
                   className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-all cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Jenis Dokumen</label>
-                  <div className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 text-slate-500 text-sm font-semibold cursor-not-allowed">
-                    Dokumen Gabungan (Tugas, SPPD, Laporan)
+              <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
+                {/* BAGIAN 1: Dokumen Hasil Laporan (PDF / Berkas Scan) */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-indigo-500" />
+                      <span>Dokumen Hasil Laporan (PDF / Scan)</span>
+                    </label>
+                    {uploadModal.laporanUrl && (
+                      <a
+                        href={uploadModal.laporanUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-500 hover:text-indigo-400"
+                      >
+                        <span>Lihat Berkas</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
                   </div>
-                </div>
 
-                <div className="pt-2">
-                  <label className="cursor-pointer flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className={`w-8 h-8 mb-3 ${uploadModal.uploading ? 'text-indigo-400 animate-bounce' : 'text-slate-400'}`} />
-                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {uploadModal.uploading ? 'Mengunggah...' : 'Pilih Berkas PDF/Gambar'}
-                      </p>
-                      <p className="text-[10px] text-slate-500 mt-1">Maks 10MB</p>
-                    </div>
-                    <input type="file" className="hidden" accept=".pdf,image/*" onChange={handleFileUpload} disabled={uploadModal.uploading} />
+                  <label className="cursor-pointer flex flex-col items-center justify-center w-full py-4 px-3 border-2 border-dashed rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                    <Upload className={`w-6 h-6 mb-1.5 ${uploadModal.uploading ? 'text-indigo-400 animate-bounce' : 'text-slate-400'}`} />
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 text-center">
+                      {uploadModal.uploading ? 'Sedang mengunggah...' : uploadModal.laporanUrl ? 'Ganti Berkas Laporan (PDF)' : 'Unggah Berkas Laporan (PDF/Scan)'}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Format: PDF (Maks 10MB)</p>
+                    <input type="file" className="hidden" accept=".pdf" onChange={handleFileUpload} disabled={uploadModal.uploading} />
                   </label>
                 </div>
+
+                {/* BAGIAN 2: Upload Foto Dokumentasi Kegiatan (Maks 3 Foto) */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                      <Camera className="w-4 h-4 text-emerald-500" />
+                      <span>Foto Kegiatan Monitoring</span>
+                    </label>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                      {uploadModal.activityPhotos?.length || 0} / 3 Foto
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Unggah dokumentasi foto saat melakukan monitoring di industri (maksimal 3 foto). Foto akan otomatis tercetak rapi di lembar laporan kegiatan A4.
+                  </p>
+
+                  {/* Grid Preview Foto */}
+                  <div className="grid grid-cols-3 gap-2.5 pt-1">
+                    {[0, 1, 2].map((slotIndex) => {
+                      const photoUrl = uploadModal.activityPhotos?.[slotIndex];
+                      if (photoUrl) {
+                        return (
+                          <div key={slotIndex} className="relative group rounded-xl overflow-hidden aspect-video border border-slate-300 dark:border-slate-700 bg-black/10">
+                            <img
+                              src={photoUrl}
+                              alt={`Foto Kegiatan ${slotIndex + 1}`}
+                              className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                              onClick={() =>
+                                setGalleryModal({
+                                  isOpen: true,
+                                  title: `Dokumentasi Kunjungan: ${uploadModal.industryName}`,
+                                  photos: uploadModal.activityPhotos || [],
+                                  activeIndex: slotIndex,
+                                })
+                              }
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePhoto(photoUrl)}
+                              disabled={uploadModal.uploadingPhoto}
+                              className="absolute top-1 right-1 p-1 rounded-lg bg-rose-600/90 text-white hover:bg-rose-600 transition-all cursor-pointer opacity-90 group-hover:opacity-100 shadow"
+                              title="Hapus foto ini"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-sm">
+                              Foto {slotIndex + 1}
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div
+                          key={slotIndex}
+                          className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-900/30 aspect-video flex flex-col items-center justify-center text-slate-400"
+                        >
+                          <Camera className="w-4 h-4 mb-1 opacity-50" />
+                          <span className="text-[10px] font-medium">Slot {slotIndex + 1}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Tombol / Input Tambah Foto */}
+                  {(uploadModal.activityPhotos?.length || 0) < 3 && (
+                    <label className="cursor-pointer flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-all mt-2">
+                      <Camera className={`w-4 h-4 ${uploadModal.uploadingPhoto ? 'animate-bounce' : ''}`} />
+                      <span>{uploadModal.uploadingPhoto ? 'Sedang Mengunggah...' : `+ Tambah Foto (${3 - (uploadModal.activityPhotos?.length || 0)} slot tersisa)`}</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        multiple
+                        onChange={handlePhotoUpload}
+                        disabled={uploadModal.uploadingPhoto}
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
+
+              <div className="mt-5 pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setUploadModal(prev => ({ ...prev, isOpen: false }))}
+                  className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  Selesai / Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL LIGHTBOX / GALERI FOTO KEGIATAN */}
+        {galleryModal.isOpen && galleryModal.photos.length > 0 && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200"
+            onClick={() => setGalleryModal(prev => ({ ...prev, isOpen: false }))}
+          >
+            <div className="relative max-w-4xl w-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+              <div className="w-full flex items-center justify-between text-white pb-3">
+                <div>
+                  <h4 className="font-bold text-sm">{galleryModal.title}</h4>
+                  <p className="text-xs text-slate-400">
+                    Foto {galleryModal.activeIndex + 1} dari {galleryModal.photos.length}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setGalleryModal(prev => ({ ...prev, isOpen: false }))}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="relative w-full max-h-[75vh] flex items-center justify-center overflow-hidden rounded-2xl bg-black/50 border border-white/10">
+                <img
+                  src={galleryModal.photos[galleryModal.activeIndex]}
+                  alt={`Dokumentasi ${galleryModal.activeIndex + 1}`}
+                  className="max-h-[75vh] w-auto max-w-full object-contain rounded-xl"
+                />
+
+                {galleryModal.photos.length > 1 && (
+                  <>
+                    <button
+                      onClick={() =>
+                        setGalleryModal(prev => ({
+                          ...prev,
+                          activeIndex: (prev.activeIndex - 1 + prev.photos.length) % prev.photos.length,
+                        }))
+                      }
+                      className="absolute left-3 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white cursor-pointer transition-all border border-white/20"
+                      title="Sebelumnya"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() =>
+                        setGalleryModal(prev => ({
+                          ...prev,
+                          activeIndex: (prev.activeIndex + 1) % prev.photos.length,
+                        }))
+                      }
+                      className="absolute right-3 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white cursor-pointer transition-all border border-white/20"
+                      title="Selanjutnya"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {galleryModal.photos.length > 1 && (
+                <div className="flex items-center gap-2 mt-3">
+                  {galleryModal.photos.map((p, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setGalleryModal(prev => ({ ...prev, activeIndex: idx }))}
+                      className={`w-14 h-10 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                        galleryModal.activeIndex === idx ? 'border-indigo-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={p} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

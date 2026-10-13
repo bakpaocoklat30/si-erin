@@ -67,6 +67,8 @@ export async function PUT(
         ...(body.budgetAccount !== undefined && { budgetAccount: body.budgetAccount }),
         ...(body.status !== undefined && { status: body.status }),
         ...(body.notes !== undefined && { notes: body.notes }),
+        ...(body.laporanUrl !== undefined && { laporanUrl: body.laporanUrl }),
+        ...(body.activityPhotos !== undefined && { activityPhotos: body.activityPhotos }),
       },
       include: {
         industry: true,

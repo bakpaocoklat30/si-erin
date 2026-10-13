@@ -805,7 +805,7 @@ export function buildLaporanXml(
       ? '${nomor_naskah}'
       : '800.1.11.1 /        /2026';
 
-  const mainTeacher = assignment.teacher;
+  const mainTeacher = assignment.teacher || ({} as any);
   const companionList = parseCompanionTeachers(assignment.companionTeachers);
   const allTeachers = [
     {
@@ -823,8 +823,8 @@ export function buildLaporanXml(
   const rawTargetIndustries = parseTargetIndustries(assignment.targetIndustries);
   const allIndustries = [
     {
-      name: assignment.industry.name,
-      address: assignment.industry.address || assignment.industry.regency || '',
+      name: assignment.industry?.name || 'Industri',
+      address: assignment.industry?.address || assignment.industry?.regency || '',
     },
     ...rawTargetIndustries.map((ind: any) => ({
       name: ind.name,
