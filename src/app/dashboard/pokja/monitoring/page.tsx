@@ -18,6 +18,7 @@ import { useTheme } from '@/app/theme-provider';
 import {
   Upload,
   ClipboardCheck,
+  FileCheck2,
   Building2,
   Users,
   Calendar,
@@ -171,6 +172,27 @@ export default function PokjaMonitoringPage() {
     title: '',
     photos: [],
     activeIndex: 0,
+  });
+
+  const getSafeFileUrl = (url?: string | null): string => {
+    if (!url) return '';
+    if (url.startsWith('/uploads/')) {
+      const filename = url.replace('/uploads/', '');
+      return `/api/files/uploads/${filename}`;
+    }
+    return url;
+  };
+
+  const [docViewerModal, setDocViewerModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    url: string;
+    subtitle?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    url: '',
+    subtitle: '',
   });
 
   // Upload Berkas Dokumen Laporan (PDF / Scan)
@@ -686,7 +708,11 @@ export default function PokjaMonitoringPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (previewModal.isOpen) {
+        if (docViewerModal.isOpen) {
+          setDocViewerModal((prev) => ({ ...prev, isOpen: false }));
+        } else if (galleryModal.isOpen) {
+          setGalleryModal((prev) => ({ ...prev, isOpen: false }));
+        } else if (previewModal.isOpen) {
           setPreviewModal((prev) => ({ ...prev, isOpen: false }));
         } else if (showFormModal) {
           setShowFormModal(false);
@@ -697,7 +723,7 @@ export default function PokjaMonitoringPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewModal.isOpen, showFormModal, deleteTarget]);
+  }, [docViewerModal.isOpen, galleryModal.isOpen, previewModal.isOpen, showFormModal, deleteTarget]);
 
   // Filtered Assignments
   const filteredAssignments = useMemo(() => {
@@ -1644,13 +1670,21 @@ export default function PokjaMonitoringPage() {
                                 <Download className="w-3 h-3" /> <span>DOCX</span>
                               </a>
                               {assignment.suratTugasUrl && (
-                                <a
-                                  href={assignment.suratTugasUrl} target="_blank" rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDocViewerModal({
+                                      isOpen: true,
+                                      title: `Surat Tugas TTE - ${assignment.industry?.name || 'Industri'}`,
+                                      url: assignment.suratTugasUrl!,
+                                      subtitle: `Petugas: ${assignment.teacher?.name || 'Guru'}`,
+                                    })
+                                  }
                                   className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-600 text-emerald-400 hover:text-white text-[10px] font-bold border border-emerald-500/30 transition-all cursor-pointer"
-                                  title="Lihat PDF TTE"
+                                  title="Lihat PDF TTE Resmi"
                                 >
                                   <ShieldCheck className="w-3 h-3" /> <span>Hasil TTE</span>
-                                </a>
+                                </button>
                               )}
                             </div>
                           </div>
@@ -1675,13 +1709,21 @@ export default function PokjaMonitoringPage() {
                                 <Download className="w-3 h-3" /> <span>DOCX</span>
                               </a>
                               {assignment.sppdUrl && (
-                                <a
-                                  href={assignment.sppdUrl} target="_blank" rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDocViewerModal({
+                                      isOpen: true,
+                                      title: `SPPD TTE Resmi - ${assignment.industry?.name || 'Industri'}`,
+                                      url: assignment.sppdUrl!,
+                                      subtitle: `Petugas: ${assignment.teacher?.name || 'Guru'}`,
+                                    })
+                                  }
                                   className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-teal-500/15 hover:bg-teal-600 text-teal-400 hover:text-white text-[10px] font-bold border border-teal-500/30 transition-all cursor-pointer"
-                                  title="Lihat PDF TTE"
+                                  title="Lihat PDF TTE Resmi"
                                 >
                                   <ShieldCheck className="w-3 h-3" /> <span>Hasil TTE</span>
-                                </a>
+                                </button>
                               )}
                             </div>
                           </div>
@@ -1700,13 +1742,35 @@ export default function PokjaMonitoringPage() {
 
                                 return (
                                   <>
+                                    {/* Tombol Lihat Hasil Scan Unggahan (Jika sudah diunggah) */}
+                                    {assignment.laporanUrl && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setDocViewerModal({
+                                            isOpen: true,
+                                            title: `Hasil Scan Laporan - ${assignment.industry?.name || 'Industri'}`,
+                                            url: assignment.laporanUrl!,
+                                            subtitle: `Petugas: ${assignment.teacher?.name || 'Guru'} • Laporan Resmi Telah Diunggah`,
+                                          })
+                                        }
+                                        className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold shadow-md shadow-emerald-600/30 transition-all cursor-pointer animate-in fade-in"
+                                        title="Buka Dokumen Hasil Scan yang Telah Diunggah"
+                                      >
+                                        <FileCheck2 className="w-3.5 h-3.5" /> <span>Hasil Scan</span>
+                                      </button>
+                                    )}
+
+                                    {/* Tombol Format Blanko Cetak A4 */}
                                     <button
                                       onClick={() => setPreviewModal({ isOpen: true, type: 'LAPORAN', assignment, useTteTags: false })}
                                       className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold border border-amber-500/30 transition-all cursor-pointer"
-                                      title="Pratinjau Format Laporan"
+                                      title="Pratinjau Format Blanko Cetak A4"
                                     >
-                                      <Eye className="w-3 h-3" /> <span>Preview</span>
+                                      <Eye className="w-3 h-3" /> <span>{assignment.laporanUrl ? "Format A4" : "Preview"}</span>
                                     </button>
+
+                                    {/* Tombol Unduh DOCX */}
                                     <a
                                       href={`/api/pokja/monitoring/${assignment.id}/download-docx?type=laporan&tte=false`}
                                       download
@@ -1715,6 +1779,8 @@ export default function PokjaMonitoringPage() {
                                     >
                                       <Download className="w-3 h-3" /> <span>DOCX</span>
                                     </a>
+
+                                    {/* Foto Kegiatan */}
                                     {photos.length > 0 && (
                                       <button
                                         type="button"
@@ -1726,23 +1792,12 @@ export default function PokjaMonitoringPage() {
                                             activeIndex: 0,
                                           })
                                         }
-                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-600 text-emerald-400 hover:text-white text-[10px] font-bold border border-emerald-500/30 transition-all cursor-pointer"
+                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-teal-500/15 hover:bg-teal-600 text-teal-400 hover:text-white text-[10px] font-bold border border-teal-500/30 transition-all cursor-pointer"
                                         title="Lihat Foto Dokumentasi Kegiatan"
                                       >
                                         <ImageIcon className="w-3 h-3" />
                                         <span>{photos.length} Foto</span>
                                       </button>
-                                    )}
-                                    {assignment.laporanUrl && (
-                                      <a
-                                        href={assignment.laporanUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-sky-500/15 hover:bg-sky-600 text-sky-400 hover:text-white text-[10px] font-bold border border-sky-500/30 transition-all cursor-pointer"
-                                        title="Lihat Dokumen Hasil yang Diunggah"
-                                      >
-                                        <ShieldCheck className="w-3 h-3" /> <span>Hasil Kegiatan</span>
-                                      </a>
                                     )}
                                   </>
                                 );
@@ -1782,15 +1837,21 @@ export default function PokjaMonitoringPage() {
                           </button>
                           
                           {assignment.laporanUrl && (
-                            <a
-                              href={assignment.laporanUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-600 text-amber-500 hover:text-white transition-all cursor-pointer shadow-sm border border-amber-500/20"
-                              title="Lihat Pratinjau Laporan (Hasil Upload)"
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDocViewerModal({
+                                  isOpen: true,
+                                  title: `Dokumen Hasil Scan - ${assignment.industry?.name || 'Industri'}`,
+                                  url: assignment.laporanUrl!,
+                                  subtitle: `Petugas: ${assignment.teacher?.name || 'Guru'}`,
+                                })
+                              }
+                              className="p-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-600 text-emerald-400 hover:text-white transition-all cursor-pointer shadow-sm border border-emerald-500/30"
+                              title="Buka Dokumen Hasil Scan (Unggahan)"
                             >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
+                              <FileCheck2 className="w-4 h-4" />
+                            </button>
                           )}
 
                           {assignment.status !== 'MENUNGGU_TTE' &&
@@ -2638,15 +2699,22 @@ export default function PokjaMonitoringPage() {
                       <span>Dokumen Hasil Laporan (PDF / Scan)</span>
                     </label>
                     {uploadModal.laporanUrl && (
-                      <a
-                        href={uploadModal.laporanUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-500 hover:text-indigo-400"
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDocViewerModal({
+                            isOpen: true,
+                            title: `Dokumen Hasil Scan - ${uploadModal.industryName}`,
+                            url: uploadModal.laporanUrl!,
+                            subtitle: `Petugas: ${uploadModal.teacherName} • Berkas Tersimpan`,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white text-[11px] font-bold border border-indigo-500/30 transition-all cursor-pointer"
+                        title="Lihat Berkas Hasil Scan"
                       >
+                        <Eye className="w-3.5 h-3.5" />
                         <span>Lihat Berkas</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                      </button>
                     )}
                   </div>
 
@@ -2828,6 +2896,92 @@ export default function PokjaMonitoringPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL PRATINJAU DOKUMEN HASIL SCAN (PDF / GAMBAR) */}
+        {docViewerModal.isOpen && docViewerModal.url && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200"
+            onClick={() => setDocViewerModal((prev) => ({ ...prev, isOpen: false }))}
+          >
+            <div
+              className={`w-full max-w-5xl h-[94vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden ${
+                theme === 'dark' ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-800/30 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400">
+                    <FileCheck2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>{docViewerModal.title}</span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        Dokumen Hasil Scan
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {docViewerModal.subtitle || 'Berkas resmi yang telah diunggah untuk penugasan monitoring ini.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <a
+                    href={getSafeFileUrl(docViewerModal.url)}
+                    download
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                    title="Unduh Berkas Scan"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Unduh File</span>
+                  </a>
+                  <a
+                    href={getSafeFileUrl(docViewerModal.url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer"
+                    title="Buka di Tab Baru"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setDocViewerModal((prev) => ({ ...prev, isOpen: false }))}
+                    className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white text-xs font-bold border border-rose-500/30 transition-all cursor-pointer shadow-sm ml-1"
+                    title="Tutup (Esc)"
+                  >
+                    <X className="w-4 h-4" />
+                    <span>Tutup</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Body: Viewer */}
+              <div className="flex-1 bg-slate-900/90 p-3 sm:p-4 overflow-hidden flex justify-center items-center">
+                {docViewerModal.url.toLowerCase().endsWith('.png') ||
+                docViewerModal.url.toLowerCase().endsWith('.jpg') ||
+                docViewerModal.url.toLowerCase().endsWith('.jpeg') ||
+                docViewerModal.url.toLowerCase().endsWith('.webp') ||
+                docViewerModal.url.startsWith('data:image/') ? (
+                  <img
+                    src={getSafeFileUrl(docViewerModal.url)}
+                    alt="Dokumen Hasil Scan"
+                    className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl border border-slate-700"
+                  />
+                ) : (
+                  <iframe
+                    src={getSafeFileUrl(docViewerModal.url)}
+                    className="w-full h-full rounded-2xl bg-white shadow-2xl border border-slate-700"
+                    title="Pratinjau Dokumen PDF"
+                  />
+                )}
+              </div>
             </div>
           </div>
         )}

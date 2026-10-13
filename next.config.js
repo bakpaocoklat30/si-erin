@@ -21,6 +21,10 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: '/uploads/:filename',
+        destination: '/api/files/uploads/:filename',
+      },
+      {
         source: '/uploads/:path*',
         destination: '/api/uploads/:path*',
       },

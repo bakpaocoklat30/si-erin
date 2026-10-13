@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import fs from 'fs';
+import path from 'path';
 
 export async function GET(request: Request) {
   try {
@@ -68,8 +70,34 @@ export async function GET(request: Request) {
        });
     }
 
-    // If it's a relative URL
+    // If it's a relative URL (e.g. /uploads/...)
     if (fileData.startsWith('/')) {
+      const sanitizedFilename = path.basename(fileData);
+      let localPath = path.join(process.cwd(), 'public', 'uploads', sanitizedFilename);
+      if (!fs.existsSync(localPath)) {
+        const altPath = path.join(process.cwd(), 'uploads', sanitizedFilename);
+        if (fs.existsSync(altPath)) localPath = altPath;
+      }
+
+      if (fs.existsSync(localPath)) {
+        const fileBuffer = fs.readFileSync(localPath);
+        const ext = path.extname(sanitizedFilename).toLowerCase();
+        let contentType = 'application/pdf';
+        if (ext === '.png') contentType = 'image/png';
+        else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+        else if (ext === '.webp') contentType = 'image/webp';
+
+        return new NextResponse(fileBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Length': fileBuffer.length.toString(),
+            'Content-Disposition': `inline; filename="${sanitizedFilename}"`,
+            'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200',
+          },
+        });
+      }
+
       const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
       const proto = request.headers.get('x-forwarded-proto') || (request.url.startsWith('https') ? 'https' : 'http');
       const absoluteUrl = `${proto}://${host}${fileData}`;

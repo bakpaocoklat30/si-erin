@@ -20,11 +20,16 @@ export async function GET(
 
     // Hindari Directory Traversal attack
     const sanitizedFilename = path.basename(filename);
-    const filePath = path.join(process.cwd(), 'public', 'uploads', sanitizedFilename);
+    let filePath = path.join(process.cwd(), 'public', 'uploads', sanitizedFilename);
 
-    // Cek keberadaan berkas
+    // Cek keberadaan berkas (dengan fallback ke ./uploads)
     if (!fs.existsSync(filePath)) {
-      return new NextResponse('File Not Found', { status: 404 });
+      const alt = path.join(process.cwd(), 'uploads', sanitizedFilename);
+      if (fs.existsSync(alt)) {
+        filePath = alt;
+      } else {
+        return new NextResponse('File Not Found', { status: 404 });
+      }
     }
 
     // Baca buffer file
@@ -44,11 +49,55 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Length': fileBuffer.length.toString(),
+        'Content-Disposition': 'inline',
+        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200',
       },
     });
   } catch (error) {
     console.error('Error streaming file:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+export async function HEAD(
+  request: NextRequest,
+  { params }: { params: { filename: string } }
+) {
+  try {
+    const filename = params.filename;
+    const sanitizedFilename = path.basename(filename);
+    let filePath = path.join(process.cwd(), 'public', 'uploads', sanitizedFilename);
+
+    if (!fs.existsSync(filePath)) {
+      const alt = path.join(process.cwd(), 'uploads', sanitizedFilename);
+      if (fs.existsSync(alt)) {
+        filePath = alt;
+      } else {
+        return new NextResponse('File Not Found', { status: 404 });
+      }
+    }
+
+    const stat = fs.statSync(filePath);
+    const ext = path.extname(sanitizedFilename).toLowerCase();
+    let contentType = 'application/octet-stream';
+
+    if (ext === '.png') contentType = 'image/png';
+    else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+    else if (ext === '.webp') contentType = 'image/webp';
+    else if (ext === '.svg') contentType = 'image/svg+xml';
+    else if (ext === '.pdf') contentType = 'application/pdf';
+
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': stat.size.toString(),
+        'Content-Disposition': 'inline',
+        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200',
+      },
+    });
+  } catch (error) {
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
+import fs from 'fs';
+import path from 'path';
 
 // ----------------------------------------------------------------------
 // 📋 CHANGELOG:
@@ -108,6 +110,29 @@ export async function GET(req: NextRequest) {
         monitoringDate: 'desc'
       }
     });
+
+    // 🛡️ Auto-sync: Pulihkan berkas TTE_LAPORAN jika sudah ada di disk namun belum tersimpan di database
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    if (fs.existsSync(uploadsDir)) {
+      try {
+        const diskFiles = fs.readdirSync(uploadsDir);
+        for (const assign of assignments) {
+          if (!assign.laporanUrl) {
+            const matchingFile = diskFiles.find(f => f.startsWith(`TTE_LAPORAN_${assign.id}_`));
+            if (matchingFile) {
+              const recoveredUrl = `/uploads/${matchingFile}`;
+              assign.laporanUrl = recoveredUrl;
+              prisma.monitoringAssignment.update({
+                where: { id: assign.id },
+                data: { laporanUrl: recoveredUrl }
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch (err) {
+        // Abaikan jika error membaca disk
+      }
+    }
 
     // 2. Ambil daftar industri mitra yang sedang memiliki penempatan aktif / sesuai jurusan Pokja
     const industries = await prisma.industry.findMany({
