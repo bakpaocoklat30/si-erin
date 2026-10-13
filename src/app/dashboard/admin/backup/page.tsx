@@ -408,7 +408,7 @@ export default function AdminBackupPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 text-xs">
             <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Surat Pengajuan</span>
               <span className="text-lg font-black text-white mt-1 block">
@@ -462,6 +462,15 @@ export default function AdminBackupPage() {
               </span>
               <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Hasil Perjalanan Dinas</span>
             </div>
+
+            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dokumentasi Foto</span>
+              <span className="text-lg font-black text-white mt-1 block">
+                {lastBackupResult.stats?.assignmentsWithDokumentasi || 0}
+                <span className="text-xs text-slate-400 font-normal"> / {lastBackupResult.stats?.totalAssignments || 0} Tugas</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 mt-1 block font-semibold">Foto Kegiatan Resmi</span>
+            </div>
           </div>
 
           {(lastBackupResult.totalSynced + lastBackupResult.totalUpdated) === 0 && lastBackupResult.totalFailed === 0 && (
@@ -471,10 +480,10 @@ export default function AdminBackupPage() {
                 <span>Belum Ada Dokumen yang Masuk ke Folder Google Drive</span>
               </p>
               <p className="text-amber-200/90 text-[11px]">
-                Arsip Full Backup ZIP telah terunggah dengan aman. Folder tujuan telah siap di Google Drive. Namun dokumen individual (CV, BPJS, Surat Pengajuan, Jawaban, & Penugasan/Hasil Kegiatan) belum terisi karena belum ada berkas yang diunggah di database SI-ERIN saat ini.
+                Arsip Full Backup ZIP telah terunggah dengan aman. Folder tujuan telah siap di Google Drive. Namun dokumen individual (CV, BPJS, Surat Pengajuan, Jawaban, & Penugasan/Hasil/Dokumentasi Kegiatan) belum terisi karena belum ada berkas yang diunggah di database SI-ERIN saat ini.
               </p>
               <p className="text-amber-200/90 text-[11px]">
-                👉 <strong>Langkah untuk mengisi dokumen:</strong> Siswa dapat mengunggah CV & BPJS di menu <em>Profil Siswa</em>, Tim Pokja/Tata Usaha dapat mengunggah berkas Surat Permohonan & Surat Balasan di menu <em>Persuratan</em>, serta mengunggah Surat Tugas, SPPD TTE, dan Scan Hasil Kegiatan di menu <em>SPPD & Penugasan</em>. Setelah berkas ada, jalankan Backup kembali untuk menyinkronkannya langsung ke Google Drive.
+                👉 <strong>Langkah untuk mengisi dokumen:</strong> Siswa dapat mengunggah CV & BPJS di menu <em>Profil Siswa</em>, Tim Pokja/Tata Usaha dapat mengunggah berkas Surat Permohonan & Surat Balasan di menu <em>Persuratan</em>, serta mengunggah Surat Tugas, SPPD TTE, Scan Hasil Kegiatan, dan Foto Dokumentasi di menu <em>Monitoring & Penugasan</em>. Setelah berkas ada, jalankan Backup kembali untuk menyinkronkannya langsung ke Google Drive.
               </p>
             </div>
           )}

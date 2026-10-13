@@ -29,6 +29,8 @@ import {
   getOrCreateFolder, 
   uploadOrUpdateFileInDrive 
 } from '@/lib/gdrive';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import sharp from 'sharp';
 
 const execPromise = util.promisify(exec);
 
@@ -263,6 +265,420 @@ async function resolveFileBuffer(fileSource: string | null | undefined): Promise
   return null;
 }
 
+/**
+ * 🔄 Menyelesaikan buffer gambar mentah (Buffer asli gambar JPEG/PNG/WebP, bukan dibungkus PDF)
+ */
+async function resolveRawImageBuffer(fileSource: string | null | undefined): Promise<{ buffer: Buffer; mimeType: string } | null> {
+  if (!fileSource || typeof fileSource !== 'string' || fileSource.trim() === '') {
+    return null;
+  }
+
+  let trimmed = fileSource.trim();
+
+  // Objek ter-stringified JSON
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const inner = parsed.url || parsed.data || parsed.path || parsed.base64 || parsed.file;
+      if (inner && typeof inner === 'string') {
+        return resolveRawImageBuffer(inner);
+      }
+    } catch (e) {}
+  }
+
+  // 1. Data URL Base64
+  if (trimmed.startsWith('data:')) {
+    const commaIdx = trimmed.indexOf(',');
+    if (commaIdx !== -1) {
+      const meta = trimmed.substring(0, commaIdx);
+      const base64Data = trimmed.substring(commaIdx + 1).replace(/\s+/g, '');
+      let mimeType = 'image/jpeg';
+      const mimeMatch = meta.match(/data:([^;]+)/);
+      if (mimeMatch) {
+        mimeType = mimeMatch[1].toLowerCase().trim();
+      }
+      try {
+        const rawBuffer = Buffer.from(base64Data, 'base64');
+        if (rawBuffer.length > 0) {
+          return { buffer: rawBuffer, mimeType };
+        }
+      } catch (err) {}
+    }
+  }
+
+  // 2. Berkas lokal di disk server
+  if (trimmed.startsWith('/') || trimmed.startsWith('uploads/') || trimmed.startsWith('public/')) {
+    const cleanPath = trimmed.replace(/^\/?(public\/)?/, '');
+    const candidatePaths = [
+      path.join(process.cwd(), 'public', cleanPath),
+      path.join(process.cwd(), cleanPath),
+      path.join('/app', 'public', cleanPath),
+      path.join('/app', cleanPath)
+    ];
+    for (const localPath of candidatePaths) {
+      if (fs.existsSync(localPath)) {
+        try {
+          const rawBuffer = fs.readFileSync(localPath);
+          if (rawBuffer.length > 0) {
+            let mimeType = 'image/jpeg';
+            if (cleanPath.endsWith('.png')) mimeType = 'image/png';
+            else if (cleanPath.endsWith('.webp')) mimeType = 'image/webp';
+            return { buffer: rawBuffer, mimeType };
+          }
+        } catch (err) {}
+      }
+    }
+  }
+
+  // 3. HTTP / HTTPS URL
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      const res = await fetch(trimmed);
+      if (res.ok) {
+        const rawBuffer = Buffer.from(await res.arrayBuffer());
+        if (rawBuffer.length > 0) {
+          const contentType = res.headers.get('content-type') || 'image/jpeg';
+          return { buffer: rawBuffer, mimeType: contentType };
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 4. Raw base64 string tanpa prefix data:
+  const cleanBase64 = trimmed.replace(/\s+/g, '');
+  if (cleanBase64.length > 50 && /^[A-Za-z0-9+/=]+$/.test(cleanBase64)) {
+    try {
+      const rawBuffer = Buffer.from(cleanBase64, 'base64');
+      if (rawBuffer.length > 0) {
+        let detectedMime = 'image/jpeg';
+        if (rawBuffer.length > 4 && rawBuffer[0] === 0x89 && rawBuffer[1] === 0x50 && rawBuffer[2] === 0x4E && rawBuffer[3] === 0x47) {
+          detectedMime = 'image/png';
+        }
+        return { buffer: rawBuffer, mimeType: detectedMime };
+      }
+    } catch (e) {}
+  }
+
+  return null;
+}
+
+// Helper ekstraksi array foto kegiatan dari database
+function parseAssignmentPhotos(raw: any): Array<{ url: string; caption?: string }> {
+  if (!raw) return [];
+  let items: any[] = [];
+  if (Array.isArray(raw)) items = raw;
+  else if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) items = parsed;
+    } catch {}
+  }
+  return items.map(item => {
+    if (typeof item === 'string') return { url: item, caption: '' };
+    if (item && typeof item === 'object') return { url: item.url || '', caption: item.caption || '' };
+    return null;
+  }).filter((p): p is { url: string; caption?: string } => Boolean(p && p.url && p.url.trim() !== ''));
+}
+
+// Sanitasi teks untuk font standar PDF
+function sanitizePdfText(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * 📄 Menghasilkan Dokumen PDF F4 Resmi untuk Dokumentasi Foto Kegiatan
+ * Sesuai spesifikasi resmi:
+ * - Halaman 1: Kop Surat resmi, Nomor Surat Tugas & Lembar ke 4, Judul Dokumentasi Kegiatan, Identitas, maksimal 2 foto
+ * - Halaman lanjutan: Header lanjutan, Lembar ke 5 dst, maksimal 2 foto
+ * - Tanpa tanda tangan Kepala Sekolah maupun Guru Petugas
+ */
+async function generateDokumentasiFotoPdfBuffer(
+  assign: any,
+  photos: Array<{ url: string; caption?: string }>,
+  schoolSetting?: any
+): Promise<Buffer | null> {
+  if (!photos || photos.length === 0) return null;
+
+  try {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.TimesRoman);
+    const fontBold = await doc.embedFont(StandardFonts.TimesRomanBold);
+
+    const pageWidth = 609.45;  // 215mm (Standar Kertas F4 / Folio Kedinasan)
+    const pageHeight = 935.43; // 330mm
+    const marginX = 40;
+    const contentWidth = pageWidth - (marginX * 2);
+
+    // Ambil Kop Surat jika ada di disk
+    let kopImg: any = null;
+    const kopCandidates = [
+      path.join(process.cwd(), 'public', 'images', 'kop-surat-tugas.png'),
+      path.join('/app', 'public', 'images', 'kop-surat-tugas.png'),
+    ];
+    for (const kp of kopCandidates) {
+      if (fs.existsSync(kp)) {
+        try {
+          const kopBuffer = fs.readFileSync(kp);
+          kopImg = await doc.embedPng(kopBuffer);
+          break;
+        } catch (e) {}
+      }
+    }
+
+    // Resolusi jenis kegiatan
+    const pStr = (assign.purpose || '').toUpperCase();
+    let activityType = 'MONITORING';
+    if (pStr.includes('PENERJUNAN') || pStr.includes('PENGANTARAN')) activityType = 'PENERJUNAN';
+    else if (pStr.includes('PENARIKAN') || pStr.includes('PENJEMPUTAN')) activityType = 'PENARIKAN';
+
+    const industryName = sanitizePdfText(assign.industry?.name || 'DU/DI Mitra');
+    const teacherName = sanitizePdfText(assign.teacher?.name || 'Guru Petugas');
+    const teacherNip = sanitizePdfText(assign.teacher?.nip || assign.teacher?.username || '-');
+    const docNumber = sanitizePdfText(assign.letterNumber || assign.sppdNumber || '800.1.11.1 /1000/2026');
+
+    // Hari, Tanggal
+    let dayDatePhrase = '-';
+    if (assign.monitoringDate) {
+      const mDate = new Date(assign.monitoringDate);
+      const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const monthNames = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      const dayName = dayNames[mDate.getDay()] || 'Hari';
+      const dayNum = mDate.getDate();
+      const monthName = monthNames[mDate.getMonth()] || '';
+      const yearNum = mDate.getFullYear();
+      dayDatePhrase = `${dayName}, ${dayNum} ${monthName} ${yearNum}`;
+    }
+
+    // Load semua buffer foto mentah & konversi ke JPEG terstandarisasi
+    const resolvedPhotoList: Array<{ buffer: Buffer; caption: string }> = [];
+    for (const p of photos) {
+      const res = await resolveRawImageBuffer(p.url);
+      if (res && res.buffer && res.buffer.length > 0) {
+        try {
+          const jpegBuf = await sharp(res.buffer).jpeg({ quality: 90 }).toBuffer();
+          resolvedPhotoList.push({
+            buffer: jpegBuf,
+            caption: sanitizePdfText(p.caption || ''),
+          });
+        } catch (convErr) {}
+      }
+    }
+
+    if (resolvedPhotoList.length === 0) return null;
+
+    // Chunk foto per halaman (maksimal 2 foto per halaman F4)
+    const chunks: Array<Array<{ buffer: Buffer; caption: string }>> = [];
+    for (let i = 0; i < resolvedPhotoList.length; i += 2) {
+      chunks.push(resolvedPhotoList.slice(i, i + 2));
+    }
+
+    let globalPhotoIndex = 1;
+
+    for (let pageIdx = 0; pageIdx < chunks.length; pageIdx++) {
+      const page = doc.addPage([pageWidth, pageHeight]);
+      const chunk = chunks[pageIdx];
+      const sheetNum = 4 + pageIdx;
+
+      let curY = pageHeight - 35;
+
+      if (pageIdx === 0) {
+        // --- HALAMAN 1: KOP RESMI, NOMOR SURAT TUGAS & LEMBAR KE 4, JUDUL, IDENTITAS ---
+        if (kopImg) {
+          const kopHeight = 104;
+          const kopY = curY - kopHeight;
+          page.drawImage(kopImg, {
+            x: marginX,
+            y: kopY,
+            width: contentWidth,
+            height: kopHeight,
+          });
+          curY = kopY;
+        } else {
+          page.drawText(sanitizePdfText(schoolSetting?.name || 'SMK NEGERI 1 ADIWERNA'), {
+            x: marginX,
+            y: curY - 20,
+            size: 14,
+            font: fontBold,
+            color: rgb(0, 0, 0),
+          });
+          curY -= 40;
+        }
+
+        // Nomor Surat Tugas & Lembar ke 4 di sebelah kanan bawah kop
+        curY -= 14;
+        page.drawText(`Nomor Surat Tugas : ${docNumber}`, {
+          x: pageWidth - marginX - 230,
+          y: curY,
+          size: 9.5,
+          font: fontBold,
+          color: rgb(0, 0, 0),
+        });
+        curY -= 12;
+        page.drawText(`Lembar ke                : ${sheetNum}`, {
+          x: pageWidth - marginX - 230,
+          y: curY,
+          size: 9.5,
+          font: fontBold,
+          color: rgb(0, 0, 0),
+        });
+
+        // Judul Dokumentasi Kegiatan
+        curY -= 20;
+        const title1 = `DOKUMENTASI KEGIATAN ${activityType} PKL SMK NEGERI 1 ADIWERNA`;
+        const title1W = fontBold.widthOfTextAtSize(title1, 11);
+        page.drawText(title1, {
+          x: Math.max(marginX, (pageWidth - title1W) / 2),
+          y: curY,
+          size: 11,
+          font: fontBold,
+          color: rgb(0, 0, 0),
+        });
+
+        curY -= 14;
+        const title2 = `DI ${industryName.toUpperCase()}`;
+        const title2W = fontBold.widthOfTextAtSize(title2, 10.5);
+        page.drawText(title2, {
+          x: Math.max(marginX, (pageWidth - title2W) / 2),
+          y: curY,
+          size: 10.5,
+          font: fontBold,
+          color: rgb(0, 0, 0),
+        });
+
+        // Identitas Ringkas Kegiatan (Box)
+        curY -= 18;
+        const boxH = 50;
+        const boxY = curY - boxH;
+        page.drawRectangle({
+          x: marginX,
+          y: boxY,
+          width: contentWidth,
+          height: boxH,
+          borderColor: rgb(0.3, 0.35, 0.4),
+          borderWidth: 0.8,
+          color: rgb(0.97, 0.98, 0.99),
+        });
+
+        page.drawText(`Perusahaan / Industri : ${industryName}`, {
+          x: marginX + 12,
+          y: boxY + 34,
+          size: 9,
+          font: fontBold,
+          color: rgb(0, 0, 0),
+        });
+        page.drawText(`Hari, Tanggal             : ${dayDatePhrase}`, {
+          x: marginX + 12,
+          y: boxY + 20,
+          size: 9,
+          font: font,
+          color: rgb(0.1, 0.1, 0.1),
+        });
+        page.drawText(`Guru Petugas              : ${teacherName} (NIP. ${teacherNip})`, {
+          x: marginX + 12,
+          y: boxY + 7,
+          size: 9,
+          font: font,
+          color: rgb(0.1, 0.1, 0.1),
+        });
+
+        curY = boxY - 14;
+      } else {
+        // --- HALAMAN LANJUTAN (LEMBAR KE 5, DST) ---
+        const hText = `DOKUMENTASI KEGIATAN ${activityType} PKL SMK NEGERI 1 ADIWERNA DI ${industryName.toUpperCase()}`;
+        page.drawText(hText, {
+          x: marginX,
+          y: curY - 10,
+          size: 9.5,
+          font: fontBold,
+          color: rgb(0, 0, 0),
+        });
+        page.drawText(`Nomor Surat Tugas: ${docNumber} | Lembar ke ${sheetNum}`, {
+          x: marginX,
+          y: curY - 24,
+          size: 9,
+          font: font,
+          color: rgb(0.2, 0.2, 0.2),
+        });
+        page.drawLine({
+          start: { x: marginX, y: curY - 30 },
+          end: { x: pageWidth - marginX, y: curY - 30 },
+          thickness: 1,
+          color: rgb(0.2, 0.2, 0.2),
+        });
+        curY -= 45;
+      }
+
+      // Render foto pada chunk saat ini
+      const maxPhotoH = pageIdx === 0 ? (chunk.length === 1 ? 360 : 230) : (chunk.length === 1 ? 400 : 280);
+      const maxPhotoW = 440;
+
+      for (const item of chunk) {
+        try {
+          const embedded = await doc.embedJpg(item.buffer);
+          const meta = await sharp(item.buffer).metadata();
+          const imgRatio = (meta.width || 4) / (meta.height || 3);
+          let pw = maxPhotoW;
+          let ph = pw / imgRatio;
+          if (ph > maxPhotoH) {
+            ph = maxPhotoH;
+            pw = ph * imgRatio;
+          }
+
+          const px = (pageWidth - pw) / 2;
+          const py = curY - ph;
+          page.drawImage(embedded, {
+            x: px,
+            y: py,
+            width: pw,
+            height: ph,
+          });
+          page.drawRectangle({
+            x: px,
+            y: py,
+            width: pw,
+            height: ph,
+            borderColor: rgb(0.12, 0.16, 0.23),
+            borderWidth: 1.5,
+          });
+
+          const capText = item.caption
+            ? `Foto ${globalPhotoIndex}. ${item.caption}`
+            : `Foto ${globalPhotoIndex}. Dokumentasi Kegiatan ${activityType} PKL di ${industryName}`;
+          const capW = font.widthOfTextAtSize(capText, 9);
+          page.drawText(capText, {
+            x: Math.max(marginX, (pageWidth - capW) / 2),
+            y: py - 13,
+            size: 9,
+            font: font,
+            color: rgb(0, 0, 0),
+          });
+
+          curY = py - 26;
+          globalPhotoIndex++;
+        } catch (photoErr) {
+          console.warn('[BACKUP SERVICE] Gagal merender foto ke PDF:', photoErr);
+        }
+      }
+    }
+
+    const pdfBytes = await doc.save();
+    return Buffer.from(pdfBytes);
+  } catch (err) {
+    console.error('[BACKUP SERVICE] Gagal mengenerate PDF Dokumentasi Foto:', err);
+    return null;
+  }
+}
+
 export interface BackupSyncSummary {
   zipFile: any;
   totalSynced: number;
@@ -279,9 +695,10 @@ export interface BackupSyncSummary {
     assignmentsWithTugas?: number;
     assignmentsWithSppd?: number;
     assignmentsWithLaporan?: number;
+    assignmentsWithDokumentasi?: number;
   };
   details: Array<{
-    type: 'PENGAJUAN' | 'JAWABAN' | 'CV' | 'BPJS' | 'PENUGASAN_TUGAS' | 'PENUGASAN_SPPD' | 'PENUGASAN_HASIL';
+    type: 'PENGAJUAN' | 'JAWABAN' | 'CV' | 'BPJS' | 'PENUGASAN_TUGAS' | 'PENUGASAN_SPPD' | 'PENUGASAN_HASIL' | 'PENUGASAN_DOKUMENTASI' | 'SURAT_IZIN';
     path: string;
     fileName: string;
     action: 'created' | 'updated' | 'failed';
@@ -307,15 +724,21 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   const drive = await getDriveClient();
   const rootDriveFolderId = folderId.trim();
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const timePart = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+  const rawHostname = (os.hostname() || 'server').trim();
+  const cleanHostname = rawHostname.replace(/[^a-zA-Z0-9_.-]/g, '_');
+
   const tmpDir = path.join(os.tmpdir(), 'sierin_tmp');
   if (!fs.existsSync(tmpDir)) {
     fs.mkdirSync(tmpDir, { recursive: true });
   }
 
-  const sqlFileName = `sierin_full_db_${timestamp}.sql`;
+  const sqlFileName = `sierin_full_db_${datePart}_${timePart}-(${cleanHostname}).sql`;
   const sqlFilePath = path.join(tmpDir, sqlFileName);
-  const zipFileName = `SIERIN_FULL_BACKUP_${timestamp}.zip`;
+  const zipFileName = `backup_sierin_full_${datePart}_${timePart}-(${cleanHostname}).zip`;
   const zipFilePath = path.join(tmpDir, zipFileName);
 
   // ======================================================================
@@ -345,7 +768,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       'appliedAt', 'createdAt', 'updatedAt'
     ]),
     TeacherHourAllocation: new Set(['id', 'className', 'teacherId', 'totalHours', 'academicYear', 'createdAt', 'updatedAt']),
-    MonitoringAssignment: new Set(['id', 'industryId', 'targetIndustries', 'teacherId', 'companionTeachers', 'periodId', 'monitoringDate', 'returnDate', 'letterNumber', 'sppdNumber', 'purpose', 'transportType', 'departurePlace', 'destinationPlace', 'budgetSource', 'budgetAccount', 'suratTugasUrl', 'sppdUrl', 'laporanUrl', 'status', 'notes', 'createdAt', 'updatedAt']),
+    MonitoringAssignment: new Set(['id', 'industryId', 'targetIndustries', 'teacherId', 'companionTeachers', 'periodId', 'monitoringDate', 'returnDate', 'letterNumber', 'sppdNumber', 'purpose', 'transportType', 'departurePlace', 'destinationPlace', 'budgetSource', 'budgetAccount', 'suratTugasUrl', 'sppdUrl', 'laporanUrl', 'activityPhotos', 'status', 'department', 'notes', 'createdAt', 'updatedAt']),
     Notification: new Set(['id', 'userId', 'title', 'message', 'type', 'link', 'isRead', 'createdAt']),
     ErrorLog: new Set(['id', 'level', 'message', 'stack', 'path', 'method', 'userId', 'ip', 'createdAt']),
     AuditLog: new Set(['id', 'userId', 'username', 'userRole', 'action', 'module', 'details', 'ipAddress', 'userAgent', 'createdAt']),
@@ -385,7 +808,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       const filteredEntries = Object.entries(item).filter(([k, v]) => {
         if (validCols && !validCols.has(k)) return false;
         // Abaikan objek relasi prisma yang bukan Date dan bukan JSON field
-        if (v !== null && typeof v === 'object' && !(v instanceof Date) && k !== 'activeIndustries' && k !== 'companionTeachers' && k !== 'targetIndustries') {
+        if (v !== null && typeof v === 'object' && !(v instanceof Date) && k !== 'activeIndustries' && k !== 'companionTeachers' && k !== 'targetIndustries' && k !== 'activityPhotos') {
           return false;
         }
         return true;
@@ -611,6 +1034,10 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     assignmentsWithTugas: detailedAssignments.filter((a: any) => Boolean(a.suratTugasUrl && String(a.suratTugasUrl).trim() !== '')).length,
     assignmentsWithSppd: detailedAssignments.filter((a: any) => Boolean(a.sppdUrl && String(a.sppdUrl).trim() !== '')).length,
     assignmentsWithLaporan: detailedAssignments.filter((a: any) => Boolean(a.laporanUrl && String(a.laporanUrl).trim() !== '')).length,
+    assignmentsWithDokumentasi: detailedAssignments.filter((a: any) => {
+      const photos = parseAssignmentPhotos(a.activityPhotos);
+      return photos.length > 0;
+    }).length,
   };
 
   console.log('[BACKUP SERVICE] 📊 Statistik Ketersediaan Berkas di Database SI-ERIN:', JSON.stringify(stats));
@@ -828,12 +1255,13 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     const dateStr = assign.monitoringDate ? new Date(assign.monitoringDate).toISOString().slice(0, 10) : '';
 
     try {
-      // Dapatkan / Buat Folder Hierarki di Google Drive: [Tahun] / [Jurusan] / [Periode] / Penugasan / [Kategori] / [File Asli | Laporan Kegiatan]
+      // Dapatkan / Buat Folder Hierarki di Google Drive: [Tahun] / [Jurusan] / [Periode] / Penugasan / [Kategori] / [File Asli | Laporan Kegiatan | Dokumentasi Kegiatan]
       const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
       const penugasanFolderId = await getOrCreateFolder(drive, 'Penugasan', periodFolderId, folderCache);
       const tujuanFolderId = await getOrCreateFolder(drive, category, penugasanFolderId, folderCache);
       const fileAsliFolderId = await getOrCreateFolder(drive, 'File Asli', tujuanFolderId, folderCache);
       const hasilKegiatanFolderId = await getOrCreateFolder(drive, 'Laporan Kegiatan', tujuanFolderId, folderCache);
+      const dokumentasiFolderId = await getOrCreateFolder(drive, 'Dokumentasi Kegiatan', tujuanFolderId, folderCache);
 
       // 1. FILE ASLI - Surat Tugas Ber-TTE (hanya berkas resmi yang telah diunggah di aplikasi)
       if (assign.suratTugasUrl && String(assign.suratTugasUrl).trim() !== '') {
@@ -924,6 +1352,37 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           console.error(`[BACKUP SERVICE] Gagal mengunggah Hasil Kegiatan ${safeTeacherName}:`, err?.message || err);
         }
       }
+
+      // 4. DOKUMENTASI KEGIATAN - Foto Pelaksanaan Kegiatan PKL (F4 Official PDF)
+      const parsedPhotos = parseAssignmentPhotos(assign.activityPhotos);
+      if (parsedPhotos.length > 0) {
+        try {
+          const pdfBuffer = await generateDokumentasiFotoPdfBuffer(assign, parsedPhotos, schoolSettings[0]);
+          if (pdfBuffer) {
+            const fileName = `Dokumentasi_Kegiatan_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.pdf`;
+            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, 'application/pdf', pdfBuffer, dokumentasiFolderId);
+            if (uploadRes.action === 'created') totalSynced++;
+            else totalUpdated++;
+
+            syncDetails.push({
+              type: 'PENUGASAN_DOKUMENTASI',
+              path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Dokumentasi Kegiatan`,
+              fileName: fileName,
+              action: uploadRes.action,
+            });
+          }
+        } catch (err: any) {
+          totalFailed++;
+          syncDetails.push({
+            type: 'PENUGASAN_DOKUMENTASI',
+            path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Dokumentasi Kegiatan`,
+            fileName: `Dokumentasi_Kegiatan_${safeTeacherName}_${safeIndustryName}.pdf`,
+            action: 'failed',
+            error: err?.message || String(err),
+          });
+          console.error(`[BACKUP SERVICE] Gagal mengunggah Dokumentasi Kegiatan ${safeTeacherName}:`, err?.message || err);
+        }
+      }
     } catch (assignErr: any) {
       console.error(`[BACKUP SERVICE] Gagal memproses sinkronisasi penugasan ${assign.id}:`, assignErr?.message || assignErr);
     }
@@ -990,9 +1449,9 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   if (totalFailed > 0) {
     statusMessage = `Backup Sistem selesai: Arsip ZIP terunggah, ${successCount} dokumen disinkronkan, namun ada ${totalFailed} dokumen yang gagal diunggah ke Google Drive.`;
   } else if (successCount > 0) {
-    statusMessage = `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Surat Pengajuan, Jawaban, CV, BPJS, Laporan Kegiatan, Surat Izin, & Penugasan) telah disinkronkan ke folder Google Drive.`;
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Surat Pengajuan, Jawaban, CV, BPJS, Laporan Kegiatan, Dokumentasi Kegiatan, Surat Izin, & Penugasan) telah disinkronkan ke folder Google Drive.`;
   } else {
-    statusMessage = `Backup Sistem berhasil! Arsip ZIP terunggah ke Google Drive. Belum ada berkas unggahan (${stats.studentsWithCv} CV, ${stats.studentsWithBpjs} BPJS, ${stats.placementsWithSuratTugas} Pengajuan, ${stats.placementsWithSuratBalasan} Jawaban, ${stats.assignmentsWithTugas} Surat Tugas, ${stats.assignmentsWithSppd} SPPD, ${stats.assignmentsWithLaporan} Laporan Kegiatan).`;
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP terunggah ke Google Drive. Belum ada berkas unggahan (${stats.studentsWithCv} CV, ${stats.studentsWithBpjs} BPJS, ${stats.placementsWithSuratTugas} Pengajuan, ${stats.placementsWithSuratBalasan} Jawaban, ${stats.assignmentsWithTugas} Surat Tugas, ${stats.assignmentsWithSppd} SPPD, ${stats.assignmentsWithLaporan} Laporan Kegiatan, ${stats.assignmentsWithDokumentasi} Dokumentasi Kegiatan).`;
   }
 
   console.log(`[BACKUP SERVICE] 🏁 ${statusMessage}`);
