@@ -43,14 +43,54 @@ export async function GET(request: Request) {
       });
     }
 
-    const industryId = currentStudent.placement.industryId;
+    const placement = currentStudent.placement;
+    const industryId = placement.industryId;
 
-    // 2. Cari seluruh siswa yang memiliki penempatan di industri yang sama
+    // 2. Filter kelompok spesifik (manual groupId atau dinamis letterNumber & jurusan)
+    const placementFilter: any = {
+      industryId: industryId,
+      status: {
+        notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
+      }
+    };
+
+    if (placement.groupId) {
+      // Kelompok manual: hanya ambil yang memiliki groupId sama
+      placementFilter.groupId = placement.groupId;
+    } else {
+      // Kelompok dinamis (tanpa groupId): kecualikan kelompok manual
+      placementFilter.groupId = null;
+
+      if (placement.letterNumber) {
+        // Hanya siswa dalam surat permohonan yang sama
+        placementFilter.letterNumber = placement.letterNumber;
+      } else {
+        // Belum memiliki nomor surat: batasi ke pengajuan aktif pada fase yang sama
+        placementFilter.letterNumber = null;
+
+        const advancedStatuses = [
+          'DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN',
+          'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN',
+          'PENARIKAN_DITERBITKAN', 'COMPLETED', 'SELESAI_PKL'
+        ];
+
+        if (!advancedStatuses.includes(placement.status)) {
+          placementFilter.status = {
+            in: ['PENGAJUAN_DIKIRIM', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'KIRIM_SURAT']
+          };
+        }
+      }
+
+      // Pastikan jurusan siswa sama
+      if (currentStudent.department) {
+        placementFilter.student = {
+          department: { equals: currentStudent.department, mode: 'insensitive' }
+        };
+      }
+    }
+
     const groupPlacements = await db.internshipPlacement.findMany({
-      where: {
-        industryId: industryId,
-        status: { in: ['PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'KIRIM_SURAT', 'DISETUJUI_INDUSTRI'] }
-      },
+      where: placementFilter,
       include: {
         student: true,
         industry: true

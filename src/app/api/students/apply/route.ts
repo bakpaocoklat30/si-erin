@@ -114,35 +114,58 @@ export async function GET() {
     // Ambil Guru Pembimbing Sekolah dari model Student
     const resolvedTeacher = (student as any).teacher || null;
 
-    // 3. Ambil daftar teman sekelompok di DUDI yang sama (jika ada active placement)
+    // 3. Ambil daftar teman sekelompok di DUDI yang sama (hanya anggota kelompok yang bersangkutan)
     let groupMembers: any[] = [];
     if (activePlacement?.industryId) {
       try {
-        const placementsInSameIndustry = await (placementClient
-          ? placementClient.findMany({
-              where: {
-                industryId: activePlacement.industryId,
-                status: {
-                  notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
-                }
-              },
-              include: {
-                student: true
-              }
-            })
-          : db.student.findMany({
-              where: {
-                placement: {
-                  industryId: activePlacement.industryId,
-                  status: {
-                    notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
-                  }
-                }
-              },
-              include: {
-                placement: true
-              }
-            }));
+        const placementFilter: any = {
+          industryId: activePlacement.industryId,
+          status: {
+            notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
+          }
+        };
+
+        // Jika siswa memiliki groupId (kelompok manual), hanya ambil anggota dengan groupId yang sama
+        if (activePlacement.groupId) {
+          placementFilter.groupId = activePlacement.groupId;
+        } else {
+          // Kelompok dinamis (tanpa groupId) -> kecualikan kelompok manual yang memiliki groupId
+          placementFilter.groupId = null;
+
+          // Jika sudah memiliki nomor surat permohonan resmi, hanya ambil siswa dalam surat yang sama
+          if (activePlacement.letterNumber) {
+            placementFilter.letterNumber = activePlacement.letterNumber;
+          } else {
+            // Jika belum memiliki nomor surat, hanya ambil siswa yang juga belum memiliki nomor surat
+            placementFilter.letterNumber = null;
+
+            // Jika status siswa masih dalam tahap pengajuan, jangan sertakan siswa yang sudah disetujui pada gelombang/periode lain
+            const advancedStatuses = [
+              'DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN',
+              'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN',
+              'PENARIKAN_DITERBITKAN', 'COMPLETED', 'SELESAI_PKL'
+            ];
+            if (!advancedStatuses.includes(activePlacement.status)) {
+              placementFilter.status = {
+                in: ['PENGAJUAN_DIKIRIM', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'KIRIM_SURAT']
+              };
+            }
+          }
+
+          // Pastikan jurusan siswa sama
+          if (student.department) {
+            placementFilter.student = {
+              department: { equals: student.department, mode: 'insensitive' }
+            };
+          }
+        }
+
+        const placementsInSameIndustry = await db.internshipPlacement.findMany({
+          where: placementFilter,
+          include: {
+            student: true
+          }
+        });
 
         if (Array.isArray(placementsInSameIndustry)) {
           groupMembers = placementsInSameIndustry
@@ -672,22 +695,56 @@ export async function PATCH(request: Request) {
       }
     }
 
-    // 🌟 Jika industri menerima dengan penyesuaian tanggal baru, sinkronkan ke seluruh teman satu kelompok di industri & jurusan ini
+    // 🌟 Jika industri menerima dengan penyesuaian tanggal baru, sinkronkan ke rekan satu kelompok yang disetujui
     if (body.startDate && body.endDate && existingPlacement.industryId && currentStudentOutcomeStatus === 'DISETUJUI_INDUSTRI') {
       try {
         const newStartDate = new Date(body.startDate);
         const newEndDate = new Date(body.endDate);
 
+        const acceptedPlacementIds = updates
+          .filter((u: any) => u.isAccepted && u.placementId)
+          .map((u: any) => u.placementId);
+
+        const acceptedStudentIds = updates
+          .filter((u: any) => u.isAccepted && u.studentId)
+          .map((u: any) => u.studentId);
+
+        const syncFilter: any = {
+          industryId: existingPlacement.industryId,
+          status: {
+            notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
+          }
+        };
+
+        if (existingPlacement.groupId) {
+          syncFilter.groupId = existingPlacement.groupId;
+        } else {
+          syncFilter.groupId = null;
+          if (existingPlacement.letterNumber) {
+            syncFilter.letterNumber = existingPlacement.letterNumber;
+          } else {
+            syncFilter.letterNumber = null;
+            syncFilter.status = {
+              in: ['PENGAJUAN_DIKIRIM', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'KIRIM_SURAT', 'DISETUJUI_INDUSTRI']
+            };
+          }
+
+          if (student.department) {
+            syncFilter.student = {
+              department: { equals: student.department, mode: 'insensitive' }
+            };
+          }
+        }
+
+        // Jika terdapat daftar ID yang eksplisit disetujui, batasi sinkronisasi ke ID tersebut
+        if (acceptedPlacementIds.length > 0) {
+          syncFilter.id = { in: acceptedPlacementIds };
+        } else if (acceptedStudentIds.length > 0) {
+          syncFilter.studentId = { in: acceptedStudentIds };
+        }
+
         const groupPlacements = await db.internshipPlacement.findMany({
-          where: {
-            industryId: existingPlacement.industryId,
-            student: {
-              department: { contains: student.department || '', mode: 'insensitive' }
-            },
-            status: {
-              notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
-            }
-          },
+          where: syncFilter,
           select: { id: true }
         });
 
