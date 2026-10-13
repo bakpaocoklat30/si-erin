@@ -2658,24 +2658,26 @@ export default function PokjaMonitoringPage() {
               {/* Action Buttons: Toggle TTE, Print, New Tab, Tutup */}
               <div className="flex items-center space-x-2">
                 {/* Switcher TTE Tag vs Normal */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPreviewModal((prev) => ({
-                      ...prev,
-                      useTteTags: !prev.useTteTags,
-                    }))
-                  }
-                  className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    previewModal.useTteTags
-                      ? 'bg-blue-600/20 text-blue-400 border-blue-500/30 shadow-inner'
-                      : 'bg-slate-800 text-slate-400 border-slate-700'
-                  }`}
-                  title="Tag TTE Jateng mempertahankan format ${nomor_naskah}, ${ttd_pengirim}, dll."
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{previewModal.useTteTags ? 'Mode TTE: AKTIF' : 'Mode Langsung'}</span>
-                </button>
+                {previewModal.type !== 'FOTO_DOKUMENTASI' && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewModal((prev) => ({
+                        ...prev,
+                        useTteTags: !prev.useTteTags,
+                      }))
+                    }
+                    className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      previewModal.useTteTags
+                        ? 'bg-blue-600/20 text-blue-400 border-blue-500/30 shadow-inner'
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}
+                    title="Tag TTE Jateng mempertahankan format ${nomor_naskah}, ${ttd_pengirim}, dll."
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{previewModal.useTteTags ? 'Mode TTE: AKTIF' : 'Mode Langsung'}</span>
+                  </button>
+                )}
 
                 {/* Print Button */}
                 <button
@@ -2748,7 +2750,7 @@ export default function PokjaMonitoringPage() {
                 <FileText className="w-3.5 h-3.5 text-indigo-400" />
                 <span>
                   {previewModal.type === 'FOTO_DOKUMENTASI'
-                    ? 'Dokumentasi Resmi SMK Negeri 1 Adiwerna • Ukuran F4 (Folio) • Maksimal 2 Foto / Halaman'
+                    ? 'Lampiran Laporan Dokumentasi Kegiatan • Format F4 (Folio) • Maksimal 2 Foto / Halaman'
                     : 'Dokumen Resmi SMK Negeri 1 Adiwerna • Presisi 1 Halaman A4'}
                 </span>
               </div>

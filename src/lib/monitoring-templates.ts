@@ -1191,8 +1191,9 @@ export function generateLaporanHasilKegiatanHtml(
 /**
  * 📸 GENERATOR DOKUMENTASI FOTO KEGIATAN (MONITORING / PENERJUNAN / PENARIKAN)
  * Format Kertas: F4 (Folio 215mm x 330mm)
+ * Berupa LAMPIRAN DOKUMENTASI LAPORAN KEGIATAN (Tanpa Kop Surat, Tanpa Tanda Tangan)
+ * Nomor Surat & Keterangan Lampiran di pojok kanan atas
  * Maksimal 2 Foto per halaman
- * Nomor Surat di pojok kanan surat
  * Mendukung beberapa PT dalam 1 SPPD & penugasan dalam 1 dokumen terpadu
  * Keterangan foto kustom / dinamis per foto (opsional)
  */
@@ -1300,22 +1301,6 @@ export function generateDokumentasiFotoHtml(
   }
 
   const signatureDate = formatIndonesianDate(assignment.returnDate || assignment.monitoringDate);
-  const headmasterName = options?.schoolSetting?.headmaster || 'Joko Pramono, S.Pd., M.Ds';
-  const headmasterNip = options?.schoolSetting?.headmasterNip || '19690317 199802 1 004';
-
-  const tteSignatureLeftHtml = useTte
-    ? `
-      <div style="font-size: 8pt; color: #4b5563; margin-top: 15px; margin-bottom: 5px;">\${ttd_pengirim}</div>
-      <div style="font-weight: bold; text-decoration: underline;">\${nama_pengirim}</div>
-      <div>Pembina Utama Muda, IV/c</div>
-      <div>NIP. \${nip_pengirim}</div>
-    `
-    : `
-      <div style="height: 80px;"></div>
-      <div style="font-weight: bold; text-decoration: underline;">${headmasterName}</div>
-      <div>Pembina Utama Muda, IV/c</div>
-      <div>NIP. ${headmasterNip}</div>
-    `;
 
   // Bagi foto menjadi maksimal 2 foto per halaman F4
   const photoChunks: PhotoEntry[][] = [];
@@ -1331,44 +1316,53 @@ export function generateDokumentasiFotoHtml(
 
   const pagesHtml = photoChunks.map((chunk, pageIndex) => {
     const isFirstPage = pageIndex === 0;
-    const isLastPage = pageIndex === totalPages - 1;
     const pageNum = pageIndex + 1;
 
     let pageHeaderHtml = '';
     if (isFirstPage) {
       pageHeaderHtml = `
-        <!-- KOP SURAT RESMI (HALAMAN 1) -->
-        <div style="text-align: center; margin-bottom: 8px;">
-          <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
-        </div>
-
-        <!-- NOMOR SURAT DI POJOK KANAN SURAT -->
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
-          <table style="border: none; font-size: 10.5pt; font-family: 'Times New Roman', Times, serif;">
+        <!-- LAMPIRAN & NOMOR SURAT DI POJOK KANAN ATAS (TANPA KOP SURAT) -->
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
+          <table style="border: none; font-size: 9.5pt; font-family: 'Times New Roman', Times, serif; line-height: 1.35; width: auto;">
             <tr>
-              <td style="padding: 1px 4px; border: none; font-weight: bold;">Nomor Surat</td>
+              <td style="padding: 1px 4px; border: none;">Lampiran</td>
+              <td style="padding: 1px 4px; border: none;">:</td>
+              <td style="padding: 1px 4px; border: none;">Surat Perintah Tugas / SPPD</td>
+            </tr>
+            <tr>
+              <td style="padding: 1px 4px; border: none;">Nomor</td>
               <td style="padding: 1px 4px; border: none;">:</td>
               <td style="padding: 1px 4px; border: none; font-weight: bold;">${docNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 1px 4px; border: none;">Tanggal</td>
+              <td style="padding: 1px 4px; border: none;">:</td>
+              <td style="padding: 1px 4px; border: none;">${signatureDate}</td>
             </tr>
           </table>
         </div>
 
-        <!-- JUDUL DOKUMENTASI KEGIATAN -->
-        <div style="text-align: center; margin-bottom: 10px;">
-          <div style="font-size: 12pt; font-weight: bold; text-decoration: underline; letter-spacing: 0.5px; text-transform: uppercase;">
-            DOKUMENTASI KEGIATAN ${activityType} PKL SMK NEGERI 1 ADIWERNA
+        <!-- JUDUL LAPORAN KEGIATAN -->
+        <div style="text-align: center; margin-bottom: 14px;">
+          <div style="font-size: 12.5pt; font-weight: bold; text-decoration: underline; letter-spacing: 0.5px; text-transform: uppercase;">
+            LAPORAN DOKUMENTASI KEGIATAN ${activityType} PKL
           </div>
-          <div style="font-size: 11pt; font-weight: bold; text-transform: uppercase; margin-top: 2px;">
-            DI ${industryTitle}
+          <div style="font-size: 11pt; font-weight: bold; text-transform: uppercase; margin-top: 3px;">
+            SMK NEGERI 1 ADIWERNA DI ${industryTitle}
           </div>
         </div>
 
-        <!-- IDENTITAS & DATA RINGKAS (MENDUKUNG MULTI-PT) -->
-        <div style="margin-bottom: 12px; border: 1px solid #94a3b8; border-radius: 6px; padding: 6px 12px; background: #f8fafc; font-size: 10pt;">
-          <table style="width: 100%; border: none; line-height: 1.35; font-family: 'Times New Roman', Times, serif;">
+        <!-- IDENTITAS & DATA LAPORAN KEGIATAN (MENDUKUNG MULTI-PT) -->
+        <div style="margin-bottom: 14px; border: 1px solid #475569; border-radius: 6px; padding: 8px 12px; background: #f8fafc; font-size: 9.5pt;">
+          <table style="width: 100%; border: none; line-height: 1.4; font-family: 'Times New Roman', Times, serif;">
             <tr>
-              <td style="width: 140px; font-weight: bold; vertical-align: top;">Perusahaan / Industri</td>
+              <td style="width: 165px; font-weight: bold; vertical-align: top;">Nama Kegiatan</td>
               <td style="width: 12px; vertical-align: top;">:</td>
+              <td style="vertical-align: top;">Dokumentasi Pelaksanaan Kegiatan ${activityType} Siswa PKL</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; vertical-align: top;">Perusahaan / Industri</td>
+              <td style="vertical-align: top;">:</td>
               <td style="vertical-align: top; font-weight: bold;">
                 ${
                   hasMultipleIndustries
@@ -1398,7 +1392,7 @@ export function generateDokumentasiFotoHtml(
               <td style="vertical-align: top;">${dayDatePhrase}</td>
             </tr>
             <tr>
-              <td style="font-weight: bold; vertical-align: top;">Guru Petugas</td>
+              <td style="font-weight: bold; vertical-align: top;">Guru Petugas / Pelaksana</td>
               <td style="vertical-align: top;">:</td>
               <td style="vertical-align: top;">${teacher.name} (NIP. ${teacher.nip || teacher.username || '-'})</td>
             </tr>
@@ -1415,17 +1409,18 @@ export function generateDokumentasiFotoHtml(
     } else {
       pageHeaderHtml = `
         <!-- HEADER HALAMAN LANJUTAN -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #000; padding-bottom: 5px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #000; padding-bottom: 5px; margin-bottom: 14px;">
           <div>
             <div style="font-size: 10pt; font-weight: bold; text-transform: uppercase;">
-              DOKUMENTASI KEGIATAN ${activityType} PKL SMK NEGERI 1 ADIWERNA DI ${industryTitle}
+              LAPORAN DOKUMENTASI KEGIATAN ${activityType} PKL - ${industryTitle}
             </div>
             <div style="font-size: 9pt; color: #475569;">
-              Lembar ${pageNum} dari ${totalPages} (Format F4 / Folio)
+              Lembar ${pageNum} dari ${totalPages} (Lampiran Format F4 / Folio)
             </div>
           </div>
-          <div style="text-align: right; font-size: 9.5pt;">
-            <div style="font-weight: bold;">Nomor Surat: ${docNumber}</div>
+          <div style="text-align: right; font-size: 9pt; line-height: 1.3;">
+            <div>Lampiran Surat Tugas / SPPD</div>
+            <div style="font-weight: bold;">Nomor: ${docNumber}</div>
           </div>
         </div>
       `;
@@ -1440,15 +1435,12 @@ export function generateDokumentasiFotoHtml(
         </div>
       `;
     } else {
-      let frameHeight = '85mm';
-      if (isFirstPage && isLastPage) {
-        frameHeight = chunk.length === 1 ? '98mm' : '65mm';
-      } else if (isFirstPage) {
-        frameHeight = chunk.length === 1 ? '120mm' : '82mm';
-      } else if (isLastPage) {
-        frameHeight = chunk.length === 1 ? '125mm' : '85mm';
+      // Tanpa TTD dan tanpa Kop Surat, foto mendapatkan proporsi visual yang sangat luas & nyaman
+      let frameHeight = '100mm';
+      if (isFirstPage) {
+        frameHeight = chunk.length === 1 ? '135mm' : '96mm';
       } else {
-        frameHeight = chunk.length === 1 ? '135mm' : '100mm';
+        frameHeight = chunk.length === 1 ? '155mm' : '115mm';
       }
 
       const photoCards = chunk.map((photoItem, idxInChunk) => {
@@ -1458,10 +1450,10 @@ export function generateDokumentasiFotoHtml(
         const customCaption = photoItem.caption && photoItem.caption.trim();
         const displayCaption = customCaption
           ? `<strong>Foto ${photoGlobalIndex}.</strong> ${customCaption}`
-          : `<strong>Foto ${photoGlobalIndex}.</strong> Dokumentasi Kegiatan ${activityType} PKL di ${primaryIndustryName}`;
+          : `<strong>Foto ${photoGlobalIndex}.</strong> Dokumentasi Pelaksanaan Kegiatan ${activityType} PKL di ${primaryIndustryName}`;
 
         return `
-          <div style="margin-bottom: ${chunk.length === 1 ? '14px' : '8px'}; border: 1px solid #64748b; border-radius: 6px; padding: 5px; background: #ffffff; page-break-inside: avoid; box-sizing: border-box;">
+          <div style="margin-bottom: ${chunk.length === 1 ? '14px' : '10px'}; border: 1px solid #475569; border-radius: 6px; padding: 6px; background: #ffffff; page-break-inside: avoid; box-sizing: border-box;">
             <div style="height: ${frameHeight}; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #0f172a; border-radius: 4px;">
               <img 
                 src="${safeUrl}" 
@@ -1470,7 +1462,7 @@ export function generateDokumentasiFotoHtml(
                 onerror="this.onerror=null; this.src='/images/logo-sekolah.png';"
               />
             </div>
-            <div style="margin-top: 4px; text-align: center; font-size: 9.5pt; font-family: 'Times New Roman', Times, serif; color: #0f172a; line-height: 1.3;">
+            <div style="margin-top: 5px; text-align: center; font-size: 9.5pt; font-family: 'Times New Roman', Times, serif; color: #0f172a; line-height: 1.35;">
               ${displayCaption}
             </div>
           </div>
@@ -1484,35 +1476,10 @@ export function generateDokumentasiFotoHtml(
       `;
     }
 
-    // Tanda tangan di lembar terakhir
-    let signatureHtml = '';
-    if (isLastPage) {
-      signatureHtml = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; page-break-inside: avoid;">
-          <!-- Kolom Kiri: Mengetahui Kepala Sekolah -->
-          <div style="width: 52%; font-size: 10pt; line-height: 1.35;">
-            <div>Mengetahui,</div>
-            <div>Kepala SMK Negeri 1 Adiwerna</div>
-            ${tteSignatureLeftHtml}
-          </div>
-
-          <!-- Kolom Kanan: Guru Petugas / Penyusun -->
-          <div style="width: 44%; font-size: 10pt; line-height: 1.35;">
-            <div>Adiwerna, &nbsp;${signatureDate}</div>
-            <div>Guru Petugas,</div>
-            <div style="height: 80px;"></div>
-            <div style="font-weight: bold; text-decoration: underline;">${teacher.name}</div>
-            <div>NIP. ${teacher.nip || teacher.username || '-'}</div>
-          </div>
-        </div>
-      `;
-    }
-
     return `
       <div class="sheet-page" style="${!isFirstPage ? 'page-break-before: always; break-before: page;' : ''}">
         ${pageHeaderHtml}
         ${photosHtml}
-        ${signatureHtml}
       </div>
     `;
   }).join('');
@@ -1521,7 +1488,7 @@ export function generateDokumentasiFotoHtml(
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Dokumentasi Kegiatan ${activityType} PKL - ${primaryIndustryName}</title>
+  <title>Laporan Dokumentasi Kegiatan ${activityType} PKL - ${primaryIndustryName}</title>
   <style>
     @page {
       size: 215mm 330mm; /* Standar Ukuran Kertas F4 / Folio Kedinasan */
