@@ -1353,21 +1353,22 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
         }
       }
 
-      // 4. DOKUMENTASI KEGIATAN - Foto Pelaksanaan Kegiatan PKL (F4 Official PDF)
+      // 4. DOKUMENTASI KEGIATAN & FOTO ASLI
       const parsedPhotos = parseAssignmentPhotos(assign.activityPhotos);
       if (parsedPhotos.length > 0) {
+        // 4A. LAPORAN DOKUMENTASI KEGIATAN (F4 Official PDF) disimpan di folder "Laporan Kegiatan"
         try {
           const pdfBuffer = await generateDokumentasiFotoPdfBuffer(assign, parsedPhotos, schoolSettings[0]);
           if (pdfBuffer) {
-            const fileName = `Dokumentasi_Kegiatan_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.pdf`;
-            const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, 'application/pdf', pdfBuffer, dokumentasiFolderId);
+            const pdfFileName = `Dokumentasi_Kegiatan_${safeTeacherName}_${safeIndustryName}${dateStr ? `_${dateStr}` : ''}.pdf`;
+            const uploadRes = await uploadOrUpdateFileInDrive(drive, pdfFileName, 'application/pdf', pdfBuffer, hasilKegiatanFolderId);
             if (uploadRes.action === 'created') totalSynced++;
             else totalUpdated++;
 
             syncDetails.push({
               type: 'PENUGASAN_DOKUMENTASI',
-              path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Dokumentasi Kegiatan`,
-              fileName: fileName,
+              path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Laporan Kegiatan`,
+              fileName: pdfFileName,
               action: uploadRes.action,
             });
           }
@@ -1375,12 +1376,49 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           totalFailed++;
           syncDetails.push({
             type: 'PENUGASAN_DOKUMENTASI',
-            path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Dokumentasi Kegiatan`,
+            path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Laporan Kegiatan`,
             fileName: `Dokumentasi_Kegiatan_${safeTeacherName}_${safeIndustryName}.pdf`,
             action: 'failed',
             error: err?.message || String(err),
           });
-          console.error(`[BACKUP SERVICE] Gagal mengunggah Dokumentasi Kegiatan ${safeTeacherName}:`, err?.message || err);
+          console.error(`[BACKUP SERVICE] Gagal mengunggah PDF Dokumentasi Kegiatan ${safeTeacherName}:`, err?.message || err);
+        }
+
+        // 4B. FOTO ASLI KEGIATAN disimpan di folder "Dokumentasi Kegiatan"
+        // Format penamaan persis: foto-industri-petugas-tanggal-1.jpg
+        const photoSlugIndustry = sanitizeFolderName(industry.name || 'industri').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const photoSlugTeacher = sanitizeFolderName(teacher.name || 'petugas').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const photoSlugDate = dateStr ? dateStr.replace(/[^0-9-]/g, '') : 'kegiatan';
+
+        for (let pIdx = 0; pIdx < parsedPhotos.length; pIdx++) {
+          const photoItem = parsedPhotos[pIdx];
+          const photoFileName = `foto-${photoSlugIndustry}-${photoSlugTeacher}-${photoSlugDate}-${pIdx + 1}.jpg`;
+          try {
+            const rawRes = await resolveRawImageBuffer(photoItem.url);
+            if (rawRes && rawRes.buffer && rawRes.buffer.length > 0) {
+              const jpegBuf = await sharp(rawRes.buffer).jpeg({ quality: 90 }).toBuffer();
+              const uploadRes = await uploadOrUpdateFileInDrive(drive, photoFileName, 'image/jpeg', jpegBuf, dokumentasiFolderId);
+              if (uploadRes.action === 'created') totalSynced++;
+              else totalUpdated++;
+
+              syncDetails.push({
+                type: 'PENUGASAN_DOKUMENTASI',
+                path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Dokumentasi Kegiatan`,
+                fileName: photoFileName,
+                action: uploadRes.action,
+              });
+            }
+          } catch (photoErr: any) {
+            totalFailed++;
+            syncDetails.push({
+              type: 'PENUGASAN_DOKUMENTASI',
+              path: `${academicYearName}/${departmentName}/${periodName}/Penugasan/${category}/Dokumentasi Kegiatan`,
+              fileName: photoFileName,
+              action: 'failed',
+              error: photoErr?.message || String(photoErr),
+            });
+            console.error(`[BACKUP SERVICE] Gagal mengunggah foto asli ${photoFileName}:`, photoErr?.message || photoErr);
+          }
         }
       }
     } catch (assignErr: any) {
