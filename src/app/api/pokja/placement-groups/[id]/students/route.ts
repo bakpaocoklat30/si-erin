@@ -96,8 +96,14 @@ export async function POST(
       return NextResponse.json({ error: 'Pilih siswa.' }, { status: 400 });
     }
 
-    const group = await db.placementGroup.findUnique({ where: { id } });
+    const group = await db.placementGroup.findUnique({
+      where: { id },
+      include: { period: true }
+    });
     if (!group) return NextResponse.json({ error: 'Kelompok tidak ditemukan.' }, { status: 404 });
+
+    const effectiveStartDate = group.startDate || group.period?.startDate || null;
+    const effectiveEndDate = group.endDate || group.period?.endDate || null;
 
     for (const studentId of studentIds) {
       const existing = await db.internshipPlacement.findUnique({ where: { studentId } });
@@ -109,6 +115,8 @@ export async function POST(
             status: 'DISETUJUI_INDUSTRI',
             stage: 4,
             groupId: group.id,
+            startDate: existing.startDate || effectiveStartDate,
+            endDate: existing.endDate || effectiveEndDate,
           }
         });
       } else {
@@ -119,6 +127,8 @@ export async function POST(
             status: 'DISETUJUI_INDUSTRI',
             stage: 4,
             groupId: group.id,
+            startDate: effectiveStartDate,
+            endDate: effectiveEndDate,
           }
         });
       }

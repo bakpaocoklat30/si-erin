@@ -108,6 +108,41 @@ export async function GET() {
             longitude: rawPlacement.industry.longitude ?? null
           } : null
         };
+
+        // Jika siswa memiliki kelompok manual (groupId) dan belum memiliki tanggal kustom tersendiri,
+        // gunakan tanggal resmi dari kelompok manual tersebut
+        if (activePlacement.groupId) {
+          try {
+            const pg = await db.placementGroup.findUnique({
+              where: { id: activePlacement.groupId },
+              include: { period: true }
+            });
+            if (pg) {
+              const effectiveStart = pg.startDate || pg.period?.startDate || null;
+              const effectiveEnd = pg.endDate || pg.period?.endDate || null;
+
+              if (!activePlacement.startDate && effectiveStart) {
+                activePlacement.startDate = effectiveStart;
+              }
+              if (!activePlacement.endDate && effectiveEnd) {
+                activePlacement.endDate = effectiveEnd;
+              }
+
+              // Auto-heal data di database agar tersimpan permanen
+              if ((!rawPlacement.startDate && effectiveStart) || (!rawPlacement.endDate && effectiveEnd)) {
+                await db.internshipPlacement.update({
+                  where: { id: rawPlacement.id },
+                  data: {
+                    startDate: effectiveStart,
+                    endDate: effectiveEnd,
+                  }
+                }).catch(() => {});
+              }
+            }
+          } catch (e) {
+            console.warn('Gagal memuat tanggal kelompok manual siswa:', e);
+          }
+        }
       }
     }
 
@@ -194,7 +229,18 @@ export async function GET() {
     let allowedIndustryIdsFromPeriod: string[] = [];
 
     try {
-      if (student.className) {
+      // Jika siswa terdaftar di kelompok penempatan manual, prioritaskan periode kelompoknya
+      if (rawPlacement?.groupId) {
+        const pg = await db.placementGroup.findUnique({
+          where: { id: rawPlacement.groupId },
+          include: { period: true }
+        });
+        if (pg?.period) {
+          activePeriod = pg.period;
+        }
+      }
+
+      if (!activePeriod && student.className) {
         const studentClassRoom = await db.classRoom.findFirst({
           where: { name: { equals: student.className, mode: 'insensitive' } },
           include: { period: true }
@@ -299,10 +345,14 @@ export async function GET() {
       });
     }
 
-    // 6b. Ambil tanggal khusus yang disepakati Pokja per industri untuk jurusan siswa
+    // 6b. Ambil tanggal khusus yang disepakati Pokja per industri untuk jurusan & kelas siswa
+    // (Batasi ke kelas yang sama agar tidak tertukar dengan kelompok lain di industri yang sama)
     const deptPlacements = await db.internshipPlacement.findMany({
       where: {
-        student: { department: { contains: student.department || '', mode: 'insensitive' } },
+        student: {
+          department: { contains: student.department || '', mode: 'insensitive' },
+          ...(student.className ? { className: { equals: student.className, mode: 'insensitive' } } : {})
+        },
         startDate: { not: null },
         endDate: { not: null },
         status: { notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL'] }
@@ -507,7 +557,10 @@ export async function POST(request: Request) {
     const existingGroupPlacement = await db.internshipPlacement.findFirst({
       where: {
         industryId: industryId,
-        student: { department: { contains: student.department || '', mode: 'insensitive' } },
+        student: {
+          department: { contains: student.department || '', mode: 'insensitive' },
+          ...(student.className ? { className: { equals: student.className, mode: 'insensitive' } } : {})
+        },
         startDate: { not: null },
         endDate: { not: null },
         status: { notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL'] }
