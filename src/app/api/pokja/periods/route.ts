@@ -142,6 +142,11 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const userRole = (session.user as any)?.role;
     const userDepartment = (session.user as any)?.department;
     const isPokjaScoped = userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL';
