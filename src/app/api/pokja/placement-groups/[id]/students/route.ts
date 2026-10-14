@@ -20,8 +20,23 @@ export async function GET(
     let whereCondition: any = { groupId: id };
 
     if (userRole === 'POKJA' && userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
+      const deptRecord = await db.department.findFirst({
+        where: {
+          OR: [
+            { name: { contains: userDept, mode: 'insensitive' } },
+            { code: { equals: userDept, mode: 'insensitive' } }
+          ]
+        }
+      });
+
+      const deptTerms = [userDept];
+      if (deptRecord?.name && !deptTerms.includes(deptRecord.name)) deptTerms.push(deptRecord.name);
+      if (deptRecord?.code && !deptTerms.includes(deptRecord.code)) deptTerms.push(deptRecord.code);
+
       whereCondition.student = {
-        department: { contains: userDept, mode: 'insensitive' }
+        OR: deptTerms.map(term => ({
+          department: { contains: term, mode: 'insensitive' as const }
+        }))
       };
     }
 

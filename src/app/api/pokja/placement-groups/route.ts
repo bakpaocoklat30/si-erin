@@ -17,11 +17,37 @@ export async function GET(request: Request) {
     let placementWhere: any = { groupId: { not: null } };
 
     if (userRole === 'POKJA' && userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
+      // Cari padanan nama dan kode jurusan (misal TKJ <-> Teknik Komputer dan Jaringan)
+      const deptRecord = await db.department.findFirst({
+        where: {
+          OR: [
+            { name: { contains: userDept, mode: 'insensitive' } },
+            { code: { equals: userDept, mode: 'insensitive' } }
+          ]
+        }
+      });
+
+      const deptTerms = [userDept];
+      if (deptRecord?.name && !deptTerms.includes(deptRecord.name)) deptTerms.push(deptRecord.name);
+      if (deptRecord?.code && !deptTerms.includes(deptRecord.code)) deptTerms.push(deptRecord.code);
+
+      const deptConditions = deptTerms.map(term => ({
+        department: { contains: term, mode: 'insensitive' as const }
+      }));
+
+      // Tampilkan kelompok jurusan yang sesuai, serta kelompok global (ALL/null) agar kelompok lama tidak hilang
       groupWhere = {
-        department: { contains: userDept, mode: 'insensitive' }
+        OR: [
+          ...deptConditions,
+          { department: 'ALL' },
+          { department: null },
+          { department: '' },
+          { department: { equals: 'Semua Jurusan', mode: 'insensitive' as const } }
+        ]
       };
+
       placementWhere.student = {
-        department: { contains: userDept, mode: 'insensitive' }
+        OR: deptConditions
       };
     }
 

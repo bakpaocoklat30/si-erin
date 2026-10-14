@@ -55,60 +55,31 @@ export default function ManualPlacementPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoadingText('Memuat data industri...');
-        const indRes = await fetch('/api/pokja/industries').then(res => res.json());
-        if (indRes.success) setIndustries(indRes.data);
+        setLoadingText('Memuat data kelompok...');
+        // Muat data kelompok terlebih dahulu agar daftar kelompok langsung tampil
+        await fetchGroups();
 
-        setLoadingText('Memuat data periode...');
-        const perRes = await fetch('/api/pokja/periods').then(res => res.json());
+        setLoadingText('Memuat data industri dan periode...');
+        const [indRes, perRes] = await Promise.all([
+          fetch('/api/pokja/industries').then(res => res.json()).catch(() => ({ success: false, data: [] })),
+          fetch('/api/pokja/periods').then(res => res.json()).catch(() => ({ success: false, data: [] })),
+        ]);
+        if (indRes.success) setIndustries(indRes.data);
         if (perRes.success) setPeriods(perRes.data);
 
-        setLoadingText('Membangun koneksi ke server untuk memuat data siswa...');
-        const stuResObj = await fetch('/api/pokja/students');
-        if (!stuResObj.ok) throw new Error('HTTP error when fetching students');
-
-        const stuTotal = parseInt(stuResObj.headers.get('content-length') || '0', 10);
-        const stuReader = stuResObj.body?.getReader();
-        let stuJson;
-
-        if (!stuReader) {
-          setLoadingText('Memproses JSON siswa (Stream tidak didukung)...');
-          stuJson = await stuResObj.json();
-        } else {
-          let receivedLength = 0;
-          const chunks = [];
-          while (true) {
-            const { done, value } = await stuReader.read();
-            if (done) break;
-            chunks.push(value);
-            receivedLength += value.length;
-            if (stuTotal) {
-              const percent = Math.round((receivedLength / stuTotal) * 100);
-              setLoadingText(`Mengunduh data siswa... ${percent}%`);
-            } else {
-              setLoadingText(`Mengunduh data siswa... ${(receivedLength / 1024 / 1024).toFixed(2)} MB`);
-            }
+        setLoadingText('Memuat data siswa...');
+        try {
+          const stuResObj = await fetch('/api/pokja/students');
+          if (stuResObj.ok) {
+            const stuJson = await stuResObj.json();
+            if (stuJson.success) setAllStudents(stuJson.data);
           }
-          setLoadingText('Mengekstrak paket JSON siswa...');
-          const chunksAll = new Uint8Array(receivedLength);
-          let position = 0;
-          for (let chunk of chunks) {
-            chunksAll.set(chunk, position);
-            position += chunk.length;
-          }
-          const result = new TextDecoder("utf-8").decode(chunksAll);
-          setLoadingText('Parsing struktur data UI siswa...');
-          stuJson = JSON.parse(result);
+        } catch (stuErr) {
+          console.warn('Peringatan: Gagal memuat daftar siswa:', stuErr);
         }
-
-        if (stuJson.success) setAllStudents(stuJson.data);
-
-        setLoadingText('Memuat data kelompok...');
-        await fetchGroups();
-        
       } catch (err) {
-        console.error(err);
-        setErrorMsg('Gagal memuat data awal.');
+        console.error('Error loading manual placement data:', err);
+        setErrorMsg('Gagal memuat sebagian data awal.');
       } finally {
         setLoadingText('');
         setLoading(false);
