@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { saveBase64ToFile } from '@/lib/file-utils';
+import { loadPeriodContext, resolvePlacementPeriod, getIndustryPeriodQuota } from '@/lib/period-resolver';
 
 // ==========================================
 // HELPER SANITASI DATA (PREVENT PRISMA ERRORS)
@@ -62,6 +63,19 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Forbidden - Akses khusus Tim Pokja / Admin' }, { status: 403 });
     }
 
+    const userDept = (session.user as any)?.department;
+    const periodCtx = await loadPeriodContext();
+
+    let pokjaActivePeriod: any = null;
+    if (userDept && userDept.toLowerCase() !== 'semua jurusan' && userDept.toUpperCase() !== 'ALL') {
+      pokjaActivePeriod = periodCtx.periods.find(
+        p => p.isActive && p.department && (p.department.toLowerCase().includes(userDept.toLowerCase()) || userDept.toLowerCase().includes(p.department.toLowerCase()))
+      );
+    }
+    if (!pokjaActivePeriod) {
+      pokjaActivePeriod = periodCtx.periods.find(p => p.isActive) || periodCtx.periods[0] || null;
+    }
+
     // 1. Ambil data industri DUDI beserta penempatannya
     const rawIndustries = await db.industry.findMany({
       select: {
@@ -94,10 +108,19 @@ export async function GET() {
         createdAt: true,
         updatedAt: true,
         placements: {
+          where: {
+            status: { notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL'] }
+          },
           select: {
             id: true,
             status: true,
-            suratBalasanStatus: true
+            suratBalasanStatus: true,
+            groupId: true,
+            startDate: true,
+            endDate: true,
+            student: {
+              select: { className: true, department: true }
+            }
           }
         }
       },
@@ -125,18 +148,38 @@ export async function GET() {
     // 3. Format data & kalkulasi sisa kuota (jika totalQuota = -1, artinya Unlimited)
     const formattedIndustries = rawIndustries.map((ind) => {
       const activeAcceptedCount = ind.placements
-        ? ind.placements.filter(
-            (p) => p.status === 'DISETUJUI_INDUSTRI' || p.suratBalasanStatus === 'DISETUJUI'
-          ).length
+        ? ind.placements.filter((p) => {
+            const isAcceptedStatus = [
+              'DISETUJUI_INDUSTRI',
+              'PEMBUATAN_SURAT',
+              'SURAT_DITERBITKAN',
+              'LETTER_ISSUED',
+              'SENT_DUDI',
+              'DITERIMA',
+              'DITERIMA_INDUSTRI',
+              'COMPLETED',
+              'SELESAI_PKL'
+            ].includes(p.status) || p.suratBalasanStatus === 'DISETUJUI';
+
+            if (!isAcceptedStatus) return false;
+            if (pokjaActivePeriod) {
+              const matchedP = resolvePlacementPeriod(p, periodCtx);
+              return matchedP && matchedP.id === pokjaActivePeriod.id;
+            }
+            return true;
+          }).length
         : 0;
 
-      const isUnlimited = ind.totalQuota === -1;
+      const quotaInfo = getIndustryPeriodQuota(ind, pokjaActivePeriod);
+      const isUnlimited = quotaInfo.isUnlimited;
+      const effectiveQuota = quotaInfo.totalQuota;
       const remainingQuota = isUnlimited 
         ? -1 
-        : Math.max(0, (ind.totalQuota || 0) - activeAcceptedCount);
+        : Math.max(0, effectiveQuota - activeAcceptedCount);
 
       return {
         ...ind,
+        totalQuota: isUnlimited ? -1 : effectiveQuota,
         activeAcceptedCount,
         remainingQuota,
         isUnlimited

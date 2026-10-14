@@ -13,6 +13,7 @@ import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { notifyTuNewPendingPermohonan } from '@/lib/whatsapp';
+import { loadPeriodContext, resolvePlacementPeriod, getIndustryPeriodQuota } from '@/lib/period-resolver';
 
 // 1. GET: Ambil Data Pengajuan Terkelompok yang Perlu Diverifikasi (Status: PENGAJUAN_DIKIRIM / REVIEW_POKJA)
 export async function GET(request: Request) {
@@ -43,13 +44,7 @@ export async function GET(request: Request) {
       orderBy: { appliedAt: 'desc' }
     });
 
-    const classRooms = await db.classRoom.findMany({
-      include: { period: true }
-    });
-
-    const periods = await db.internshipPeriod.findMany({
-      orderBy: { startDate: 'desc' }
-    });
+    const periodCtx = await loadPeriodContext();
 
     // 🌟 QUERY PENEMPATAN YANG SUDAH TERVERIFIKASI PADA INDUSTRI TERKAIT
     const industryIds = Array.from(new Set(placements.map(p => p.industryId).filter(Boolean)));
@@ -74,6 +69,9 @@ export async function GET(request: Request) {
       select: {
         id: true,
         industryId: true,
+        groupId: true,
+        startDate: true,
+        endDate: true,
         status: true,
         student: {
           select: {
@@ -93,10 +91,7 @@ export async function GET(request: Request) {
       const student = placement.student;
       const industry = placement.industry;
 
-      const matchedClass = classRooms.find(c => c.name.toLowerCase() === student?.className?.toLowerCase());
-      const matchedPeriod = matchedClass?.period || 
-                            periods.find(p => p.department.toLowerCase().includes((student?.department || '').toLowerCase())) || 
-                            periods[0];
+      const matchedPeriod = resolvePlacementPeriod(placement, periodCtx);
 
       const periodId = matchedPeriod ? matchedPeriod.id : 'PERIODE_DEFAULT';
       const periodName = matchedPeriod ? matchedPeriod.name : 'Periode Prakerin Standar';
@@ -107,35 +102,17 @@ export async function GET(request: Request) {
       const groupKey = `${industryId}___${periodId}`;
 
       if (!groupedMap[groupKey]) {
-        // Kalkulasi kuota dan penempatan aktif yang sudah mengisi industri ini
-        const verifiedForThisInd = existingPlacements.filter(ep => ep.industryId === industryId);
+        // Kalkulasi kuota dan penempatan aktif yang sudah mengisi industri ini KHUSUS PADA PERIODE INI
+        const verifiedForThisInd = existingPlacements.filter(ep => {
+          if (ep.industryId !== industryId) return false;
+          const epPeriod = resolvePlacementPeriod(ep, periodCtx);
+          return epPeriod && epPeriod.id === periodId;
+        });
         const verifiedCount = verifiedForThisInd.length;
 
-        let effectiveQuota = industry?.totalQuota ?? 0;
-        let isUnlimited = effectiveQuota === -1 || effectiveQuota >= 999;
-
-        if (matchedPeriod?.activeIndustries) {
-          try {
-            let parsed: any[] = [];
-            if (typeof matchedPeriod.activeIndustries === 'string') {
-              parsed = JSON.parse(matchedPeriod.activeIndustries);
-            } else if (Array.isArray(matchedPeriod.activeIndustries)) {
-              parsed = matchedPeriod.activeIndustries;
-            }
-            const cfg = parsed.find((item: any) => (item.industryId || item.id) === industryId);
-            if (cfg) {
-              if (cfg.isUnlimited) {
-                isUnlimited = true;
-                effectiveQuota = -1;
-              } else if (typeof cfg.quota === 'number') {
-                effectiveQuota = cfg.quota;
-                isUnlimited = false;
-              }
-            }
-          } catch (err) {
-            // fallback ke kuota default industri
-          }
-        }
+        const periodQuotaInfo = getIndustryPeriodQuota(industry || { id: industryId }, matchedPeriod);
+        const effectiveQuota = periodQuotaInfo.totalQuota;
+        const isUnlimited = periodQuotaInfo.isUnlimited;
 
         const remainingQuota = isUnlimited ? 999 : Math.max(0, effectiveQuota - verifiedCount);
         const isFull = !isUnlimited && remainingQuota <= 0;

@@ -71,8 +71,20 @@ export async function GET(request: Request) {
 
       periods = await (db as any).internshipPeriod.findMany({
         where: whereClause,
-        orderBy: { createdAt: 'desc' }
+        orderBy: [
+          { startDate: 'desc' },
+          { createdAt: 'desc' }
+        ]
       });
+
+      if (isPokjaScoped) {
+        // Prioritaskan periode yang secara spesifik milik jurusan Pokja ini di urutan teratas
+        periods.sort((a, b) => {
+          const aDeptMatch = a.department && a.department.toLowerCase().includes(userDepartment.toLowerCase()) ? 1 : 0;
+          const bDeptMatch = b.department && b.department.toLowerCase().includes(userDepartment.toLowerCase()) ? 1 : 0;
+          return bDeptMatch - aDeptMatch;
+        });
+      }
       
       const allowedIndustryIds = new Set(allIndustries.map(i => i.id));
       // Karena sekarang activeIndustries adalah tipe Json di skema, Prisma akan otomatis mengembalikannya sebagai array/object
@@ -168,43 +180,57 @@ export async function PUT(request: Request) {
       if (typeof isActive === 'boolean') updateData.isActive = isActive;
 
       if (activeIndustries !== undefined) {
+        // Sanitasi konfigurasi industri: jamin tipe angka pada kuota dan boolean isUnlimited
+        const sanitizedIndustries = Array.isArray(activeIndustries) ? activeIndustries.map((item: any) => ({
+          industryId: String(item.industryId || item.id || ''),
+          quota: typeof item.quota === 'number' ? item.quota : (parseInt(item.quota, 10) || 5),
+          isUnlimited: Boolean(item.isUnlimited) || item.quota === -1 || item.quota >= 999
+        })).filter((item: any) => Boolean(item.industryId)) : [];
+
         if (isPokjaScoped) {
           // Ambil konfigurasi industri yang ada saat ini di DB
           const existing = await (db as any).internshipPeriod.findUnique({
             where: { id },
-            select: { activeIndustries: true }
+            select: { activeIndustries: true, department: true }
           });
-          const currentAll = Array.isArray(existing?.activeIndustries) ? existing.activeIndustries : [];
 
-          // Dapatkan ID industri yang merupakan wewenang jurusan Pokja ini
-          const isTkj = userDepartment.toLowerCase().includes('tkj') || userDepartment.toLowerCase().includes('komputer');
-          const userDeptIndustries = await db.industry.findMany({
-            where: {
-              OR: [
-                { department: { contains: userDepartment, mode: 'insensitive' } },
-                {
-                  placements: {
-                    some: {
-                      student: {
-                        department: { contains: userDepartment, mode: 'insensitive' }
+          // Jika periode ini secara spesifik milik jurusan Pokja ini, perbarui langsung tanpa mencampuradukkan
+          const isDeptSpecific = existing?.department && existing.department.toLowerCase().includes(userDepartment.toLowerCase());
+          if (isDeptSpecific) {
+            updateData.activeIndustries = sanitizedIndustries;
+          } else {
+            const currentAll = Array.isArray(existing?.activeIndustries) ? existing.activeIndustries : [];
+
+            // Dapatkan ID industri yang merupakan wewenang jurusan Pokja ini
+            const isTkj = userDepartment.toLowerCase().includes('tkj') || userDepartment.toLowerCase().includes('komputer');
+            const userDeptIndustries = await db.industry.findMany({
+              where: {
+                OR: [
+                  { department: { contains: userDepartment, mode: 'insensitive' } },
+                  {
+                    placements: {
+                      some: {
+                        student: {
+                          department: { contains: userDepartment, mode: 'insensitive' }
+                        }
                       }
                     }
-                  }
-                },
-                ...(isTkj ? [{ department: null }, { department: 'Semua Jurusan' }] : [])
-              ]
-            },
-            select: { id: true }
-          });
-          const myDeptIndIds = new Set(userDeptIndustries.map(i => i.id));
+                  },
+                  ...(isTkj ? [{ department: null }, { department: 'Semua Jurusan' }] : [])
+                ]
+              },
+              select: { id: true }
+            });
+            const myDeptIndIds = new Set(userDeptIndustries.map(i => i.id));
 
-          // Pertahankan konfigurasi industri milik jurusan lain
-          const otherDeptIndustries = currentAll.filter((item: any) => !myDeptIndIds.has(item.industryId));
+            // Pertahankan konfigurasi industri milik jurusan lain
+            const otherDeptIndustries = currentAll.filter((item: any) => !myDeptIndIds.has(item.industryId));
 
-          // Gabungkan konfigurasi baru milik jurusan ini dengan milik jurusan lain
-          updateData.activeIndustries = [...otherDeptIndustries, ...activeIndustries];
+            // Gabungkan konfigurasi baru milik jurusan ini dengan milik jurusan lain
+            updateData.activeIndustries = [...otherDeptIndustries, ...sanitizedIndustries];
+          }
         } else {
-          updateData.activeIndustries = activeIndustries;
+          updateData.activeIndustries = sanitizedIndustries;
         }
       }
 

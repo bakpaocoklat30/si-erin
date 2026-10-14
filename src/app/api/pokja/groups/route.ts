@@ -20,6 +20,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { saveBase64ToFile } from '@/lib/file-utils';
 import { notifyStudentLetterIssued } from '@/lib/whatsapp';
+import { loadPeriodContext, resolvePlacementPeriod } from '@/lib/period-resolver';
 
 // List Role yang Berhak Mengakses Data Kelompok & Persuratan
 const ALLOWED_ROLES = ['POKJA', 'TIM_POKJA', 'ADMIN', 'TATA_USAHA', 'TATA USAHA', 'TATAUSAHA', 'TU', 'SUPER_ADMIN'];
@@ -184,24 +185,14 @@ export async function GET(request: Request) {
     const hasPengantaranSet = new Set(pengantaranList.map(p => p.id));
     const hasPenarikanSet = new Set(penarikanList.map(p => p.id));
 
+    const periodCtx = await loadPeriodContext();
     const groupedMap: Record<string, any> = {};
 
     placements.forEach((placement: any) => {
       const student = placement.student;
       const industry = placement.industry;
 
-      const manualGroup = placement.groupId ? placementGroups.find(g => g.id === placement.groupId) : null;
-      let matchedPeriod = null;
-      
-      if (manualGroup) {
-        matchedPeriod = periods.find(p => p.id === manualGroup.periodId);
-      } else {
-        const matchedClass = classRooms.find(c => c.name.toLowerCase() === student?.className?.toLowerCase());
-        matchedPeriod = matchedClass?.period || 
-                        periods.find(p => p.department.toLowerCase().includes((student?.department || '').toLowerCase())) || 
-                        periods[0];
-      }
-
+      const matchedPeriod = resolvePlacementPeriod(placement, periodCtx);
       const periodId = matchedPeriod ? matchedPeriod.id : 'PERIODE_DEFAULT';
       const periodName = matchedPeriod ? matchedPeriod.name : 'Periode Prakerin Standar';
 

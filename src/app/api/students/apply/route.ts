@@ -16,6 +16,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { saveBase64ToFile } from '@/lib/file-utils';
 import { notifyPokjaNewApplication } from '@/lib/whatsapp';
+import { loadPeriodContext, resolvePlacementPeriod, getIndustryPeriodQuota } from '@/lib/period-resolver';
 
 // Helper terisolasi untuk mendeteksi instance model InternshipPlacement secara presisi
 function getPlacementClient() {
@@ -376,61 +377,43 @@ export async function GET() {
     });
 
     // 6. HITUNG SISA KUOTA TERHUBUNG DENGAN KONFIGURASI PERIODE POKJA & DATABASE
-    // Hanya hitung siswa yang berada dalam periode yang sama (agar siswa gelombang/periode lain tidak menghabiskan kuota periode ini)
+    // Hanya hitung siswa yang secara deterministik berada dalam periode yang sama
     const activeCountsMap: Record<string, number> = {};
     try {
-      let activePlacementsWhere: any = {
-        status: {
-          notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
-        }
-      };
-
-      if (activePeriod) {
-        const periodClassRooms = await db.classRoom.findMany({
-          where: { periodId: activePeriod.id },
-          select: { name: true }
-        });
-        const periodClassNames = periodClassRooms.map(c => c.name);
-
-        const periodGroups = await db.placementGroup.findMany({
-          where: { periodId: activePeriod.id },
-          select: { id: true }
-        });
-        const periodGroupIds = periodGroups.map(g => g.id);
-
-        const periodConditions: any[] = [];
-        if (periodGroupIds.length > 0) {
-          periodConditions.push({ groupId: { in: periodGroupIds } });
-        }
-        if (periodClassNames.length > 0) {
-          periodConditions.push({ student: { className: { in: periodClassNames } } });
-        }
-        if (activePeriod.startDate && activePeriod.endDate) {
-          const pStart = new Date(activePeriod.startDate);
-          const pEnd = new Date(activePeriod.endDate);
-          const pStartMargin = new Date(pStart.getTime() - 15 * 86400000);
-          periodConditions.push({
-            AND: [
-              { startDate: { gte: pStartMargin } },
-              { startDate: { lte: pEnd } }
-            ]
-          });
-        }
-
-        if (periodConditions.length > 0) {
-          activePlacementsWhere.OR = periodConditions;
-        }
-      }
+      const periodCtx = await loadPeriodContext();
+      const relevantIndustryIds = industriesRaw.map(ind => ind.id);
 
       const activePlacements = await db.internshipPlacement.findMany({
-        where: activePlacementsWhere,
-        select: { industryId: true }
+        where: {
+          industryId: { in: relevantIndustryIds },
+          status: {
+            notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
+          }
+        },
+        select: {
+          id: true,
+          industryId: true,
+          groupId: true,
+          startDate: true,
+          endDate: true,
+          student: {
+            select: {
+              className: true,
+              department: true
+            }
+          }
+        }
       });
 
       activePlacements.forEach((p) => {
-        if (p.industryId) {
-          activeCountsMap[p.industryId] = (activeCountsMap[p.industryId] || 0) + 1;
+        if (!p.industryId) return;
+        if (activePeriod) {
+          const matchedP = resolvePlacementPeriod(p, periodCtx);
+          if (matchedP && matchedP.id !== activePeriod.id) {
+            return; // Abaikan siswa dari gelombang/periode lain!
+          }
         }
+        activeCountsMap[p.industryId] = (activeCountsMap[p.industryId] || 0) + 1;
       });
     } catch (e) {
       console.warn('Warning: Gagal hitung jumlah siswa terdaftar per periode:', e);
@@ -611,49 +594,42 @@ export async function POST(request: Request) {
     }
 
     let currentPlacementsCount = 0;
+    const existingPlacement = (student as any).placement;
+
     if (placementClient && !isUnlimitedPeriod && periodQuota < 999) {
-      let countWhere: any = {
-        industryId: industryId,
-        status: {
-          notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
+      const periodCtx = await loadPeriodContext();
+
+      const existingInInd = await db.internshipPlacement.findMany({
+        where: {
+          industryId: industryId,
+          status: {
+            notIn: ['DITOLAK_POKJA', 'DITOLAK_INDUSTRI', 'BATAL']
+          },
+          ...(existingPlacement?.id ? { id: { not: existingPlacement.id } } : {})
+        },
+        select: {
+          id: true,
+          industryId: true,
+          groupId: true,
+          startDate: true,
+          endDate: true,
+          student: {
+            select: {
+              className: true,
+              department: true
+            }
+          }
         }
-      };
+      });
 
       if (studentActivePeriod) {
-        const periodClassRooms = await db.classRoom.findMany({
-          where: { periodId: studentActivePeriod.id },
-          select: { name: true }
-        });
-        const periodClassNames = periodClassRooms.map(c => c.name);
-
-        const periodGroups = await db.placementGroup.findMany({
-          where: { periodId: studentActivePeriod.id },
-          select: { id: true }
-        });
-        const periodGroupIds = periodGroups.map(g => g.id);
-
-        const periodConditions: any[] = [];
-        if (periodGroupIds.length > 0) periodConditions.push({ groupId: { in: periodGroupIds } });
-        if (periodClassNames.length > 0) periodConditions.push({ student: { className: { in: periodClassNames } } });
-        if (studentActivePeriod.startDate && studentActivePeriod.endDate) {
-          const pStart = new Date(studentActivePeriod.startDate);
-          const pEnd = new Date(studentActivePeriod.endDate);
-          const pStartMargin = new Date(pStart.getTime() - 15 * 86400000);
-          periodConditions.push({
-            AND: [
-              { startDate: { gte: pStartMargin } },
-              { startDate: { lte: pEnd } }
-            ]
-          });
-        }
-        if (periodConditions.length > 0) {
-          countWhere.OR = periodConditions;
-        }
+        currentPlacementsCount = existingInInd.filter(p => {
+          const matchedP = resolvePlacementPeriod(p, periodCtx);
+          return matchedP && matchedP.id === studentActivePeriod.id;
+        }).length;
+      } else {
+        currentPlacementsCount = existingInInd.length;
       }
-
-      currentPlacementsCount = await placementClient.count({
-        where: countWhere
-      });
 
       if (periodQuota > 0 && currentPlacementsCount >= periodQuota) {
         return NextResponse.json({ 
@@ -663,11 +639,10 @@ export async function POST(request: Request) {
     }
 
     let placement;
-    const existingPlacement = (student as any).placement;
 
     // Prioritaskan tanggal khusus yang disepakati Pokja untuk industri ini jika ada
-    let finalStartDate = startDate ? new Date(startDate) : new Date();
-    let finalEndDate = endDate ? new Date(endDate) : new Date();
+    let finalStartDate = startDate ? new Date(startDate) : (studentActivePeriod?.startDate ? new Date(studentActivePeriod.startDate) : new Date());
+    let finalEndDate = endDate ? new Date(endDate) : (studentActivePeriod?.endDate ? new Date(studentActivePeriod.endDate) : new Date());
 
     const existingGroupPlacement = await db.internshipPlacement.findFirst({
       where: {
@@ -686,6 +661,9 @@ export async function POST(request: Request) {
     if (existingGroupPlacement?.startDate && existingGroupPlacement?.endDate) {
       finalStartDate = new Date(existingGroupPlacement.startDate);
       finalEndDate = new Date(existingGroupPlacement.endDate);
+    } else if (studentActivePeriod?.startDate && studentActivePeriod?.endDate) {
+      finalStartDate = new Date(studentActivePeriod.startDate);
+      finalEndDate = new Date(studentActivePeriod.endDate);
     } else {
       // Fallback ke periode yang ditautkan ke kelas siswa
       const classRoom = await db.classRoom.findFirst({
