@@ -67,9 +67,19 @@ export async function POST(request: Request) {
         }
       }
 
+      let newStatus = assignment.status;
+      if (updatedPhotos.length === 0 && assignment.status === 'SELESAI') {
+        const hasTugas = Boolean(assignment.suratTugasUrl);
+        const hasSppd = Boolean(assignment.sppdUrl);
+        newStatus = (hasTugas && hasSppd) ? 'SELESAI_TTE' : 'TERJADWAL';
+      }
+
       await db.monitoringAssignment.update({
         where: { id },
-        data: { activityPhotos: updatedPhotos }
+        data: { 
+          activityPhotos: updatedPhotos,
+          status: newStatus
+        }
       });
 
       return NextResponse.json({ success: true, message: 'Foto berhasil dihapus', activityPhotos: updatedPhotos });
@@ -129,9 +139,19 @@ export async function POST(request: Request) {
         }
       }
 
+      const hasLaporan = Boolean(assignment.laporanUrl);
+      const hasPhotos = updatedPhotos.length > 0;
+      let newStatus = assignment.status;
+      if (hasLaporan && hasPhotos) {
+        newStatus = 'SELESAI';
+      }
+
       await db.monitoringAssignment.update({
         where: { id },
-        data: { activityPhotos: updatedPhotos }
+        data: { 
+          activityPhotos: updatedPhotos,
+          status: newStatus
+        }
       });
 
       return NextResponse.json({
@@ -188,9 +208,19 @@ export async function POST(request: Request) {
       }
 
       const updatedPhotos = [...currentPhotos, ...newPhotoObjects];
+      const hasLaporan = Boolean(assignment.laporanUrl);
+      const hasPhotos = updatedPhotos.length > 0;
+
+      const photoUpdateData: any = {
+        activityPhotos: updatedPhotos
+      };
+      if (hasLaporan && hasPhotos) {
+        photoUpdateData.status = 'SELESAI';
+      }
+
       await db.monitoringAssignment.update({
         where: { id },
-        data: { activityPhotos: updatedPhotos }
+        data: photoUpdateData
       });
 
       return NextResponse.json({
@@ -235,12 +265,20 @@ export async function POST(request: Request) {
       updateData.laporanUrl = fileUrl;
     }
 
-    // Jika kedua file sudah terupload (atau ini yang terakhir), ubah status menjadi SELESAI_TTE
     const hasTugas = type === 'TUGAS' ? true : !!assignment.suratTugasUrl;
     const hasSppd = type === 'SPPD' ? true : !!assignment.sppdUrl;
+    const hasLaporan = type === 'LAPORAN' ? true : !!assignment.laporanUrl;
+    const currentPhotos = parsePhotos(assignment.activityPhotos);
+    const hasPhotos = currentPhotos.length > 0;
 
-    if (hasTugas && hasSppd) {
-      updateData.status = 'SELESAI_TTE';
+    // Jika Laporan dan Foto Kegiatan keduanya sudah ada, status otomatis menjadi SELESAI
+    if (hasLaporan && hasPhotos) {
+      updateData.status = 'SELESAI';
+    } else if (hasTugas && hasSppd) {
+      // Jika Surat Tugas dan SPPD lengkap, status menjadi SELESAI_TTE (hanya jika belum SELESAI)
+      if (assignment.status !== 'SELESAI') {
+        updateData.status = 'SELESAI_TTE';
+      }
     }
 
     await db.monitoringAssignment.update({

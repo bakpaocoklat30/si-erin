@@ -72,10 +72,16 @@ import {
 
 
 function getStatusBadge(status: string = 'TERJADWAL', hasTugas?: boolean, hasSppd?: boolean) {
+  if (status === 'SELESAI') {
+    return {
+      label: 'Selesai',
+      badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 ring-1 ring-emerald-500/20'
+    };
+  }
   if (status === 'SELESAI_TTE' || status === 'TERBIT_TTE' || (hasTugas && hasSppd)) {
     return {
       label: 'Terbit TTE',
-      badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+      badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30'
     };
   }
   if (hasTugas || hasSppd || status === 'PROSES_TTE' || status === 'MENUNGGU_TTE') {
@@ -90,11 +96,6 @@ function getStatusBadge(status: string = 'TERJADWAL', hasTugas?: boolean, hasSpp
       return {
         label: 'Draft',
         badgeClass: 'bg-slate-500/15 text-slate-400 border-slate-500/30'
-      };
-    case 'SELESAI':
-      return {
-        label: 'Selesai',
-        badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
       };
     case 'DIBATALKAN':
       return {
@@ -899,11 +900,11 @@ export default function PokjaMonitoringPage() {
 
       let matchesStatus = true;
       if (statusFilter === 'DRAFT') {
-        matchesStatus = (item.status === 'DRAFT' || item.status === 'TERJADWAL' || !item.status) && !hasTugas && !hasSppd;
+        matchesStatus = (item.status === 'DRAFT' || item.status === 'TERJADWAL' || !item.status) && !hasTugas && !hasSppd && item.status !== 'SELESAI';
       } else if (statusFilter === 'PROSES_TTE') {
-        matchesStatus = item.status === 'PROSES_TTE' || item.status === 'MENUNGGU_TTE' || ((hasTugas || hasSppd) && !(hasTugas && hasSppd));
+        matchesStatus = (item.status === 'PROSES_TTE' || item.status === 'MENUNGGU_TTE' || ((hasTugas || hasSppd) && !(hasTugas && hasSppd))) && item.status !== 'SELESAI';
       } else if (statusFilter === 'TERBIT_TTE') {
-        matchesStatus = item.status === 'TERBIT_TTE' || item.status === 'SELESAI_TTE' || (hasTugas && hasSppd);
+        matchesStatus = (item.status === 'TERBIT_TTE' || item.status === 'SELESAI_TTE' || (hasTugas && hasSppd)) && item.status !== 'SELESAI';
       } else if (statusFilter === 'SELESAI') {
         matchesStatus = item.status === 'SELESAI';
       } else if (statusFilter !== 'ALL') {
@@ -919,13 +920,13 @@ export default function PokjaMonitoringPage() {
   // Statistik Ringkas
   const stats = useMemo(() => {
     const total = assignments.length;
+    const selesai = assignments.filter((a) => a.status === 'SELESAI').length;
     const terbitTte = assignments.filter(
-      (a) => a.status === 'SELESAI_TTE' || a.status === 'TERBIT_TTE' || (Boolean(a.suratTugasUrl) && Boolean(a.sppdUrl))
+      (a) => (a.status === 'SELESAI_TTE' || a.status === 'TERBIT_TTE' || (Boolean(a.suratTugasUrl) && Boolean(a.sppdUrl))) && a.status !== 'SELESAI'
     ).length;
     const terjadwal = assignments.filter(
-      (a) => (a.status === 'TERJADWAL' || a.status === 'DRAFT') && !a.suratTugasUrl && !a.sppdUrl
+      (a) => (a.status === 'TERJADWAL' || a.status === 'DRAFT') && !a.suratTugasUrl && !a.sppdUrl && a.status !== 'SELESAI'
     ).length;
-    const selesai = assignments.filter((a) => a.status === 'SELESAI').length;
     const uniqueIndustries = new Set(assignments.map((a) => a.industry.id)).size;
     return { total, terjadwal, terbitTte, selesai, uniqueIndustries };
   }, [assignments]);
@@ -1791,25 +1792,39 @@ export default function PokjaMonitoringPage() {
                         {(() => {
                           const hasTugas = Boolean(assignment.suratTugasUrl);
                           const hasSppd = Boolean(assignment.sppdUrl);
+                          const hasLaporan = Boolean(assignment.laporanUrl);
+                          const rawPhotos = assignment.activityPhotos;
+                          const currentPhotos: any[] = Array.isArray(rawPhotos)
+                            ? rawPhotos
+                            : (typeof rawPhotos === 'string'
+                              ? (() => { try { return JSON.parse(rawPhotos); } catch { return []; } })()
+                              : []);
+                          const hasFoto = currentPhotos.length > 0;
                           const sBadge = getStatusBadge(assignment.status, hasTugas, hasSppd);
                           return (
-                            <div className="flex flex-col items-center gap-1">
+                            <div className="flex flex-col items-center gap-1.5">
                               <span
                                 className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${sBadge.badgeClass}`}
                               >
                                 {sBadge.label}
                               </span>
-                              {(hasTugas || hasSppd) && (
-                                <div className="flex items-center gap-1 text-[9px] font-semibold text-slate-400">
-                                  <span className={hasTugas ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
-                                    Tugas {hasTugas ? '✓' : '✗'}
-                                  </span>
-                                  <span>•</span>
-                                  <span className={hasSppd ? 'text-teal-400 font-bold' : 'text-slate-500'}>
-                                    SPPD {hasSppd ? '✓' : '✗'}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="flex items-center gap-1 text-[9px] font-semibold text-slate-400 flex-wrap justify-center">
+                                <span className={hasTugas ? 'text-emerald-400 font-bold' : 'text-slate-500'} title="Surat Tugas">
+                                  Tugas {hasTugas ? '✓' : '✗'}
+                                </span>
+                                <span>•</span>
+                                <span className={hasSppd ? 'text-teal-400 font-bold' : 'text-slate-500'} title="SPPD">
+                                  SPPD {hasSppd ? '✓' : '✗'}
+                                </span>
+                                <span>•</span>
+                                <span className={hasLaporan ? 'text-emerald-400 font-bold' : 'text-slate-500'} title="Scan Laporan Kunjungan">
+                                  Lap {hasLaporan ? '✓' : '✗'}
+                                </span>
+                                <span>•</span>
+                                <span className={hasFoto ? 'text-emerald-400 font-bold' : 'text-slate-500'} title="Foto Kegiatan">
+                                  Foto {hasFoto ? '✓' : '✗'}
+                                </span>
+                              </div>
                             </div>
                           );
                         })()}

@@ -134,6 +134,37 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 🛡️ Auto-sync: Sinkronisasi status SELESAI jika laporanUrl & activityPhotos keduanya sudah ada
+    for (const assign of assignments) {
+      let photos: any[] = [];
+      if (Array.isArray(assign.activityPhotos)) {
+        photos = assign.activityPhotos;
+      } else if (typeof assign.activityPhotos === 'string') {
+        try { photos = JSON.parse(assign.activityPhotos); } catch (e) {}
+      }
+      const hasLaporan = Boolean(assign.laporanUrl && String(assign.laporanUrl).trim() !== '');
+      const hasPhotos = Array.isArray(photos) && photos.length > 0;
+
+      if (hasLaporan && hasPhotos) {
+        if (assign.status !== 'SELESAI') {
+          assign.status = 'SELESAI';
+          prisma.monitoringAssignment.update({
+            where: { id: assign.id },
+            data: { status: 'SELESAI' }
+          }).catch(() => {});
+        }
+      } else if (assign.status === 'SELESAI' && (!hasLaporan || !hasPhotos)) {
+        const hasTugas = Boolean(assign.suratTugasUrl);
+        const hasSppd = Boolean(assign.sppdUrl);
+        const revertedStatus = (hasTugas && hasSppd) ? 'SELESAI_TTE' : 'TERJADWAL';
+        assign.status = revertedStatus;
+        prisma.monitoringAssignment.update({
+          where: { id: assign.id },
+          data: { status: revertedStatus }
+        }).catch(() => {});
+      }
+    }
+
     // 2. Ambil daftar industri mitra yang sedang memiliki penempatan aktif / sesuai jurusan Pokja
     const industries = await prisma.industry.findMany({
       where: industryWhere,

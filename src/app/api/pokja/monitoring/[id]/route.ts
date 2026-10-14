@@ -48,6 +48,25 @@ export async function PUT(
       }).catch((err) => console.error('Error updating teacher rank on edit:', err));
     }
 
+    const effectiveLaporan = body.laporanUrl !== undefined ? body.laporanUrl : existing.laporanUrl;
+    const rawPhotos = body.activityPhotos !== undefined ? body.activityPhotos : existing.activityPhotos;
+    let parsedPhotos: any[] = [];
+    if (Array.isArray(rawPhotos)) parsedPhotos = rawPhotos;
+    else if (typeof rawPhotos === 'string') {
+      try { parsedPhotos = JSON.parse(rawPhotos); } catch (e) {}
+    }
+    const hasPhotos = Array.isArray(parsedPhotos) && parsedPhotos.length > 0;
+    const hasLaporan = Boolean(effectiveLaporan && String(effectiveLaporan).trim() !== '');
+
+    let effectiveStatus = body.status !== undefined ? body.status : existing.status;
+    if (hasPhotos && hasLaporan) {
+      effectiveStatus = 'SELESAI';
+    } else if (effectiveStatus === 'SELESAI' && (!hasPhotos || !hasLaporan)) {
+      const hasTugas = Boolean(existing.suratTugasUrl);
+      const hasSppd = Boolean(existing.sppdUrl);
+      effectiveStatus = (hasTugas && hasSppd) ? 'SELESAI_TTE' : 'TERJADWAL';
+    }
+
     const updated = await prisma.monitoringAssignment.update({
       where: { id },
       data: {
@@ -65,7 +84,7 @@ export async function PUT(
         ...(body.destinationPlace !== undefined && { destinationPlace: body.destinationPlace }),
         ...(body.budgetSource !== undefined && { budgetSource: body.budgetSource }),
         ...(body.budgetAccount !== undefined && { budgetAccount: body.budgetAccount }),
-        ...(body.status !== undefined && { status: body.status }),
+        status: effectiveStatus,
         ...(body.notes !== undefined && { notes: body.notes }),
         ...(body.laporanUrl !== undefined && { laporanUrl: body.laporanUrl }),
         ...(body.activityPhotos !== undefined && { activityPhotos: body.activityPhotos }),

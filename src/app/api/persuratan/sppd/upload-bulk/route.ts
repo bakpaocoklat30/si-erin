@@ -231,10 +231,26 @@ export async function POST(req: NextRequest) {
 
           const hasTugas = item.docType === 'TUGAS' || Boolean(curTask?.suratTugasUrl);
           const hasSppd = item.docType === 'SPPD' || Boolean(curTask?.sppdUrl);
+          const hasLaporan = item.docType === 'LAPORAN' || Boolean(curTask?.laporanUrl);
+          const curPhotos = (() => {
+            try {
+              const raw = curTask?.activityPhotos;
+              if (Array.isArray(raw)) return raw;
+              if (typeof raw === 'string') return JSON.parse(raw);
+              return [];
+            } catch {
+              return [];
+            }
+          })();
+          const hasPhotos = Array.isArray(curPhotos) && curPhotos.length > 0;
 
-          if (hasTugas && hasSppd) {
-            updateData.status = 'SELESAI_TTE';
-          } else if (curTask?.status !== 'SELESAI_TTE') {
+          if (hasLaporan && hasPhotos) {
+            updateData.status = 'SELESAI';
+          } else if (hasTugas && hasSppd) {
+            if (curTask?.status !== 'SELESAI') {
+              updateData.status = 'SELESAI_TTE';
+            }
+          } else if (curTask?.status !== 'SELESAI_TTE' && curTask?.status !== 'SELESAI') {
             updateData.status = 'PROSES_TTE';
           }
 
@@ -290,10 +306,26 @@ export async function POST(req: NextRequest) {
 
           const hasTugas = item.segment.docType === 'TUGAS' || Boolean(curTask?.suratTugasUrl);
           const hasSppd = item.segment.docType === 'SPPD' || Boolean(curTask?.sppdUrl);
+          const hasLaporan = item.segment.docType === 'LAPORAN' || Boolean(curTask?.laporanUrl);
+          const curPhotos = (() => {
+            try {
+              const raw = curTask?.activityPhotos;
+              if (Array.isArray(raw)) return raw;
+              if (typeof raw === 'string') return JSON.parse(raw);
+              return [];
+            } catch {
+              return [];
+            }
+          })();
+          const hasPhotos = Array.isArray(curPhotos) && curPhotos.length > 0;
 
-          if (hasTugas && hasSppd) {
-            updateData.status = 'SELESAI_TTE';
-          } else if (curTask?.status !== 'SELESAI_TTE') {
+          if (hasLaporan && hasPhotos) {
+            updateData.status = 'SELESAI';
+          } else if (hasTugas && hasSppd) {
+            if (curTask?.status !== 'SELESAI') {
+              updateData.status = 'SELESAI_TTE';
+            }
+          } else if (curTask?.status !== 'SELESAI_TTE' && curTask?.status !== 'SELESAI') {
             updateData.status = 'PROSES_TTE';
           }
 
