@@ -230,7 +230,8 @@ export default function PermohonanSuratKelompokPage() {
   const availablePeriods = useMemo(() => {
     const periods = new Set<string>();
     verifiedGroups.forEach(g => {
-      if (g.periodName) periods.add(g.periodName);
+      const isGasal = (g.periodName || '').toLowerCase().includes('gasal');
+      if (!isGasal && g.periodName) periods.add(g.periodName);
     });
     return Array.from(periods).sort();
   }, [verifiedGroups]);
@@ -238,6 +239,8 @@ export default function PermohonanSuratKelompokPage() {
   const availableDepartments = useMemo(() => {
     const setJur = new Set<string>();
     verifiedGroups.forEach((g) => {
+      const isGasal = (g.periodName || '').toLowerCase().includes('gasal');
+      if (isGasal) return;
       if (g.departmentName) setJur.add(g.departmentName);
       const studentList = g.students || g.placements || [];
       studentList.forEach((st: any) => {
@@ -253,12 +256,17 @@ export default function PermohonanSuratKelompokPage() {
     return ['SEMUA', ...Array.from(setJur)];
   }, [verifiedGroups, dbDepartments]);
 
-  // Hitung Statistik Jumlah Kelompok Berdasarkan Status Penerbitan Surat
+  // Hitung Statistik Jumlah Kelompok Berdasarkan Status Penerbitan Surat (Kecuali Periode Gasal)
   const letterStatusCounts = useMemo(() => {
     let pending = 0;
     let published = 0;
+    let total = 0;
 
     verifiedGroups.forEach((g) => {
+      const isGasal = (g.periodName || '').toLowerCase().includes('gasal');
+      if (isGasal) return;
+
+      total++;
       const hasSurat = Boolean(g.suratTugasUrl);
       if (hasSurat) {
         published++;
@@ -268,7 +276,7 @@ export default function PermohonanSuratKelompokPage() {
     });
 
     return {
-      all: verifiedGroups.length,
+      all: total,
       pending,
       published
     };
@@ -277,11 +285,13 @@ export default function PermohonanSuratKelompokPage() {
   // Filter Search, Filter Jurusan Dinamis, dan FILTER STATUS SURAT
   const filteredGroups = useMemo(() => {
     return verifiedGroups.filter((g) => {
-      const isAdvancedStatus = ['DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'DITERIMA', 'COMPLETED', 'SELESAI_PKL'].includes(g.status || '');
-      if (isAdvancedStatus) return false;
+      // 🌟 SEMBUNYIKAN KELOMPOK PERIODE GASAL (Permohonan dibuat di luar sistem)
+      const isGasal = (g.periodName || '').toLowerCase().includes('gasal');
+      if (isGasal) return false;
+
       const groupDept = g.departmentName || (g.students?.[0]?.department) || '';
       const matchDept = selectedDepartmentFilter === 'SEMUA' || groupDept.toLowerCase() === selectedDepartmentFilter.toLowerCase();
-        const matchPeriodFilter = selectedPeriodFilter === 'SEMUA' || (g.periodName && g.periodName.toLowerCase() === selectedPeriodFilter.toLowerCase());
+      const matchPeriodFilter = selectedPeriodFilter === 'SEMUA' || (g.periodName && g.periodName.toLowerCase() === selectedPeriodFilter.toLowerCase());
 
       // Filter Berdasarkan Status Surat
       const hasSurat = Boolean(g.suratTugasUrl);

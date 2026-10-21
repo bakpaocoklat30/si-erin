@@ -222,7 +222,14 @@ async function getGroupPermohonanList(filters: {
     });
 
     if (matched.length > 0) {
-      return matched;
+      const nonGasalMatched = matched.filter(g => {
+        const pName = g.periodName || periodCtx.periods.find(p => p.id === g.periodId)?.name || '';
+        return !pName.toLowerCase().includes('gasal');
+      });
+      if (nonGasalMatched.length === 0) {
+        throw new Error('Surat permohonan untuk kelompok Periode Gasal tidak tersedia di sistem karena permohonan telah diproses di luar sistem sebelumnya.');
+      }
+      return nonGasalMatched;
     }
 
     // Fallback darurat: cari placement langsung berdasarkan targetIds jika tidak ter-cluster di groupedMap
@@ -280,7 +287,11 @@ async function getGroupPermohonanList(filters: {
     return [];
   }
 
-  return allGroups;
+  // Filter kelompok umum / masal: sembunyikan kelompok dari Periode Gasal
+  return allGroups.filter(g => {
+    const pName = g.periodName || periodCtx.periods.find(p => p.id === g.periodId)?.name || '';
+    return !pName.toLowerCase().includes('gasal');
+  });
 }
 
 export async function GET(req: NextRequest) {
