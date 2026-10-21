@@ -23,7 +23,9 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'POKJA', 'PEMBIMBING', 'TATA_USAHA'].includes((session.user as any)?.role)) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const ALLOWED_ROLES = ['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA', 'PEMBIMBING', 'TATA_USAHA', 'TATA USAHA', 'TATAUSAHA', 'TU'];
+    if (!session || !ALLOWED_ROLES.includes(userRole)) {
       return NextResponse.json({ success: false, error: 'Akses tidak diizinkan.' }, { status: 403 });
     }
 

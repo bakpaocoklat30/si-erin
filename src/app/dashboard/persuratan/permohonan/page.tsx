@@ -205,23 +205,17 @@ export default function PermohonanSuratKelompokPage() {
       const json = await res.json();
 
       if (res.ok && json.success) {
-        
-          // EXCLUDE MANUAL GROUPS (manual assignments like "tempatkan paksa" don't need Surat Permohonan)
-          // Dynamic groups have '___' in their groupId/groupKey. Manual groups have 'group_man_...' or CUID.
-          let validGroups = json.data || [];
-          if (Array.isArray(validGroups)) {
-             validGroups = validGroups.filter((g: any) => g.groupId && g.groupId.includes('___'));
-          }
-          setVerifiedGroups(json.data && json.data.length > 0 ? (validGroups.length > 0 ? validGroups : []) : FALLBACK_GROUPS);
+        const validGroups = Array.isArray(json.data) ? json.data : [];
+        setVerifiedGroups(validGroups);
         if (json.departments && Array.isArray(json.departments)) {
           setDbDepartments(json.departments);
         }
       } else {
-        setVerifiedGroups(FALLBACK_GROUPS);
+        setVerifiedGroups([]);
       }
     } catch (err) {
       console.error('Error fetching verified groups:', err);
-      setVerifiedGroups(FALLBACK_GROUPS);
+      setVerifiedGroups([]);
     } finally {
       setLoading(false);
     }
@@ -567,8 +561,13 @@ export default function PermohonanSuratKelompokPage() {
       group.letterNumber = num;
       setVerifiedGroups(prev => prev.map(g => g.groupId === group.groupId ? { ...g, letterNumber: num } : g));
     }
-    const groupId = group.groupId;
-    window.location.href = `/api/pokja/groups/download-docx?groupId=${groupId}&useTte=${useTteMode}`;
+    const groupId = group.groupId || group.groupKey || '';
+    const params = new URLSearchParams();
+    if (groupId) params.set('groupId', groupId);
+    if (group.industryId) params.set('industryId', group.industryId);
+    params.set('tte', String(useTteMode));
+    params.set('useTte', String(useTteMode));
+    window.location.href = `/api/pokja/groups/download-docx?${params.toString()}`;
   };
 
   const handleBulkSetNomorSurat = async () => {
@@ -599,7 +598,7 @@ export default function PermohonanSuratKelompokPage() {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ groupIds: selectedGroupIds })
+      body: JSON.stringify({ groupIds: selectedGroupIds, groupsData: verifiedGroups.filter(g => selectedGroupIds.includes(g.groupId || '')), tte: useTteMode, useTte: useTteMode })
     });
     if (!res.ok) {
       alert("Gagal mengunduh dokumen gabungan");

@@ -8,6 +8,7 @@ import {
   generateMergedSuratPermohonanDocx,
   GroupPermohonanData,
 } from '@/lib/docx-generator';
+import { loadPeriodContext, resolvePlacementPeriod } from '@/lib/period-resolver';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,37 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9_\-]/g, '_').substring(0, 45);
 }
 
+const ALLOWED_ROLES = [
+  'POKJA',
+  'TIM_POKJA',
+  'ADMIN',
+  'TATA_USAHA',
+  'TATA USAHA',
+  'TATAUSAHA',
+  'TU',
+  'SUPER_ADMIN'
+];
+
+const VERIFIED_STATUSES = [
+  'PEMBUATAN_SURAT',
+  'SURAT_DITERBITKAN',
+  'LETTER_ISSUED',
+  'KIRIM_SURAT',
+  'SENT_DUDI',
+  'DISETUJUI_INDUSTRI',
+  'DIPROSES_INDUSTRI',
+  'REQUEST_PENGANTARAN',
+  'MENUNGGU_PEMBERANGKATAN',
+  'PENGANTARAN_DITERBITKAN',
+  'REQUEST_PENARIKAN',
+  'MENUNGGU_PENARIKAN',
+  'PENARIKAN_DITERBITKAN',
+  'DITERIMA',
+  'DITERIMA_INDUSTRI',
+  'COMPLETED',
+  'SELESAI_PKL'
+];
+
 // Helper untuk membangun daftar GroupPermohonanData dari database
 async function getGroupPermohonanList(filters: {
   groupIds?: string[];
@@ -23,18 +55,36 @@ async function getGroupPermohonanList(filters: {
   userRole?: string;
 }): Promise<GroupPermohonanData[]> {
   const { groupIds, userDepartment, userRole } = filters;
+  const isSpecificTarget = Array.isArray(groupIds) && groupIds.length > 0;
 
-  let placementWhere: any = {
-    status: {
-      in: ['PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'LETTER_ISSUED', 'SENT_DUDI', 'DISETUJUI_INDUSTRI', 'DIPROSES_INDUSTRI']
-    }
-  };
+  let placementWhere: any = {};
 
-  if (userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan') {
-    placementWhere.student = {
-      department: { contains: userDepartment, mode: 'insensitive' }
+  if (isSpecificTarget) {
+    // Jika user memilih kelompok tertentu, sertakan status aktif apa pun kecuali yang dibatalkan/ditolak
+    placementWhere.status = {
+      notIn: ['DIBATALKAN', 'DITOLAK', 'DITOLAK_INDUSTRI']
+    };
+  } else {
+    // Mode masal: ambil seluruh status yang terverifikasi
+    placementWhere.status = {
+      in: VERIFIED_STATUSES
     };
   }
+
+  // Isolasi Jurusan jika role Pokja / Tim Pokja
+  if (
+    (userRole === 'POKJA' || userRole === 'TIM_POKJA') &&
+    userDepartment &&
+    userDepartment.toLowerCase() !== 'semua jurusan'
+  ) {
+    if (!isSpecificTarget) {
+      placementWhere.student = {
+        department: { contains: userDepartment, mode: 'insensitive' }
+      };
+    }
+  }
+
+  const periodCtx = await loadPeriodContext();
 
   const placements = await db.internshipPlacement.findMany({
     where: placementWhere,
@@ -45,27 +95,24 @@ async function getGroupPermohonanList(filters: {
     orderBy: { updatedAt: 'desc' }
   });
 
-  const classRooms = await db.classRoom.findMany({ include: { period: true } });
-  const periods = await db.internshipPeriod.findMany({ orderBy: { startDate: 'desc' } });
-
-  const groupedMap: Record<string, GroupPermohonanData> = {};
+  const groupedMap: Record<string, GroupPermohonanData & { candidateKeys?: Set<string>; periodId?: string; placementGroupId?: string | null }> = {};
 
   placements.forEach((placement: any) => {
     const student = placement.student;
     const industry = placement.industry;
 
-    const matchedClass = classRooms.find(c => c.name.toLowerCase() === student?.className?.toLowerCase());
-    const matchedPeriod = matchedClass?.period ||
-      periods.find(p => p.department.toLowerCase().includes((student?.department || '').toLowerCase())) ||
-      periods[0];
-
+    const matchedPeriod = resolvePlacementPeriod(placement, periodCtx);
     const periodId = matchedPeriod ? matchedPeriod.id : 'PERIODE_DEFAULT';
     const industryId = industry?.id || 'INDUSTRY_UNKNOWN';
     const departmentName = student?.department || userDepartment || 'Teknik Kejuruan';
-    const groupKey = `${industryId}___${periodId}___${departmentName}`;
 
-    const startDate = placement.startDate || matchedPeriod?.startDate || new Date().toISOString();
-    const endDate = placement.endDate || matchedPeriod?.endDate || new Date().toISOString();
+    // Prioritaskan tanggal kustom dari placement atau placementGroup
+    const pg = placement.groupId ? periodCtx.groupMap.get(placement.groupId) : null;
+    const startDate = placement.startDate || pg?.startDate || matchedPeriod?.startDate || new Date().toISOString();
+    const endDate = placement.endDate || pg?.endDate || matchedPeriod?.endDate || new Date().toISOString();
+
+    const savedLetterNumber = placement.letterNumber || null;
+    const groupKey = placement.groupId || `${industryId}___${periodId}___${departmentName}___${savedLetterNumber || 'PENDING'}`;
 
     if (!groupedMap[groupKey]) {
       const jalan = industry?.address || '-';
@@ -81,9 +128,19 @@ async function getGroupPermohonanList(filters: {
       const fullAddressParts = [jalan, rtRw, dusun, kel, kec, kab, kodepos].filter(Boolean);
       const completeAddress = fullAddressParts.length > 0 ? fullAddressParts.join(', ') : jalan;
 
+      const candidateKeys = new Set<string>([
+        groupKey,
+        industryId,
+        `${industryId}___${periodId}___${departmentName}`,
+        `${industryId}___${periodId}___${departmentName}___${savedLetterNumber || 'PENDING'}`,
+        `${industryId}___${periodId}___${departmentName}___PENDING`
+      ]);
+      if (placement.groupId) candidateKeys.add(placement.groupId);
+
       groupedMap[groupKey] = {
         groupId: groupKey,
         groupKey: groupKey,
+        placementGroupId: placement.groupId || null,
         industryId: industryId,
         industryName: industry?.name || 'Tanpa Nama Industri',
         industryAddress: completeAddress,
@@ -97,18 +154,28 @@ async function getGroupPermohonanList(filters: {
         regency: industry?.regency || '-',
         postalCode: industry?.postalCode || '-',
         departmentName: departmentName,
+        periodId: periodId,
         startDate: startDate,
         endDate: endDate,
-        letterNumber: placement.letterNumber || null,
+        letterNumber: savedLetterNumber,
         letterUploadedAt: placement.letterUploadedAt || null,
-        students: []
+        students: [],
+        candidateKeys: candidateKeys
       };
     } else {
       if (placement.startDate) groupedMap[groupKey].startDate = placement.startDate;
       if (placement.endDate) groupedMap[groupKey].endDate = placement.endDate;
+      if (savedLetterNumber && !groupedMap[groupKey].letterNumber) {
+        groupedMap[groupKey].letterNumber = savedLetterNumber;
+      }
     }
 
+    groupedMap[groupKey].candidateKeys?.add(placement.id);
+
     if (student) {
+      groupedMap[groupKey].candidateKeys?.add(student.id);
+      if (student.nis) groupedMap[groupKey].candidateKeys?.add(student.nis);
+
       groupedMap[groupKey].students?.push({
         id: student.id,
         name: student.name,
@@ -122,8 +189,95 @@ async function getGroupPermohonanList(filters: {
   });
 
   const allGroups = Object.values(groupedMap);
-  if (Array.isArray(groupIds) && groupIds.length > 0) {
-    return allGroups.filter(g => groupIds.includes(g.groupId || '') || groupIds.includes(g.groupKey || '') || groupIds.includes(g.industryId || ''));
+
+  if (isSpecificTarget) {
+    const targetIds = groupIds.map(id => decodeURIComponent(String(id)).trim()).filter(Boolean);
+
+    const matched = allGroups.filter(g => {
+      return targetIds.some(targetId => {
+        if (!targetId) return false;
+
+        // 1. Exact match pada candidateKeys atau properti identitas utama
+        if (g.candidateKeys?.has(targetId)) return true;
+        if (g.groupId === targetId || g.groupKey === targetId || g.industryId === targetId) return true;
+        if (g.placementGroupId && g.placementGroupId === targetId) return true;
+
+        // 2. Toleransi composite key (industryId___periodId___department...)
+        if (targetId.includes('___')) {
+          const parts = targetId.split('___');
+          const targetIndId = parts[0];
+          const targetPerId = parts[1];
+          if (g.industryId === targetIndId) {
+            if (!targetPerId || targetPerId === 'ALL' || targetPerId === 'PERIODE_DEFAULT' || g.periodId === targetPerId) {
+              return true;
+            }
+          }
+        }
+
+        // 3. Prefix matching toleran
+        if (g.industryId && targetId.startsWith(g.industryId)) return true;
+
+        return false;
+      });
+    });
+
+    if (matched.length > 0) {
+      return matched;
+    }
+
+    // Fallback darurat: cari placement langsung berdasarkan targetIds jika tidak ter-cluster di groupedMap
+    const fallbackPlacements = await db.internshipPlacement.findMany({
+      where: {
+        OR: [
+          { groupId: { in: targetIds } },
+          { id: { in: targetIds } },
+          { industryId: { in: targetIds } }
+        ]
+      },
+      include: {
+        student: true,
+        industry: true
+      }
+    });
+
+    if (fallbackPlacements.length > 0) {
+      const fbGroupedMap: Record<string, GroupPermohonanData> = {};
+      fallbackPlacements.forEach((p: any) => {
+        const ind = p.industry;
+        const std = p.student;
+        const key = p.groupId || p.industryId || 'FALLBACK_GROUP';
+        if (!fbGroupedMap[key]) {
+          fbGroupedMap[key] = {
+            groupId: key,
+            groupKey: key,
+            industryId: p.industryId,
+            industryName: ind?.name || 'Tanpa Nama Industri',
+            industryAddress: ind?.address || '-',
+            fullAddress: ind?.address || '-',
+            departmentName: std?.department || userDepartment || 'Teknik Kejuruan',
+            startDate: p.startDate || new Date().toISOString(),
+            endDate: p.endDate || new Date().toISOString(),
+            letterNumber: p.letterNumber || null,
+            letterUploadedAt: p.letterUploadedAt || null,
+            students: []
+          };
+        }
+        if (std) {
+          fbGroupedMap[key].students?.push({
+            id: std.id,
+            name: std.name,
+            studentName: std.name,
+            nis: std.nis || '-',
+            className: std.className || '-',
+            department: std.department || fbGroupedMap[key].departmentName,
+            phone: std.phone || std.parentPhone || '-'
+          });
+        }
+      });
+      return Object.values(fbGroupedMap);
+    }
+
+    return [];
   }
 
   return allGroups;
@@ -132,7 +286,6 @@ async function getGroupPermohonanList(filters: {
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const ALLOWED_ROLES = ['POKJA', 'TIM_POKJA', 'ADMIN', 'TATA_USAHA', 'TU', 'SUPER_ADMIN'];
     const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
 
     if (!session || !ALLOWED_ROLES.includes(userRole)) {
@@ -142,14 +295,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const groupId = searchParams.get('groupId');
     const industryId = searchParams.get('industryId');
-    const useTte = searchParams.get('tte') !== 'false';
+    const tteParam = searchParams.get('tte') ?? searchParams.get('useTte');
+    const useTte = tteParam !== 'false';
     const format = (searchParams.get('format') || 'docx').toLowerCase();
 
     const userDepartment = (session?.user as any)?.department;
-    const filterIds = groupId ? [groupId] : industryId ? [industryId] : undefined;
+    const filterIds: string[] = [];
+    if (groupId) filterIds.push(groupId);
+    if (industryId && !filterIds.includes(industryId)) filterIds.push(industryId);
 
     const groups = await getGroupPermohonanList({
-      groupIds: filterIds,
+      groupIds: filterIds.length > 0 ? filterIds : undefined,
       userDepartment,
       userRole
     });
@@ -158,8 +314,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Data kelompok tidak ditemukan.' }, { status: 404 });
     }
 
+    const schoolSetting = await db.schoolSetting.findFirst();
+
     if (format === 'zip' || (groups.length > 1 && !groupId)) {
-      const zipBuffer = await generateBulkSuratPermohonanZip(groups, { useTteTags: useTte });
+      const zipBuffer = await generateBulkSuratPermohonanZip(groups, {
+        useTteTags: useTte,
+        schoolSetting: schoolSetting || undefined
+      });
       const filename = `Surat Permohonan - Masal.zip`;
       return new NextResponse(new Uint8Array(zipBuffer), {
         headers: {
@@ -171,7 +332,10 @@ export async function GET(req: NextRequest) {
 
     // Single group docx
     const group = groups[0];
-    const docxBuffer = await generateSuratPermohonanDocx(group, { useTteTags: useTte });
+    const docxBuffer = await generateSuratPermohonanDocx(group, {
+      useTteTags: useTte,
+      schoolSetting: schoolSetting || undefined
+    });
     const safeName = sanitizeFilename(group.industryName);
     const filename = `Surat Permohonan - ${safeName}.docx`;
 
@@ -191,7 +355,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const ALLOWED_ROLES = ['POKJA', 'TIM_POKJA', 'ADMIN', 'TATA_USAHA', 'TU', 'SUPER_ADMIN'];
     const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
 
     if (!session || !ALLOWED_ROLES.includes(userRole)) {
@@ -199,8 +362,9 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { groupIds, tte, format, groupsData } = body;
-    const useTte = tte !== false;
+    const { groupIds, tte, useTte: useTteBody, format, groupsData } = body;
+    const tteParam = tte ?? useTteBody;
+    const useTte = tteParam !== false;
 
     let targetGroups: GroupPermohonanData[] = [];
 
@@ -220,8 +384,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Tidak ada kelompok yang dipilih untuk dicetak.' }, { status: 400 });
     }
 
+    const schoolSetting = await db.schoolSetting.findFirst();
+
     if (format === 'merged' && targetGroups.length > 1) {
-      const mergedBuffer = await generateMergedSuratPermohonanDocx(targetGroups, { useTteTags: useTte });
+      const mergedBuffer = await generateMergedSuratPermohonanDocx(targetGroups, {
+        useTteTags: useTte,
+        schoolSetting: schoolSetting || undefined
+      });
       const filename = `Surat Permohonan - Gabungan.docx`;
       return new NextResponse(new Uint8Array(mergedBuffer), {
         headers: {
@@ -232,7 +401,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (targetGroups.length === 1 && format !== 'zip') {
-      const docxBuffer = await generateSuratPermohonanDocx(targetGroups[0], { useTteTags: useTte });
+      const docxBuffer = await generateSuratPermohonanDocx(targetGroups[0], {
+        useTteTags: useTte,
+        schoolSetting: schoolSetting || undefined
+      });
       const safeName = sanitizeFilename(targetGroups[0].industryName);
       const filename = `Surat Permohonan - ${safeName}.docx`;
       return new NextResponse(new Uint8Array(docxBuffer), {
@@ -244,7 +416,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Default: ZIP file
-    const zipBuffer = await generateBulkSuratPermohonanZip(targetGroups, { useTteTags: useTte });
+    const zipBuffer = await generateBulkSuratPermohonanZip(targetGroups, {
+      useTteTags: useTte,
+      schoolSetting: schoolSetting || undefined
+    });
     const filename = `Surat Permohonan - Masal.zip`;
     return new NextResponse(new Uint8Array(zipBuffer), {
       headers: {

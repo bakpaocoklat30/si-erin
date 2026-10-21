@@ -19,7 +19,7 @@ async function createSection(industryId: string, departmentName: string, periodI
         department: departmentName && departmentName !== 'Semua Jurusan' ? departmentName : undefined
       },
       status: {
-        in: ['DITERIMA', 'DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA_INDUSTRI', 'COMPLETED']
+        in: ['DITERIMA', 'DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL']
       }
     },
     include: { student: true }

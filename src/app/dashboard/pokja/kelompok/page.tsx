@@ -572,12 +572,17 @@ export default function PokjaKelompokPrakerinPage() {
   // Unduh Single Surat Permohonan PKL (DOCX)
   const handleDownloadSingleDocx = (group: GroupItem, overrideTte?: boolean) => {
     const key = group.groupKey || group.groupId || '';
-    if (!key) {
+    if (!key && !group.industryId) {
       setErrorMsg('Kunci kelompok tidak valid.');
       return;
     }
     const tte = overrideTte !== undefined ? overrideTte : useTteMode;
-    const url = `/api/pokja/groups/download-docx?groupId=${encodeURIComponent(key)}&tte=${tte}`;
+    const params = new URLSearchParams();
+    if (key) params.set('groupId', key);
+    if (group.industryId) params.set('industryId', group.industryId);
+    params.set('tte', String(tte));
+    params.set('useTte', String(tte));
+    const url = `/api/pokja/groups/download-docx?${params.toString()}`;
     window.open(url, '_blank');
   };
 

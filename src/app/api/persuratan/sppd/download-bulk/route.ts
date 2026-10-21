@@ -14,7 +14,9 @@ export const revalidate = 0;
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'TATA_USAHA', 'POKJA'].includes((session.user as any)?.role)) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const ALLOWED_ROLES = ['ADMIN', 'SUPER_ADMIN', 'TATA_USAHA', 'TATA USAHA', 'TATAUSAHA', 'TU', 'POKJA', 'TIM_POKJA'];
+    if (!session || !ALLOWED_ROLES.includes(userRole)) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 
