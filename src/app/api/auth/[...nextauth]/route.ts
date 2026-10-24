@@ -34,15 +34,15 @@ export const authOptions: AuthOptions = {
           throw new Error("Username atau NIS tidak ditemukan");
         }
 
-        // 2. Verifikasi password (mendukung hash bcrypt atau teks biasa untuk migrasi awal)
+        // 2. Verifikasi password dengan hash bcrypt
         let isValid = false;
         try {
           isValid = await bcrypt.compare(credentials.password, user.password);
         } catch (e) {
-          isValid = credentials.password === user.password;
+          isValid = false;
         }
 
-        if (!isValid && credentials.password !== user.password) {
+        if (!isValid) {
           throw new Error("Password yang Anda masukkan salah");
         }
 

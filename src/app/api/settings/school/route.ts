@@ -103,6 +103,15 @@ export async function POST(request: Request) {
       const logoFile = formData.get('logoFile') as File | null;
 
       if (logoFile && logoFile.size > 0) {
+        // Validasi ekstensi file logo yang diizinkan (hanya gambar)
+        const fileExt = path.extname(logoFile.name).toLowerCase() || '.png';
+        const allowedExts = ['.png', '.jpg', '.jpeg', '.webp'];
+        if (!allowedExts.includes(fileExt)) {
+          return NextResponse.json({
+            error: 'Format berkas logo tidak valid. Harap unggah berkas gambar dengan format PNG, JPG, JPEG, atau WEBP.'
+          }, { status: 400 });
+        }
+
         const bytes = await logoFile.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
@@ -111,7 +120,6 @@ export async function POST(request: Request) {
         await mkdir(uploadDir, { recursive: true });
 
         // Format nama file unik
-        const fileExt = path.extname(logoFile.name) || '.png';
         const fileName = `logo-sekolah-${Date.now()}${fileExt}`;
         const filePath = path.join(uploadDir, fileName);
 

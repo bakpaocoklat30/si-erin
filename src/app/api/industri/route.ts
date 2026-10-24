@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { IndustryService } from '@/services/industryService';
+
+const ALLOWED_MANAGERS = ['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA'];
 
 /**
  * GET /api/industri
@@ -7,6 +11,11 @@ import { IndustryService } from '@/services/industryService';
  */
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const page = searchParams.get('page') ? Number(searchParams.get('page')) : 1;
     const limit = searchParams.get('limit') ? Number(searchParams.get('limit')) : 10;
@@ -40,6 +49,12 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const userRole = String((session?.user as any)?.role || '').toUpperCase();
+    if (!session || !ALLOWED_MANAGERS.includes(userRole)) {
+      return NextResponse.json({ success: false, message: 'Forbidden - Akses khusus Admin atau Tim Pokja' }, { status: 403 });
+    }
+
     const body = await request.json();
 
     // Validasi Field Wajib Standar

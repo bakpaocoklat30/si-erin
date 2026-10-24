@@ -14,19 +14,25 @@ import bcrypt from 'bcryptjs';
 
 export async function GET(request: Request) {
   try {
+    // 🛡️ LAYER 1: PROTEKSI PRODUKSI
+    // Di lingkungan produksi, endpoint ini wajib dikunci mati agar tidak disalahgunakan untuk reset akun
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { 
+          error: 'Akses Ditolak! Endpoint inisialisasi dinonaktifkan di lingkungan produksi untuk mencegah pengambilalihan akun. Silakan gunakan CLI: npm run prisma:seed' 
+        }, 
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const secretKeyParam = searchParams.get('secret');
 
-    // 🛡️ LAYER 1: PROTEKSI ENVIRONMENT (Hanya Boleh di Mode Development)
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const envSecretKey = process.env.INIT_SECRET_KEY || 'sierin-super-secret-key-2026';
-
-    // 🛡️ LAYER 2: VALIDASI SECRET KEY (Wajib menyertakan ?secret=sierin-super-secret-key-2026)
-    if (secretKeyParam !== envSecretKey && !isDevelopment) {
+    // 🛡️ LAYER 2: VALIDASI SECRET KEY
+    const envSecretKey = process.env.INIT_SECRET_KEY;
+    if (envSecretKey && secretKeyParam !== envSecretKey) {
       return NextResponse.json(
-        { 
-          error: 'Akses Ditolak! Endpoint inisialisasi dikunci untuk alasan keamanan produksi.' 
-        }, 
+        { error: 'Akses Ditolak! Secret key tidak valid.' }, 
         { status: 403 }
       );
     }
@@ -38,10 +44,10 @@ export async function GET(request: Request) {
       where: { role: 'ADMIN' }
     });
 
-    if (existingAdmin && secretKeyParam !== envSecretKey) {
+    if (existingAdmin) {
       return NextResponse.json(
         { 
-          error: 'Sistem telah di-inisialisasi sebelumnya! Eksekusi ditolak untuk melindungi data existing.',
+          error: 'Sistem telah di-inisialisasi sebelumnya! Eksekusi ditolak untuk melindungi akun dan data existing.',
           status: 'LOCKED'
         }, 
         { status: 400 }
@@ -159,13 +165,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: '🎉 Inisialisasi Kredensial & Setting Berhasil Diperbarui Secara Aman!',
-      createdAccounts: {
-        admin: { username: 'admin', password: 'admin123' },
-        pokja: { username: 'pokja', password: 'pokja123' },
-        pembimbing: { username: 'pembimbing', password: 'guru123' },
-        siswa: { username: '1', password: 'siswa123' }
-      },
+      message: '🎉 Inisialisasi Akun & Setting Berhasil!',
+      createdUsers: ['admin', 'pokja', 'pembimbing', '1'],
       schoolSetting
     });
 

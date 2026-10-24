@@ -14,9 +14,16 @@ import bcrypt from 'bcryptjs';
 
 export async function GET() {
   try {
+    // 🛡️ Proteksi Keamanan: Nonaktifkan seeder di lingkungan produksi
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({
+        error: 'Endpoint seeder dinonaktifkan di lingkungan produksi untuk keamanan data. Silakan gunakan CLI: npm run prisma:seed'
+      }, { status: 403 });
+    }
+
     const hashedPassword = await bcrypt.hash('password123', 10);
 
-    // Data akun default yang akan dimasukkan ke database
+    // Data akun default yang akan dimasukkan ke database jika belum ada
     const defaultUsers = [
       {
         name: 'Administrator SI-Erin',
@@ -71,12 +78,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      message: `Database berhasil di-seed! ${createdCount} akun baru ditambahkan.`,
-      credentials: [
-        { role: 'ADMIN', username: 'admin', password: 'password123' },
-        { role: 'POKJA', username: 'pokja', password: 'password123' },
-        { role: 'SISWA', username: 'siswa', password: 'password123' },
-      ],
+      message: `Database seeding selesai. ${createdCount} akun baru ditambahkan.`,
     }, { status: 200 });
 
   } catch (error) {

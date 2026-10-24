@@ -50,6 +50,26 @@ export async function POST(request: Request) {
       return [];
     }
 
+    // Helper aman untuk menghapus file di dalam folder public/uploads (Anti-Path-Traversal)
+    function safeDeleteUploadFile(photoUrl?: string | null) {
+      if (!photoUrl || typeof photoUrl !== 'string') return;
+      if (photoUrl.includes('..') || photoUrl.includes('\0')) return;
+      
+      const baseUploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
+      if (!photoUrl.startsWith('/uploads/') && !photoUrl.startsWith('uploads/')) return;
+      
+      const relativeFile = photoUrl.replace(/^\/?uploads\//, '');
+      const absoluteTarget = path.resolve(baseUploadsDir, relativeFile);
+      
+      if (absoluteTarget.startsWith(baseUploadsDir) && fs.existsSync(absoluteTarget)) {
+        try {
+          fs.unlinkSync(absoluteTarget);
+        } catch (e) {
+          console.warn('Gagal menghapus file lama:', e);
+        }
+      }
+    }
+
     // Aksi: Hapus Foto Kegiatan
     if (action === 'DELETE_PHOTO') {
       const photoUrl = formData.get('photoUrl') as string;
@@ -59,13 +79,8 @@ export async function POST(request: Request) {
         return u !== photoUrl;
       });
 
-      // Opsional: Hapus file fisik jika berada di folder uploads
-      if (photoUrl && photoUrl.startsWith('/uploads/')) {
-        const localPath = path.join(process.cwd(), 'public', photoUrl);
-        if (fs.existsSync(localPath)) {
-          try { fs.unlinkSync(localPath); } catch (e) { /* ignore */ }
-        }
-      }
+      // Hapus file fisik lama secara aman (hanya jika ada di public/uploads)
+      safeDeleteUploadFile(photoUrl);
 
       let newStatus = assignment.status;
       if (updatedPhotos.length === 0 && assignment.status === 'SELESAI') {
@@ -131,13 +146,8 @@ export async function POST(request: Request) {
         return p;
       });
 
-      // Hapus file fisik lama jika ada
-      if (oldPhotoUrl && oldPhotoUrl.startsWith('/uploads/')) {
-        const oldPhysical = path.join(process.cwd(), 'public', oldPhotoUrl);
-        if (fs.existsSync(oldPhysical)) {
-          try { fs.unlinkSync(oldPhysical); } catch (e) {}
-        }
-      }
+      // Hapus file fisik lama jika ada secara aman
+      safeDeleteUploadFile(oldPhotoUrl);
 
       const hasLaporan = Boolean(assignment.laporanUrl);
       const hasPhotos = updatedPhotos.length > 0;

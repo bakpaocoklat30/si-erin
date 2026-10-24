@@ -8,6 +8,8 @@ import {
 import fs from 'fs';
 import path from 'path';
 import { db } from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 async function createSection(industryId: string, departmentName: string, periodId: string, school: any, nomorSurat: string = '') {
   const industry = await db.industry.findUnique({ where: { id: industryId } });
@@ -155,6 +157,12 @@ async function createSection(industryId: string, departmentName: string, periodI
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const userRole = String((session?.user as any)?.role || '').toUpperCase();
+    if (!session || !['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA', 'TATA_USAHA', 'GURU', 'PEMBIMBING'].includes(userRole)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { groups, nomorSurat } = body;
     
@@ -196,6 +204,12 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const userRole = String((session?.user as any)?.role || '').toUpperCase();
+    if (!session || !['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA', 'TATA_USAHA', 'GURU', 'PEMBIMBING'].includes(userRole)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const industryId = searchParams.get('industryId');
     const periodId = searchParams.get('periodId');
