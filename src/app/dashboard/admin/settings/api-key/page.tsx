@@ -18,7 +18,8 @@ import {
   FileText,
   Users,
   Building2,
-  Lock
+  Lock,
+  FileDown
 } from 'lucide-react';
 
 export default function ApiKeySettingsPage() {
@@ -33,6 +34,31 @@ export default function ApiKeySettingsPage() {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'curl' | 'js' | 'python'>('curl');
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const res = await fetch('/api/admin/settings/api-key/download-pdf');
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || 'Gagal mengunduh dokumen PDF');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Dokumentasi_API_SI-ERIN_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert(e.message || 'Gagal mengunduh file PDF');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const fetchApiKey = async () => {
     setLoading(true);
@@ -187,7 +213,21 @@ print(response.json())`
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md cursor-pointer transition-all"
+            title="Unduh Dokumentasi Lengkap Endpoint API dalam Format PDF"
+          >
+            {downloadingPdf ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileDown className="w-4 h-4" />
+            )}
+            <span>{downloadingPdf ? 'Mengunduh PDF...' : 'Unduh PDF Dokumentasi'}</span>
+          </button>
           <a
             href="/api/external"
             target="_blank"
