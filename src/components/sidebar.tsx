@@ -45,7 +45,8 @@ import {
   Settings,
   GraduationCap,
   ClipboardCheck,
-  MessageSquare
+  MessageSquare,
+  Key
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
@@ -270,6 +271,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
         { name: 'Audit Trail Logs', href: '/dashboard/admin/audit-logs', icon: ShieldAlert },
         { name: 'Pencadangan Google Drive', href: '/dashboard/admin/backup', icon: UploadCloud },
         { name: 'WhatsApp Gateway (WAHA)', href: '/dashboard/admin/settings/whatsapp', icon: MessageSquare },
+        { name: 'Integrasi API Eksternal', href: '/dashboard/admin/settings/api-key', icon: Key },
         { name: 'Reset Progress Siswa', href: '/dashboard/admin/students/reset', icon: Clock },
         { name: 'Pengaturan Akun & Password', href: '/dashboard/settings', icon: Settings },
       ]
