@@ -53,6 +53,7 @@ import {
   Edit3,
   Check,
   Layers,
+  Split,
   Archive,
   CheckSquare,
   Square
@@ -867,6 +868,81 @@ export default function PokjaKelompokPrakerinPage() {
       }
     } catch (e) {
       alert('Terjadi kesalahan jaringan');
+    }
+  };
+
+  const handleOpenSplitModal = (group: GroupItem) => {
+    setSplitSourceGroup(group);
+    setSelectedSplitStudentIds([]);
+    const sDate = group.startDate ? new Date(group.startDate).toISOString().split('T')[0] : '';
+    const eDate = group.endDate ? new Date(group.endDate).toISOString().split('T')[0] : '';
+    setSplitStartDate(sDate);
+    setSplitEndDate(eDate);
+    setSplitResetLetters(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+  };
+
+  const handleToggleSplitStudent = (placementId: string) => {
+    setSelectedSplitStudentIds(prev =>
+      prev.includes(placementId)
+        ? prev.filter(id => id !== placementId)
+        : [...prev, placementId]
+    );
+  };
+
+  const handleSplitGroupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!splitSourceGroup) return;
+
+    const allStudents = splitSourceGroup.students || splitSourceGroup.placements || [];
+    const allPlacementIds = allStudents.map((s: any) => s.placementId || s.id).filter(Boolean);
+
+    if (selectedSplitStudentIds.length === 0) {
+      alert('Pilih minimal 1 siswa yang akan dipisahkan ke kelompok baru.');
+      return;
+    }
+
+    if (selectedSplitStudentIds.length >= allPlacementIds.length) {
+      alert('Tidak dapat memisahkan semua siswa. Sisakan minimal 1 siswa di kelompok asal. Jika ingin mengubah tanggal seluruh siswa, silakan gunakan tombol "Edit Periode".');
+      return;
+    }
+
+    if (splitStartDate && splitEndDate && new Date(splitStartDate) > new Date(splitEndDate)) {
+      alert('Tanggal mulai tidak boleh melebihi tanggal selesai!');
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/pokja/groups/split', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourcePlacementIds: selectedSplitStudentIds,
+          originalGroupPlacementIds: allPlacementIds,
+          startDate: splitStartDate,
+          endDate: splitEndDate,
+          resetLetters: splitResetLetters
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memisahkan kelompok');
+
+      setSuccessMsg(`Berhasil memisahkan ${selectedSplitStudentIds.length} siswa ke dalam kelompok baru!`);
+      alert(`Berhasil memisahkan ${selectedSplitStudentIds.length} siswa ke dalam kelompok baru!`);
+      setSplitSourceGroup(null);
+      setSelectedSplitStudentIds([]);
+      fetchGroupsData(selectedPeriodId, selectedStatus);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Gagal memisahkan kelompok');
+      alert(err.message || 'Gagal memisahkan kelompok');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -2355,6 +2431,222 @@ export default function PokjaKelompokPrakerinPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 MODAL PISAH KELOMPOK */}
+      {splitSourceGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200 overflow-y-auto">
+          <div className={`w-full max-w-2xl my-8 rounded-3xl border shadow-2xl overflow-hidden transition-all ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            {/* Header */}
+            <div className="p-6 border-b border-inherit flex justify-between items-center bg-purple-500/10">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-purple-500 text-white rounded-xl shadow-md shadow-purple-500/20">
+                  <Split className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-purple-700 dark:text-purple-400">
+                    Pisah Kelompok Prakerin
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {splitSourceGroup.industryName} • {(splitSourceGroup.students || splitSourceGroup.placements || []).length} Siswa Terdaftar
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSplitSourceGroup(null)} 
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSplitGroupSubmit} className="p-6 space-y-5">
+              {/* Info Tip */}
+              <div className="p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50 flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-300">
+                <Sparkles className="w-4 h-4 shrink-0 text-purple-600 mt-0.5" />
+                <span>
+                  Gunakan fitur ini jika sebagian siswa di industri ini berangkat lebih awal atau memiliki tanggal pelaksanaan berbeda. Siswa yang Anda pilih akan dipisahkan menjadi kelompok baru yang memiliki tanggal dan dokumen surat tersendiri.
+                </span>
+              </div>
+
+              {/* Step 1: Pilih Siswa */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-purple-600" />
+                    <span>Pilih Siswa yang Akan Dipisahkan:</span>
+                  </label>
+                  <span className="text-xs font-bold text-slate-500">
+                    Terpilih: <strong className="text-purple-600">{selectedSplitStudentIds.length}</strong> dari {(splitSourceGroup.students || splitSourceGroup.placements || []).length} siswa
+                  </span>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                  {(splitSourceGroup.students || splitSourceGroup.placements || []).map((std: any) => {
+                    const studentObj = std.student || std;
+                    const pId = std.placementId || std.id;
+                    const isSelected = selectedSplitStudentIds.includes(pId);
+
+                    return (
+                      <div
+                        key={pId}
+                        onClick={() => handleToggleSplitStudent(pId)}
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-400 dark:border-purple-600 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
+                            isSelected 
+                              ? 'bg-purple-600 border-purple-600 text-white' 
+                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'
+                          }`}>
+                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                              {studentObj.name}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              NIS: {studentObj.nis || '-'} • Kelas: {studentObj.className || '-'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isSelected ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300">
+                            Pindah Kelompok Baru
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-400">
+                            Tetap di Kelompok Asal
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {selectedSplitStudentIds.length === (splitSourceGroup.students || splitSourceGroup.placements || []).length && (
+                  <p className="mt-2 text-xs font-bold text-rose-500">
+                    ⚠️ Anda memilih semua siswa. Sisakan minimal 1 siswa di kelompok asal agar kelompok tidak kosong.
+                  </p>
+                )}
+              </div>
+
+              {/* Step 2: Atur Tanggal Kelompok Baru */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <CalendarDays className="w-4 h-4 text-purple-600" />
+                  <span>Jadwal / Periode Kelompok Baru:</span>
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Tanggal Mulai PKL
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={splitStartDate}
+                      onChange={(e) => setSplitStartDate(e.target.value)}
+                      className={`w-full p-2.5 rounded-xl border text-sm font-medium ${
+                        theme === 'dark' ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-900'
+                      } outline-none focus:ring-2 focus:ring-purple-500/50`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Tanggal Selesai PKL
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={splitEndDate}
+                      onChange={(e) => setSplitEndDate(e.target.value)}
+                      className={`w-full p-2.5 rounded-xl border text-sm font-medium ${
+                        theme === 'dark' ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-900'
+                      } outline-none focus:ring-2 focus:ring-purple-500/50`}
+                    />
+                  </div>
+                </div>
+
+                {splitStartDate && splitEndDate && (
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold">
+                    Durasi: {calculateDurationMonths(splitStartDate, splitEndDate)} Bulan ({formatDateIndonesia(splitStartDate)} s/d {formatDateIndonesia(splitEndDate)})
+                  </p>
+                )}
+              </div>
+
+              {/* Step 3: Opsi Reset Persuratan */}
+              <div 
+                onClick={() => setSplitResetLetters(!splitResetLetters)}
+                className="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all cursor-pointer"
+              >
+                <div className={`mt-0.5 w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
+                  splitResetLetters 
+                    ? 'bg-purple-600 border-purple-600 text-white' 
+                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'
+                }`}>
+                  {splitResetLetters && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white">
+                    Reset nomor & berkas persuratan untuk kelompok baru
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Rekomendasi: Centang opsi ini agar kelompok baru dapat diterbitkan Surat Permohonan, Surat Penerjunan, dan Surat Penarikan baru secara terpisah.
+                  </p>
+                </div>
+              </div>
+
+              {errorMsg && (
+                <div className="p-3 rounded-xl bg-rose-500/10 text-rose-600 text-xs font-bold">
+                  {errorMsg}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSplitSourceGroup(null)}
+                  disabled={submitting}
+                  className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold transition-all disabled:opacity-50 text-sm"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    submitting || 
+                    selectedSplitStudentIds.length === 0 || 
+                    selectedSplitStudentIds.length >= (splitSourceGroup.students || splitSourceGroup.placements || []).length
+                  }
+                  className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30 text-sm cursor-pointer"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Memproses...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Split className="w-4 h-4" />
+                      <span>Pisah ke Kelompok Baru ({selectedSplitStudentIds.length})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

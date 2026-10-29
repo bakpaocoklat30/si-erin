@@ -11,19 +11,38 @@ import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-async function createSection(industryId: string, departmentName: string, periodId: string, school: any, nomorSurat: string = '') {
+async function createSection(
+  industryId: string, 
+  departmentName: string, 
+  periodId: string, 
+  school: any, 
+  nomorSurat: string = '',
+  groupId?: string,
+  placementIds?: string[]
+) {
   const industry = await db.industry.findUnique({ where: { id: industryId } });
   
+  let placementWhere: any = {
+    industryId: industryId,
+    status: {
+      in: ['DITERIMA', 'DISETUJUI_INDUSTRI', 'REQUEST_PENARIKAN', 'REQUEST_Penarikan', 'MENUNGGU_PENARIKAN', 'MENUNGGU_PEMBERANGKATAN', 'PENARIKAN_DITERBITKAN', 'Penarikan_DITERBITKAN', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL']
+    }
+  };
+
+  if (departmentName && departmentName !== 'Semua Jurusan') {
+    placementWhere.student = {
+      department: departmentName
+    };
+  }
+
+  if (placementIds && Array.isArray(placementIds) && placementIds.length > 0) {
+    placementWhere.id = { in: placementIds };
+  } else if (groupId) {
+    placementWhere.groupId = groupId;
+  }
+
   const placements = await db.internshipPlacement.findMany({
-    where: {
-      industryId: industryId,
-      student: {
-        department: departmentName && departmentName !== 'Semua Jurusan' ? departmentName : undefined
-      },
-      status: {
-        in: ['DITERIMA', 'DISETUJUI_INDUSTRI', 'REQUEST_PENARIKAN', 'REQUEST_Penarikan', 'MENUNGGU_PENARIKAN', 'MENUNGGU_PEMBERANGKATAN', 'PENARIKAN_DITERBITKAN', 'Penarikan_DITERBITKAN', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL']
-      }
-    },
+    where: placementWhere,
     include: { student: true }
   });
 
@@ -180,7 +199,8 @@ export async function POST(request: Request) {
     const sections = [];
     for (const g of groups) {
       const groupNomor = nomorSurat || (g.students && g.students.length > 0 ? g.students[0].nomorPenarikan : '');
-      const section = await createSection(g.industryId, g.departmentName, g.periodId, school, groupNomor);
+      const placementIds = g.students?.map((s: any) => s.placementId || s.id).filter(Boolean);
+      const section = await createSection(g.industryId, g.departmentName, g.periodId, school, groupNomor, g.groupId, placementIds);
       if (section) sections.push(section);
     }
 
@@ -215,6 +235,9 @@ export async function GET(request: Request) {
     const periodId = searchParams.get('periodId');
     const departmentName = searchParams.get('department');
     const nomorSurat = searchParams.get('nomorSurat') || '';
+    const groupId = searchParams.get('groupId') || undefined;
+    const placementIdsParam = searchParams.get('placementIds');
+    const placementIds = placementIdsParam ? placementIdsParam.split(',').map(s => s.trim()).filter(Boolean) : undefined;
 
     if (!industryId || !periodId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
@@ -226,7 +249,7 @@ export async function GET(request: Request) {
     const industryNameSafe = industry ? industry.name.replace(/[^a-zA-Z0-9 ]/g, '') : 'Industri';
     const filename = `Surat penarikan - ${industryNameSafe}.docx`;
 
-    const section = await createSection(industryId, departmentName || '', periodId, school, nomorSurat);
+    const section = await createSection(industryId, departmentName || '', periodId, school, nomorSurat, groupId, placementIds);
     if (!section) return NextResponse.json({ error: 'Data kosong' }, { status: 404 });
 
     const doc = new Document({ sections: [section] });

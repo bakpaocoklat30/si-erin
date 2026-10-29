@@ -711,7 +711,8 @@ export default function SuratPenerjunanPage() {
                     
                 <button 
                   onClick={() => {
-                    const printUrl = `/api/letters/penerjunan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}&nomorSurat=${encodeURIComponent(group.students[0]?.nomorPengantaran || '')}`;
+                    const pIds = (group.students || group.placements || []).map((s: any) => s.placementId || s.id).filter(Boolean).join(',');
+                    const printUrl = `/api/letters/penerjunan?industryId=${group.industryId}&department=${encodeURIComponent(group.departmentName)}&periodId=${group.periodId}&nomorSurat=${encodeURIComponent(group.students[0]?.nomorPengantaran || '')}&groupId=${encodeURIComponent(group.groupId || '')}&placementIds=${encodeURIComponent(pIds)}`;
                         window.open(printUrl, '_blank');
                       }}
                       className="flex-1 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-bold rounded-xl text-xs flex justify-center items-center gap-2 transition-all cursor-pointer"
