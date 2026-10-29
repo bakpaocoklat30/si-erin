@@ -2119,6 +2119,26 @@ export default function PokjaKelompokPrakerinPage() {
                           <span>Edit Periode</span>
                         </button>
 
+                        {/* Pisah Kelompok */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSplitModal(group)}
+                          disabled={(group.students || group.placements || []).length <= 1}
+                          className={`px-4 py-2.5 rounded-2xl border text-xs font-black transition-all flex items-center space-x-1.5 ${
+                            (group.students || group.placements || []).length > 1
+                              ? 'cursor-pointer bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30 border-purple-500 active:scale-95'
+                              : 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-300 dark:border-slate-700'
+                          }`}
+                          title={
+                            (group.students || group.placements || []).length > 1
+                              ? "Pisahkan siswa tertentu ke kelompok baru (misal: jika tanggal berangkat berbeda)"
+                              : "Minimal 2 siswa dalam kelompok untuk dapat dipisahkan"
+                          }
+                        >
+                          <Split className="w-4 h-4" />
+                          <span>Pisah Kelompok</span>
+                        </button>
+
                         {/* Gabung Kelompok */}
                         <button
                           type="button"
