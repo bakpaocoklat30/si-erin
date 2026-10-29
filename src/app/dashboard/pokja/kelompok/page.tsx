@@ -75,6 +75,7 @@ interface StudentItem {
   className?: string;
   department?: string;
   departmentName?: string;
+  status?: string;
   teacher?: TeacherItem | null;
   teacherName?: string;
   startDate?: string;
@@ -172,6 +173,14 @@ export default function PokjaKelompokPrakerinPage() {
   // Target Kelompok untuk Gabung
   const [mergeSourceGroup, setMergeSourceGroup] = useState<GroupItem | null>(null);
   const [mergeTargetGroupId, setMergeTargetGroupId] = useState<string>('');
+
+  // Target Kelompok untuk Pisah
+  const [splitSourceGroup, setSplitSourceGroup] = useState<GroupItem | null>(null);
+  const [selectedSplitStudentIds, setSelectedSplitStudentIds] = useState<string[]>([]);
+  const [splitStartDate, setSplitStartDate] = useState<string>('');
+  const [splitEndDate, setSplitEndDate] = useState<string>('');
+  const [splitResetLetters, setSplitResetLetters] = useState<boolean>(true);
+
 
   // Target Kelompok untuk Edit Periode Prakerin
   const [editPeriodGroup, setEditPeriodGroup] = useState<GroupItem | null>(null);
@@ -2581,7 +2590,7 @@ export default function PokjaKelompokPrakerinPage() {
 
                 {splitStartDate && splitEndDate && (
                   <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold">
-                    Durasi: {calculateDurationMonths(splitStartDate, splitEndDate)} Bulan ({formatDateIndonesia(splitStartDate)} s/d {formatDateIndonesia(splitEndDate)})
+                    Durasi: {calculateDurationMonths(splitStartDate, splitEndDate).months} Bulan ({formatDateIndonesia(splitStartDate)} s/d {formatDateIndonesia(splitEndDate)})
                   </p>
                 )}
               </div>
