@@ -59,6 +59,7 @@ import {
   Square
 } from 'lucide-react';
 import { detectDateFromPdfSource } from '@/lib/pdf-date-detector';
+import { parseSafeDate, toSafeIsoString, formatDateIndonesia, calculateDurationMonths } from '@/lib/date-utils';
 
 interface TeacherItem {
   id: string;
@@ -214,16 +215,6 @@ export default function PokjaKelompokPrakerinPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Formatter Tanggal Indonesia
-  const formatDateIndonesia = (dateStr?: string) => {
-    if (!dateStr) return '-';
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-    } catch {
-      return dateStr;
-    }
-  };
 
   const [loadingStage, setLoadingStage] = useState('Memuat awal...');
 
@@ -548,26 +539,6 @@ export default function PokjaKelompokPrakerinPage() {
   // 🌟 HELPER & HANDLER PERSURATAN PERMOHONAN PKL (DOCX, PREVIEW & TTE)
   // Client-safe implementations (No Node.js 'fs' or 'adm-zip' imports)
   // ----------------------------------------------------------------------
-  const calculateDurationMonths = (startDateStr?: string, endDateStr?: string): { months: number; text: string } => {
-    if (!startDateStr || !endDateStr) return { months: 4, text: 'Empat' };
-    try {
-      const s = new Date(startDateStr);
-      const e = new Date(endDateStr);
-      if (isNaN(s.getTime()) || isNaN(e.getTime())) return { months: 4, text: 'Empat' };
-      
-      let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
-      if (e.getDate() >= 25 || e.getDate() - s.getDate() >= 20) {
-        months += 1;
-      }
-      if (months <= 0) months = 1;
-      
-      const words = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas', 'Dua Belas'];
-      const text = words[months] || String(months);
-      return { months, text };
-    } catch {
-      return { months: 4, text: 'Empat' };
-    }
-  };
 
   const formatIndustryAddress = (group: GroupItem): string => {
     const parts = [];
@@ -883,8 +854,8 @@ export default function PokjaKelompokPrakerinPage() {
   const handleOpenSplitModal = (group: GroupItem) => {
     setSplitSourceGroup(group);
     setSelectedSplitStudentIds([]);
-    const sDate = group.startDate ? new Date(group.startDate).toISOString().split('T')[0] : '';
-    const eDate = group.endDate ? new Date(group.endDate).toISOString().split('T')[0] : '';
+    const sDate = group.startDate ? toSafeIsoString(group.startDate).split('T')[0] : '';
+    const eDate = group.endDate ? toSafeIsoString(group.endDate).split('T')[0] : '';
     setSplitStartDate(sDate);
     setSplitEndDate(eDate);
     setSplitResetLetters(true);
@@ -1054,9 +1025,9 @@ export default function PokjaKelompokPrakerinPage() {
       if (res.ok && json.success) {
         setGroups(prev => prev.map(item => (item.groupId === targetGroup.groupId || item.groupKey === targetGroup.groupKey) ? { 
           ...item, 
-          suratTugasUrl: suratBase64,
+          suratTugasUrl: json.suratTugasUrl || suratBase64,
           letterNumber: inputLetterNumber.trim(),
-          letterUploadedAt: inputLetterDate ? new Date(inputLetterDate).toISOString() : new Date().toISOString()
+          letterUploadedAt: toSafeIsoString(inputLetterDate)
         } : item));
 
         setSuccessMsg(json.message || `Surat No. ${inputLetterNumber} berhasil diperbarui & tersimpan di database!`);
@@ -1109,7 +1080,7 @@ export default function PokjaKelompokPrakerinPage() {
       if (res.ok && json.success) {
         setGroups(prev => prev.map(item => (item.groupId === targetGroupBalasan.groupId || item.groupKey === targetGroupBalasan.groupKey) ? { 
           ...item, 
-          suratBalasanUrl: balasanBase64,
+          suratBalasanUrl: json.suratBalasanUrl || balasanBase64,
         } : item));
 
         setSuccessMsg('Surat Balasan berhasil diunggah!');
@@ -2105,8 +2076,8 @@ export default function PokjaKelompokPrakerinPage() {
                           type="button"
                           onClick={() => {
                             setEditPeriodGroup(group);
-                            setEditStartDate(group.startDate ? new Date(group.startDate).toISOString().split('T')[0] : '');
-                            setEditEndDate(group.endDate ? new Date(group.endDate).toISOString().split('T')[0] : '');
+                            setEditStartDate(group.startDate ? toSafeIsoString(group.startDate).split('T')[0] : '');
+                            setEditEndDate(group.endDate ? toSafeIsoString(group.endDate).split('T')[0] : '');
                           }}
                           className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
                             theme === 'dark'

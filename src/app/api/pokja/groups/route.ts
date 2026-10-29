@@ -21,6 +21,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { saveBase64ToFile } from '@/lib/file-utils';
 import { notifyStudentLetterIssued } from '@/lib/whatsapp';
 import { loadPeriodContext, resolvePlacementPeriod } from '@/lib/period-resolver';
+import { parseSafeDate } from '@/lib/date-utils';
 
 // List Role yang Berhak Mengakses Data Kelompok & Persuratan
 const ALLOWED_ROLES = ['POKJA', 'TIM_POKJA', 'ADMIN', 'TATA_USAHA', 'TATA USAHA', 'TATAUSAHA', 'TU', 'SUPER_ADMIN'];
@@ -376,9 +377,7 @@ export async function PUT(request: Request) {
 
     if (suratTugasUrl) {
       const cleanSuratUrl = saveBase64ToFile(suratTugasUrl.trim(), 'surat_tugas', 'tugas');
-      const uploadTimestamp = (letterDate && !isNaN(new Date(letterDate).getTime()))
-        ? new Date(letterDate)
-        : new Date();
+      const uploadTimestamp = parseSafeDate(letterDate);
       updateData = {
         ...updateData,
         suratTugasUrl: cleanSuratUrl,
@@ -440,6 +439,8 @@ export async function PUT(request: Request) {
       success: true,
       message: `BERHASIL DISIMPAN! Nomor Surat: ${letterNumber} tersimpan permanen.`,
       letterNumber: letterNumber,
+      suratTugasUrl: updateData.suratTugasUrl,
+      suratBalasanUrl: updateData.suratBalasanUrl,
       count: result.length
     });
 

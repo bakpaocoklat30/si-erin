@@ -17,6 +17,7 @@ import { PDFDocument } from 'pdf-lib';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
+import { parseSafeDate, toSafeIsoString, formatDateIndonesia, calculateDurationMonths } from '@/lib/date-utils';
 
 
 import {
@@ -185,16 +186,6 @@ export default function PermohonanSuratKelompokPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Formatter Tanggal Lokal Indonesia
-  const formatDateIndonesia = (dateStr?: string) => {
-    if (!dateStr) return '-';
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-    } catch {
-      return dateStr;
-    }
-  };
 
   // Ambil Data dari API Pokja dengan Recovery Fallback
   const fetchVerifiedGroups = useCallback(async () => {
@@ -346,26 +337,6 @@ export default function PermohonanSuratKelompokPage() {
   // Submit Upload Surat & SIMPAN `letterNumber` KE PRISMA DATABASE
   
 
-  const calculateDurationMonths = (startDateStr?: string, endDateStr?: string): { months: number; text: string } => {
-    if (!startDateStr || !endDateStr) return { months: 4, text: 'Empat' };
-    try {
-      const s = new Date(startDateStr);
-      const e = new Date(endDateStr);
-      if (isNaN(s.getTime()) || isNaN(e.getTime())) return { months: 4, text: 'Empat' };
-      
-      let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
-      if (e.getDate() >= 25 || e.getDate() - s.getDate() >= 20) {
-        months += 1;
-      }
-      if (months <= 0) months = 1;
-      
-      const words = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas', 'Dua Belas'];
-      const text = words[months] || String(months);
-      return { months, text };
-    } catch {
-      return { months: 4, text: 'Empat' };
-    }
-  };
 
   const formatIndustryAddress = (group: any): string => {
     const parts = [];
@@ -792,7 +763,7 @@ export default function PermohonanSuratKelompokPage() {
       if (res.ok && json.success) {
         setVerifiedGroups(prev => prev.map(item => item.groupId === targetGroup.groupId ? { 
           ...item, 
-          suratTugasUrl: suratBase64,
+          suratTugasUrl: json.suratTugasUrl || suratBase64,
           letterNumber: inputLetterNumber.trim()
         } : item));
 
