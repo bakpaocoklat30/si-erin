@@ -58,8 +58,10 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Unauthorized - Silakan login terlebih dahulu' }, { status: 401 });
     }
 
-    const role = (session.user as any)?.role?.toUpperCase();
-    if (role !== 'POKJA' && role !== 'ADMIN') {
+    const role = String((session.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(role);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(role);
+    if (!isPokja && !isAdmin) {
       return NextResponse.json({ success: false, error: 'Forbidden - Akses khusus Tim Pokja / Admin' }, { status: 403 });
     }
 
@@ -207,8 +209,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized - Silakan login terlebih dahulu' }, { status: 401 });
     }
 
-    const role = (session.user as any)?.role?.toUpperCase();
-    if (role !== 'POKJA' && role !== 'ADMIN') {
+    const role = String((session.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(role);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(role);
+    if (!isPokja && !isAdmin) {
       return NextResponse.json({ success: false, error: 'Forbidden - Akses khusus Tim Pokja / Admin' }, { status: 403 });
     }
 
@@ -340,8 +344,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized - Silakan login terlebih dahulu' }, { status: 401 });
     }
 
-    const role = (session.user as any)?.role?.toUpperCase();
-    if (role !== 'POKJA' && role !== 'ADMIN') {
+    const role = String((session.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(role);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(role);
+    if (!isPokja && !isAdmin) {
       return NextResponse.json({ success: false, error: 'Forbidden - Akses khusus Tim Pokja / Admin' }, { status: 403 });
     }
 
@@ -428,8 +434,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized - Silakan login terlebih dahulu' }, { status: 401 });
     }
 
-    const role = (session.user as any)?.role?.toUpperCase();
-    if (role !== 'POKJA' && role !== 'ADMIN') {
+    const role = String((session.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(role);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(role);
+    if (!isPokja && !isAdmin) {
       return NextResponse.json({ success: false, error: 'Forbidden - Akses khusus Tim Pokja / Admin' }, { status: 403 });
     }
 

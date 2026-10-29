@@ -7,7 +7,7 @@ import { useTheme } from '@/app/theme-provider';
 import Link from 'next/link';
 
 export default function ManualPlacementPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const { theme } = useTheme();
 
   const [industries, setIndustries] = useState<any[]>([]);
@@ -111,6 +111,7 @@ export default function ManualPlacementPage() {
         body: JSON.stringify({
           industryId: formInd,
           periodId: formPeriod,
+          department: (session?.user as any)?.department || undefined,
           startDate: formStart || null,
           endDate: formEnd || null,
         })

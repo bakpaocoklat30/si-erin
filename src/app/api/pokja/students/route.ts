@@ -13,16 +13,109 @@ import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+function expandDepartmentTerms(deptName: string): string[] {
+  const terms = new Set<string>();
+  if (!deptName) return [];
+  
+  const clean = deptName.trim();
+  terms.add(clean);
+  const lower = clean.toLowerCase();
+
+  // Rumpun Otomotif (TKR, TKRO, TBSM, TSM, TBO, Otomotif)
+  if (
+    lower.includes('otomotif') || 
+    lower.includes('tkr') || 
+    lower.includes('kendaraan') || 
+    lower.includes('sepeda motor') || 
+    lower.includes('tbsm') || 
+    lower.includes('tsm')
+  ) {
+    terms.add('Otomotif');
+    terms.add('Teknik Otomotif');
+    terms.add('Teknik Kendaraan Ringan');
+    terms.add('Teknik Kendaraan Ringan Otomotif');
+    terms.add('TKR');
+    terms.add('TKRO');
+    terms.add('Teknik dan Bisnis Sepeda Motor');
+    terms.add('TBSM');
+    terms.add('TSM');
+    terms.add('Sepeda Motor');
+  }
+
+  // Rumpun TKJ / Informatika
+  if (
+    lower.includes('tkj') || 
+    lower.includes('komputer') || 
+    lower.includes('jaringan') || 
+    lower.includes('tjkt')
+  ) {
+    terms.add('TKJ');
+    terms.add('TJKT');
+    terms.add('Teknik Komputer dan Jaringan');
+    terms.add('Teknik Komputer Dan Jaringan');
+    terms.add('Teknik Jaringan Komputer & Telekomunikasi');
+    terms.add('Teknik Jaringan Komputer dan Telekomunikasi');
+  }
+
+  // Rumpun RPL
+  if (
+    lower.includes('rpl') || 
+    lower.includes('perangkat lunak') || 
+    lower.includes('pplg')
+  ) {
+    terms.add('RPL');
+    terms.add('PPLG');
+    terms.add('Rekayasa Perangkat Lunak');
+    terms.add('Pengembangan Perangkat Lunak dan Gim');
+  }
+
+  // Rumpun Mesin
+  if (lower.includes('mesin') || lower.includes('tpm')) {
+    terms.add('Mesin');
+    terms.add('Teknik Pemesinan');
+    terms.add('TPM');
+  }
+
+  // Rumpun Listrik / Elektro
+  if (lower.includes('listrik') || lower.includes('titl') || lower.includes('elektro')) {
+    terms.add('TITL');
+    terms.add('Teknik Instalasi Tenaga Listrik');
+    terms.add('Teknik Ketenagalistrikan');
+  }
+
+  // Rumpun Pengelasan
+  if (lower.includes('las') || lower.includes('pengelasan') || lower.includes('tpl')) {
+    terms.add('Teknik Pengelasan');
+    terms.add('TPL');
+    terms.add('Las');
+  }
+
+  return Array.from(terms);
+}
+
 // 1. GET: Ambil Seluruh Data Siswa Sesuai Scope Jurusan Pokja
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(userRole);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
+
+    if (!session || (!isPokja && !isAdmin)) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 
-    const userDepartment = (session.user as any)?.department;
-    const userRole = (session.user as any)?.role;
+    let userDepartment = (session.user as any)?.department;
+    const userName = (session.user as any)?.name || '';
+
+    // Safety fallback jika nama user mengandung kata kunci jurusan
+    if (!userDepartment || userDepartment === 'ALL' || userDepartment.toLowerCase() === 'semua jurusan') {
+      if (userName.toLowerCase().includes('otomotif') || userName.toLowerCase().includes('tkr') || userName.toLowerCase().includes('tbsm')) {
+        userDepartment = 'Teknik Otomotif';
+      } else if (userName.toLowerCase().includes('tkj') || userName.toLowerCase().includes('komputer')) {
+        userDepartment = 'Teknik Komputer dan Jaringan';
+      }
+    }
 
     // Filter untuk mengecualikan akun pengelola sistem
     let whereClause: any = {
@@ -41,9 +134,26 @@ export async function GET(request: Request) {
     };
 
     // Department scoping khusus Pokja
-    if (userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan') {
+    if (isPokja && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL') {
+      const deptRecord = await db.department.findFirst({
+        where: {
+          OR: [
+            { name: { contains: userDepartment, mode: 'insensitive' } },
+            { code: { equals: userDepartment, mode: 'insensitive' } }
+          ]
+        }
+      });
+
+      const baseTerms = [userDepartment];
+      if (deptRecord?.name && !baseTerms.includes(deptRecord.name)) baseTerms.push(deptRecord.name);
+      if (deptRecord?.code && !baseTerms.includes(deptRecord.code)) baseTerms.push(deptRecord.code);
+
+      const deptTerms = Array.from(new Set(baseTerms.flatMap(t => expandDepartmentTerms(t))));
+
       whereClause.AND.push({
-        department: { contains: userDepartment, mode: 'insensitive' }
+        OR: deptTerms.map(term => ({
+          department: { contains: term, mode: 'insensitive' as const }
+        }))
       });
     }
 
@@ -79,7 +189,7 @@ export async function GET(request: Request) {
                 id: true,
                 name: true, 
                 address: true, 
-                phone: true,
+                phone: true, 
                 contactPerson: true
               } 
             }
@@ -99,7 +209,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(userRole);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
+
+    if (!session || (!isPokja && !isAdmin)) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 
@@ -188,7 +302,11 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(userRole);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
+
+    if (!session || (!isPokja && !isAdmin)) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 
@@ -261,7 +379,11 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(userRole);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
+
+    if (!session || (!isPokja && !isAdmin)) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 

@@ -16,13 +16,16 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(userRole);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
+
+    if (!session || (!isPokja && !isAdmin)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userRole = (session.user as any)?.role;
     const userDepartment = (session.user as any)?.department;
-    const isPokjaScoped = userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL';
+    const isPokjaScoped = isPokja && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL';
     const isTkj = isPokjaScoped && (userDepartment.toLowerCase().includes('tkj') || userDepartment.toLowerCase().includes('komputer'));
 
     let allIndustries: any[] = [];
@@ -113,12 +116,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(userRole);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
+
+    if (!session || (!isPokja && !isAdmin)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const userDepartment = (session.user as any)?.department;
-    const userRole = (session.user as any)?.role;
 
     const body = await request.json();
     const { name, startDate, endDate, isActive, activeIndustries, department } = body;
@@ -155,13 +161,16 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(userRole);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
+
+    if (!session || (!isPokja && !isAdmin)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userRole = (session.user as any)?.role;
     const userDepartment = (session.user as any)?.department;
-    const isPokjaScoped = userRole === 'POKJA' && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL';
+    const isPokjaScoped = isPokja && userDepartment && userDepartment.toLowerCase() !== 'semua jurusan' && userDepartment.toUpperCase() !== 'ALL';
 
     const body = await request.json();
     const { id, name, startDate, endDate, isActive, activeIndustries, department } = body;
@@ -253,7 +262,11 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || ((session.user as any)?.role !== 'POKJA' && (session.user as any)?.role !== 'ADMIN')) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    const isPokja = ['POKJA', 'TIM_POKJA'].includes(userRole);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
+
+    if (!session || (!isPokja && !isAdmin)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
