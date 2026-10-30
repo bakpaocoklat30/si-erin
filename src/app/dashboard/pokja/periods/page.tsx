@@ -30,7 +30,10 @@ import {
   ChevronRight,
   SlidersHorizontal,
   Search,
-  Filter
+  Filter,
+  FileSpreadsheet,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 
@@ -188,6 +191,13 @@ export default function PokjaPeriodsPage() {
   const [industrySearchQuery, setIndustrySearchQuery] = useState('');
   const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
   const [filterSelectionState, setFilterSelectionState] = useState<'all' | 'selected' | 'unselected'>('all');
+
+  // STATE BARU: EKSPOR CSV INDUSTRI PER PERIODE & PER JURUSAN POKJA
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [activeExportPeriod, setActiveExportPeriod] = useState<any>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportSummary, setExportSummary] = useState<any>(null);
+  const [downloadingDept, setDownloadingDept] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     id: '',
@@ -420,6 +430,48 @@ export default function PokjaPeriodsPage() {
     setShowManageIndustryModal(true);
   };
 
+  const openExportModal = async (period: any) => {
+    setActiveExportPeriod(period);
+    setShowExportModal(true);
+    setExportLoading(true);
+    setExportSummary(null);
+    try {
+      const res = await fetch(`/api/pokja/periods/export-industries?periodId=${period.id}&t=${Date.now()}`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setExportSummary(data);
+      } else {
+        setErrorMsg(data.error || 'Gagal memuat ringkasan data industri untuk ekspor.');
+      }
+    } catch (err) {
+      console.error('Error fetching export metadata:', err);
+      setErrorMsg('Gagal terhubung ke server saat memuat data ekspor.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDownloadCsv = (deptName?: string) => {
+    if (!activeExportPeriod) return;
+    const targetDept = deptName || '';
+    setDownloadingDept(targetDept || 'ALL');
+
+    const downloadUrl = `/api/pokja/periods/export-industries?periodId=${encodeURIComponent(activeExportPeriod.id)}&department=${encodeURIComponent(targetDept)}&format=csv`;
+
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', '');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+      setDownloadingDept(null);
+      setSuccessMsg(`Berhasil mengunduh CSV industri periode "${activeExportPeriod.name}"!`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+    }, 1200);
+  };
+
   // 🔴 LOGIKA PENCARIAN & FILTER REAL-TIME INDUSTRI DI MODAL
   const filteredModalIndustries = useMemo(() => {
     if (!activePeriodForIndustry) return [];
@@ -561,6 +613,15 @@ export default function PokjaPeriodsPage() {
                       </div>
                     </td>
                     <td className="p-4 text-right space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => openExportModal(p)}
+                        className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-500 dark:text-amber-400 font-bold transition-all inline-flex items-center space-x-1 cursor-pointer shadow-sm"
+                        title="Ekspor CSV Industri yang Ditempati Siswa PKL pada Periode Ini"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5" />
+                        <span>Export Industri</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => openEditModal(p)}
@@ -972,6 +1033,146 @@ export default function PokjaPeriodsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 📊 MODAL EKSPOR CSV INDUSTRI PER PERIODE & PER JURUSAN POKJA */}
+      {showExportModal && activeExportPeriod && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className={`w-full max-w-xl border rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex justify-between items-center border-b pb-4 border-inherit">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Ekspor Data Penempatan</span>
+                  <h3 className="text-base font-extrabold">Ekspor Industri PKL — {activeExportPeriod.name}</h3>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowExportModal(false)} 
+                className="text-slate-400 hover:text-red-500 cursor-pointer p-1.5 rounded-xl hover:bg-slate-800/40 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <p className="text-slate-400 leading-relaxed">
+                Unduh data industri mitra yang ditempati siswa PKL pada periode <strong className="text-slate-200">{activeExportPeriod.name}</strong>. File CSV diformat lengkap dengan koordinat geofencing dan dipisahkan per Pokja jurusan.
+              </p>
+
+              {/* Status Isolasi Jurusan Pokja */}
+              {exportSummary?.userDepartment && (
+                <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-start space-x-2.5">
+                  <div className="p-1 rounded-lg bg-indigo-500/20 text-indigo-300 shrink-0 mt-0.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="font-bold block">Hak Akses Terisolasi: Pokja {exportSummary.userDepartment}</span>
+                    <span className="text-[11px] opacity-80">Sesuai hak akses jurusan Anda, hanya data industri mitra yang ditempati siswa jurusan Anda yang akan diekspor.</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Box Daftar Jurusan Pokja & Tombol Unduh */}
+              {exportLoading ? (
+                <div className="py-12 text-center space-y-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-amber-500 mx-auto" />
+                  <p className="text-slate-400 font-semibold">Memuat rekap industri yang ditempati siswa...</p>
+                </div>
+              ) : !exportSummary || exportSummary.departments?.length === 0 ? (
+                <div className="p-6 rounded-2xl border text-center space-y-2 border-slate-800 bg-slate-950/40">
+                  <Building2 className="w-8 h-8 text-slate-500 mx-auto" />
+                  <p className="font-bold text-slate-300">Belum Ada Industri yang Ditempati</p>
+                  <p className="text-[11px] text-slate-400">Belum ada siswa PKL yang tercatat aktif menempati industri pada periode ini.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+                      Pilih Jurusan Pokja untuk Ekspor:
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {exportSummary.departments.length} Jurusan Tersedia
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {exportSummary.departments.map((dept: any) => (
+                      <div 
+                        key={dept.name}
+                        className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          theme === 'dark' ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <span className="font-extrabold text-sm block text-slate-100">
+                            Pokja {dept.name}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20 flex items-center space-x-1">
+                              <Building2 className="w-3 h-3 inline mr-1" />
+                              {dept.industryCount} Industri Ditempati
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
+                              {dept.studentCount} Siswa PKL
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadCsv(dept.name)}
+                          disabled={downloadingDept === dept.name}
+                          className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-extrabold text-xs shadow-lg shadow-amber-500/25 flex items-center justify-center space-x-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                        >
+                          {downloadingDept === dept.name ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Mengunduh...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Unduh CSV</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Informasi Struktur 15 Kolom CSV */}
+              <div className={`p-4 rounded-2xl border text-[11px] space-y-1.5 ${
+                theme === 'dark' ? 'bg-slate-950/40 border-slate-800/80 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
+              }`}>
+                <span className="font-bold text-slate-300 block text-[10px] uppercase tracking-wider">
+                  Urutan 15 Kolom CSV Standar:
+                </span>
+                <p className="font-mono text-[10px] leading-relaxed text-slate-400">
+                  Nama Perusahaan, Kode Perusahaan, Alamat, Telepon, Email, Website, Latitude, Longitude, Radius (meter), Jenis Industri, Deskripsi, Nama Kontak Person, Telepon Kontak Person, Email Kontak Person, Maksimal Siswa
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-inherit flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                className={`px-6 py-2.5 rounded-xl font-bold border cursor-pointer text-xs transition-all ${
+                  theme === 'dark' ? 'border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white' : 'border-slate-300 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}
