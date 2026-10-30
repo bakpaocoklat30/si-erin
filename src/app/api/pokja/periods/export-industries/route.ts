@@ -43,6 +43,37 @@ function formatFullAddress(ind: any): string {
   return parts.length > 0 ? parts.join(', ') : '-';
 }
 
+function sanitizeCoordinate(rawLat: any, rawLng: any): { lat: string; lng: string } {
+  let latStr = rawLat ? String(rawLat).trim().replace(',', '.') : '';
+  let lngStr = rawLng ? String(rawLng).trim().replace(',', '.') : '';
+
+  let latNum = parseFloat(latStr);
+  let lngNum = parseFloat(lngStr);
+
+  const isLatValid = !isNaN(latNum) && /^-?\d+(\.\d+)?$/.test(latStr);
+  const isLngValid = !isNaN(lngNum) && /^-?\d+(\.\d+)?$/.test(lngStr);
+
+  // Jika nilai koordinat terbalik (Lat terisi nilai Longitude Indonesia 95-141 & Lng terisi Latitude -11 s.d. 6)
+  if (isLatValid && isLngValid) {
+    if (latNum >= 95.0 && latNum <= 141.5 && lngNum >= -11.5 && lngNum <= 6.5) {
+      const temp = latNum;
+      latNum = lngNum;
+      lngNum = temp;
+    }
+  }
+
+  // Standar presisi tinggi GPS Geofencing (7 angka di belakang desimal)
+  const finalLat = (!isNaN(latNum) && latNum >= -11.5 && latNum <= 6.5)
+    ? latNum.toFixed(7)
+    : '';
+
+  const finalLng = (!isNaN(lngNum) && lngNum >= 95.0 && lngNum <= 141.5)
+    ? lngNum.toFixed(7)
+    : '';
+
+  return { lat: finalLat, lng: finalLng };
+}
+
 function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/__+/g, '_');
 }
@@ -304,8 +335,7 @@ export async function GET(request: Request) {
       const cleanPhone = (ind.phone && ind.phone.trim() !== '-') ? ind.phone.trim() : '';
       const cleanEmail = ind.email?.trim() || '';
       const cleanWebsite = ind.website?.trim() || '';
-      const cleanLat = ind.latitude?.trim() || '';
-      const cleanLng = ind.longitude?.trim() || '';
+      const coords = sanitizeCoordinate(ind.latitude, ind.longitude);
       const jenisIndustri = ind.sector?.trim() || 'Teknologi & Informasi';
       const deskripsi = (ind.jobDescription?.trim() || ind.sector?.trim() || ind.name?.trim() || '').replace(/[\r\n]+/g, ' ');
       const kontakPerson = ind.contactPerson?.trim() || 'HRD / Pembimbing Industri';
@@ -317,15 +347,15 @@ export async function GET(request: Request) {
         escapeCsvCell(cleanPhone),
         escapeCsvCell(cleanEmail),
         escapeCsvCell(cleanWebsite),
-        escapeCsvCell(cleanLat),
-        escapeCsvCell(cleanLng),
-        escapeCsvCell('100'), // Radius Geofencing default 100 meter
+        coords.lat || '""', // Latitude desimal murni tanpa korupsi string/kutip ganda
+        coords.lng || '""', // Longitude desimal murni tanpa korupsi string/kutip ganda
+        '100', // Radius Geofencing default 100 meter
         escapeCsvCell(jenisIndustri),
         escapeCsvCell(deskripsi),
         escapeCsvCell(kontakPerson),
         escapeCsvCell(cleanPhone), // Telepon Kontak Person
         escapeCsvCell(cleanEmail), // Email Kontak Person
-        escapeCsvCell(maxSiswa)
+        typeof maxSiswa === 'number' ? String(maxSiswa) : escapeCsvCell(maxSiswa)
       ];
 
       csvRows.push(row.join(','));
