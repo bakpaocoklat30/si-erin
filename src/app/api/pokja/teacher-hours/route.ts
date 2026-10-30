@@ -278,6 +278,105 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !['ADMIN', 'POKJA', 'TIM_POKJA', 'SUPER_ADMIN'].includes((session.user as any)?.role)) {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { id, totalHours, teacherId, academicYear } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID alokasi wajib disertakan' }, { status: 400 });
+    }
+
+    const existingAllocation = await db.teacherHourAllocation.findUnique({
+      where: { id }
+    });
+
+    if (!existingAllocation) {
+      return NextResponse.json({ error: 'Data alokasi tidak ditemukan' }, { status: 404 });
+    }
+
+    const updateData: any = {};
+
+    if (totalHours !== undefined) {
+      const parsedHours = parseInt(totalHours);
+      if (isNaN(parsedHours) || parsedHours < 0) {
+        return NextResponse.json({ error: 'Jumlah jam alokasi harus berupa angka positif' }, { status: 400 });
+      }
+      updateData.totalHours = parsedHours;
+    }
+
+    if (academicYear) {
+      updateData.academicYear = academicYear;
+    }
+
+    // Jika teacherId diubah, pastikan guru baru belum ada di kelas yang sama
+    if (teacherId && teacherId !== existingAllocation.teacherId) {
+      const duplicate = await db.teacherHourAllocation.findFirst({
+        where: {
+          className: existingAllocation.className,
+          teacherId: teacherId,
+          NOT: { id: existingAllocation.id }
+        }
+      });
+
+      if (duplicate) {
+        return NextResponse.json({
+          error: 'Guru tersebut sudah terdaftar di kelas ini. Silakan pilih guru lain atau edit alokasi guru yang bersangkutan.'
+        }, { status: 400 });
+      }
+
+      updateData.teacherId = teacherId;
+
+      // Pindahkan siswa yang sebelumnya dibimbing guru lama di kelas ini ke guru baru
+      await db.student.updateMany({
+        where: {
+          className: { equals: existingAllocation.className, mode: 'insensitive' },
+          teacherId: existingAllocation.teacherId
+        },
+        data: {
+          teacherId: teacherId
+        }
+      });
+    }
+
+    const updated = await db.teacherHourAllocation.update({
+      where: { id },
+      data: updateData,
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            role: true,
+            department: true,
+            phone: true,
+            _count: {
+              select: {
+                supervisedStudents: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Alokasi jam guru berhasil diperbarui',
+      allocation: updated
+    });
+  } catch (error: any) {
+    console.error('API Teacher Hours PUT Error:', error);
+    return NextResponse.json({ error: error.message || 'Gagal memperbarui alokasi jam' }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
