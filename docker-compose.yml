@@ -45,12 +45,16 @@ services:
     environment:
       # 🔑 Connection String Internal dengan Connection Pool Limiter & Timeout Guard
       DATABASE_URL: "postgresql://sierin_user:SierinSecurePass2026!@postgres:5432/sierin_db?schema=public&connection_limit=10&pool_timeout=20"
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://202.65.116.9:7007}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-si-erin-super-secret-key-2026}
       NODE_ENV: production
       PORT: 3000
+      GOOGLE_CLIENT_EMAIL: ${GOOGLE_CLIENT_EMAIL}
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID}
+      GOOGLE_USER_TO_IMPERSONATE: ${GOOGLE_USER_TO_IMPERSONATE}
+      GOOGLE_PRIVATE_KEY: ${GOOGLE_PRIVATE_KEY}
     ports:
-      - "7007:3000" # 🔑 Host Port 70007 dipetakan ke Container Port 3000
+      - "${APP_PORT:-3000}:3000" # 🔑 Host Port 3000 (atau override via APP_PORT) dipetakan ke Container Port 3000
     volumes:
       - ./public/uploads:/app/public/uploads
     depends_on:
@@ -64,6 +68,7 @@ services:
   # ----------------------------------------------------------------------------
   waha:
     image: devlikeapro/waha:latest
+    platform: linux/amd64 # 🍎 Kompatibilitas Mac Apple Silicon (M1/M2/M3/M4)
     container_name: sierin_waha
     restart: always
     environment:

@@ -13,7 +13,7 @@ export const revalidate = 0;
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { listDriveBackups } from '@/lib/gdrive';
+import { listDriveBackups, deleteDriveFile } from '@/lib/gdrive';
 import { executeFullBackupSystem } from '@/lib/backup-service';
 
 
@@ -63,4 +63,38 @@ export async function POST(request: Request) {
     console.error('❌ Error executing system backup:', error);
     return NextResponse.json({ error: error.message || 'Gagal memproses pencadangan sistem' }, { status: 500 });
   }
-}
+}
+
+// DELETE: Menghapus berkas backup dari Google Drive
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || (session.user as any)?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized - Akses khusus Admin Utama' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    let fileId = searchParams.get('fileId');
+
+    if (!fileId) {
+      try {
+        const body = await request.json();
+        fileId = body.fileId;
+      } catch (e) {}
+    }
+
+    if (!fileId) {
+      return NextResponse.json({ error: 'ID berkas backup (fileId) wajib disertakan' }, { status: 400 });
+    }
+
+    await deleteDriveFile(fileId);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Berkas cadangan berhasil dihapus permanen dari Google Drive',
+    });
+  } catch (error: any) {
+    console.error('❌ Error deleting backup from Google Drive:', error);
+    return NextResponse.json({ error: error.message || 'Gagal menghapus berkas cadangan dari Google Drive' }, { status: 500 });
+  }
+}

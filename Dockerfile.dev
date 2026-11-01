@@ -1,0 +1,39 @@
+# ----------------------------------------------------------------------
+# 📋 CHANGELOG:
+# ✅ Perubahan: Dockerfile Development untuk local development di Mac/PC.
+# ✨ Fitur Baru: Next.js Fast Refresh Hot-Reloading, OpenSSL untuk Prisma, & Non-blocking file watcher.
+# 🎨 UI/UX Update: N/A (Docker Infrastructure)
+# 🚀 Inovasi: Instant local developer feedback loop with live source code sync.
+# ----------------------------------------------------------------------
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 🛡️ Instal dependensi native untuk Prisma ORM & Database Restoration CLI (psql)
+RUN apk add --no-cache libc6-compat openssl ca-certificates postgresql-client
+
+# Salin package manifest
+COPY package.json package-lock.json* ./
+
+# Instal dependensi
+RUN npm install --legacy-peer-deps
+
+# Salin schema Prisma & generate Prisma Client
+COPY prisma ./prisma/
+RUN npx prisma generate
+
+# Salin sisa kode (untuk initial build, selanjutnya di-mount via volume)
+COPY . .
+
+# Buat folder uploads jika belum ada
+RUN mkdir -p public/uploads
+
+ENV NODE_ENV=development
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]
+

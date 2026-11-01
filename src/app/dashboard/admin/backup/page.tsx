@@ -28,7 +28,8 @@ import {
   Eye,
   EyeOff,
   Save,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 
 export default function AdminBackupPage() {
@@ -36,6 +37,7 @@ export default function AdminBackupPage() {
   const [loading, setLoading] = useState(true);
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastBackupResult, setLastBackupResult] = useState<any>(null);
   
@@ -212,6 +214,33 @@ export default function AdminBackupPage() {
       setMessage({ type: 'error', text: 'Terjadi kesalahan jaringan saat memulihkan sistem' });
     } finally {
       setRestoringId(null);
+    }
+  };
+
+  const handleDeleteBackup = async (fileId: string, fileName: string) => {
+    if (!confirm(`PERINGATAN!\n\nApakah Anda yakin ingin menghapus berkas cadangan:\n"${fileName}" secara permanen dari Google Drive?\n\nTindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+
+    setDeletingId(fileId);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/backup?fileId=${encodeURIComponent(fileId)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setMessage({ type: 'success', text: `Berkas "${fileName}" berhasil dihapus dari Google Drive.` });
+        setBackups((prev) => prev.filter((f) => f.id !== fileId));
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Gagal menghapus berkas dari Google Drive' });
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Terjadi kesalahan jaringan saat menghapus berkas' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -616,7 +645,7 @@ export default function AdminBackupPage() {
                     <td className="p-4 text-right space-x-2">
                       <button
                         onClick={() => handleRestoreBackup(file.id, file.name)}
-                        disabled={restoringId === file.id}
+                        disabled={restoringId === file.id || deletingId === file.id}
                         className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl font-extrabold text-[11px] transition-all cursor-pointer ${
                           restoringId === file.id
                             ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
@@ -636,6 +665,20 @@ export default function AdminBackupPage() {
                         <span>Drive</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
+
+                      <button
+                        onClick={() => handleDeleteBackup(file.id, file.name)}
+                        disabled={deletingId === file.id || restoringId === file.id}
+                        className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl font-extrabold text-[11px] transition-all cursor-pointer ${
+                          deletingId === file.id
+                            ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                            : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400'
+                        }`}
+                        title="Hapus berkas cadangan dari Google Drive"
+                      >
+                        <Trash2 className={`w-3 h-3 ${deletingId === file.id ? 'animate-spin' : ''}`} />
+                        <span>{deletingId === file.id ? 'Menghapus...' : 'Hapus'}</span>
+                      </button>
                     </td>
                   </tr>
                 ))}

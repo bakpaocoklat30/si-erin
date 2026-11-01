@@ -20,6 +20,41 @@ Aplikasi ini memfasilitasi dan mengotomatisasi proses pelaksanaan Praktik Kerja 
 - **Integrasi Maps dan Pencarian Lokasi Industri**
   Pencarian koordinat tempat industri yang akurat menggunakan layanan Nominatim (seperti Google Maps) untuk memudahkan mapping tempat PKL.
 
+## Pengembangan Lokal di Mac (Docker)
+
+Untuk menjalankan dan mengembangkan SI-ERIN di macOS menggunakan Docker tanpa perlu menginstal Node.js di komputer host:
+
+1. **Jalankan script dev otomatis:**
+   ```bash
+   ./dev.sh start
+   ```
+   *Script ini otomatis memastikan Docker Desktop aktif, menyinkronkan berkas `.env`, menjalankan container dev (Next.js hot-reload, PostgreSQL, dan WAHA), serta menjalankan `prisma db push`.*
+
+2. **Akses Layanan di Browser:**
+   - **Aplikasi Web (Next.js):** [http://localhost:3000](http://localhost:3000)
+   - **WAHA Dashboard:** [http://localhost:7005/dashboard/](http://localhost:7005/dashboard/) *(User: `admin` | Pass: `SierinSecurePass2026!`)*
+   - **PostgreSQL Database:** `localhost:5433` *(User: `sierin_user` | Pass: `SierinSecurePass2026!` | DB: `sierin_db`)*
+
+3. **Akun Login Default (Password: `pakar123`):**
+   - Admin: `admin`
+   - Pokja: `pokja`
+   - Pembimbing: `pembimbing`
+   - Siswa: `siswa`
+
+4. **Perintah Cepat CLI (`./dev.sh`):**
+   ```bash
+   ./dev.sh start    # Jalankan semua container dev (hot-reload)
+   ./dev.sh stop     # Hentikan semua container dev
+   ./dev.sh restart  # Restart container dev
+   ./dev.sh seed     # Isi ulang data dummy / seeder
+   ./dev.sh migrate  # Sinkronkan skema database (prisma db push)
+   ./dev.sh logs     # Tampilkan live logs aplikasi
+   ./dev.sh shell    # Masuk ke terminal kontainer Next.js
+   ./dev.sh status   # Cek status container yang berjalan
+   ```
+
+---
+
 ## Cara Instalasi & Deploy
 
 Untuk melakukan instalasi di server Linux (Rocky Linux / Ubuntu) atau VPS Anda:

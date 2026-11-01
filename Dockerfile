@@ -46,8 +46,8 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# 🛡️ FIX KRITIS: Instal openssl di runtime runner agar Prisma Client dapat berjalan tanpa crash
-RUN apk add --no-cache openssl ca-certificates
+# 🛡️ FIX KRITIS: Instal openssl & postgresql-client di runtime runner agar Prisma Client dan modul Restore Database dapat berjalan tanpa crash
+RUN apk add --no-cache openssl ca-certificates postgresql-client
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1

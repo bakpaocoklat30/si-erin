@@ -57,6 +57,33 @@ const VALID_TABLE_COLUMNS: Record<string, Set<string>> = {
   PlacementGroup: new Set(['id', 'industryId', 'periodId', 'startDate', 'endDate', 'createdAt', 'updatedAt']),
 };
 
+// Helper pemecah berkas SQL menjadi kumpulan pernyataan utuh (mendukung string multi-baris dan single quote escaping)
+function splitSqlStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = '';
+  let inQuote = false;
+  for (let i = 0; i < sql.length; i++) {
+    const char = sql[i];
+    if (char === "'") {
+      if (inQuote && sql[i + 1] === "'") {
+        current += "''";
+        i++;
+        continue;
+      }
+      inQuote = !inQuote;
+      current += char;
+    } else if (char === ';' && !inQuote) {
+      const trimmed = current.trim();
+      if (trimmed) statements.push(trimmed + ';');
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  if (current.trim()) statements.push(current.trim());
+  return statements;
+}
+
 // Helper pembersih baris INSERT dari kolom relasi phantom (seperti "period", "classes", dll.)
 function cleanInsertLine(line: string): string {
   const insertPrefix = 'INSERT INTO "';
@@ -75,8 +102,30 @@ function cleanInsertLine(line: string): string {
   if (colsEnd === -1) return line;
 
   const valsStart = colsEnd + ') VALUES ('.length;
-  // find the last ')' that closes the VALUES block.
-  const valsEnd = line.lastIndexOf(')');
+  // Cari kurung tutup yang tepat untuk blok VALUES dengan pencocokan kedalaman (depth)
+  let depth = 1;
+  let inQuote = false;
+  let valsEnd = -1;
+  for (let i = valsStart; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === "'") {
+      if (inQuote && line[i + 1] === "'") {
+        i++;
+        continue;
+      }
+      inQuote = !inQuote;
+    } else if (!inQuote) {
+      if (ch === '(') {
+        depth++;
+      } else if (ch === ')') {
+        depth--;
+        if (depth === 0) {
+          valsEnd = i;
+          break;
+        }
+      }
+    }
+  }
   if (valsEnd === -1 || valsEnd <= valsStart) return line;
 
   const keysStr = line.substring(colsStart + 2, colsEnd);
@@ -87,7 +136,7 @@ function cleanInsertLine(line: string): string {
   
   const vals: string[] = [];
   let cur = '';
-  let inQuote = false;
+  inQuote = false;
   for (let i = 0; i < valsStr.length; i++) {
     const ch = valsStr[i];
     if (ch === "'") {
@@ -260,27 +309,28 @@ export async function POST(request: Request) {
     // ======================================================================
     console.log('[RESTORE] 🧹 Melakukan sanitasi kueri SQL untuk kompatibilitas skema 100%...');
     const rawSql = fs.readFileSync(sqlFullPath, 'utf-8');
-    const lines = rawSql.split(/\r?\n/);
-    const cleanedLines: string[] = [];
+    const rawStatements = splitSqlStatements(rawSql);
+    const cleanedStatements: string[] = [];
 
     // Matikan foreign key constraints sementara agar urutan INSERT tidak error
-    cleanedLines.push("SET session_replication_role = 'replica';\n");
+    cleanedStatements.push("SET session_replication_role = 'replica';");
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
+    for (const stmt of rawStatements) {
+      const trimmed = stmt.trim();
+      if (!trimmed || trimmed.startsWith('--')) continue;
+      if (trimmed.startsWith('SET ') || trimmed.startsWith('SELECT ')) continue;
       if (trimmed.startsWith('INSERT INTO ')) {
-        cleanedLines.push(cleanInsertLine(trimmed));
+        cleanedStatements.push(cleanInsertLine(trimmed));
       } else {
-        cleanedLines.push(line);
+        cleanedStatements.push(trimmed);
       }
     }
 
     // Aktifkan kembali foreign key constraints
-    cleanedLines.push("\nSET session_replication_role = 'origin';\n");
+    cleanedStatements.push("SET session_replication_role = 'origin';");
 
-    fs.writeFileSync(sqlFullPath, cleanedLines.join('\n'));
-    console.log(`[RESTORE] ✅ Sanitasi kueri SQL selesai (${cleanedLines.length} baris diproses).`);
+    fs.writeFileSync(sqlFullPath, cleanedStatements.join('\n\n'));
+    console.log(`[RESTORE] ✅ Sanitasi kueri SQL selesai (${cleanedStatements.length} pernyataan diproses).`);
 
     // ======================================================================
     // 4. MEMULIHKAN DATABASE POSTGRESQL
@@ -289,88 +339,64 @@ export async function POST(request: Request) {
     let restoreSuccess = false;
     let restoreLogs = '';
 
-    // TAHAP 1: Cek apakah container docker 'sierin_postgres' aktif
-    let isDockerContainerRunning = false;
-    try {
-      const { stdout } = await execPromise(`docker ps --filter "name=sierin_postgres" --format "{{.Names}}"`);
-      if (stdout.includes('sierin_postgres')) {
-        isDockerContainerRunning = true;
-      }
-    } catch (e) {}
-
-    // Eksekusi TAHAP 1 (Prioritas Tertinggi: Docker Container)
-    if (isDockerContainerRunning) {
+    // TAHAP 1: Eksekusi Langsung via psql CLI (Koneksi langsung ke PostgreSQL via libpq)
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl) {
+      // Hapus query parameter Prisma (seperti ?schema=public) yang tidak didukung oleh psql CLI
+      const cleanDbUrl = dbUrl.split('?')[0];
       try {
-        console.log('[RESTORE] 🐳 Mengimpor database melalui Docker container "sierin_postgres"...');
-        const containerSqlPath = `/tmp/${sqlFileName}`;
-        
-        // Salin file sql ke dalam container docker
-        await execPromise(`docker cp "${sqlFullPath}" sierin_postgres:${containerSqlPath}`);
-        
-        // Eksekusi psql di dalam container
-        const { stdout, stderr } = await execPromise(
-          `docker exec sierin_postgres psql -U sierin_user -d sierin_db -f "${containerSqlPath}"`
-        );
-        
-        // Bersihkan file sementara di container
-        await execPromise(`docker exec sierin_postgres rm -f "${containerSqlPath}"`).catch(() => {});
-        
-        restoreMethod = 'Docker Container (sierin_postgres)';
+        console.log('[RESTORE] 🚀 Mengimpor database melalui psql CLI...');
+        const { stdout, stderr } = await execPromise(`psql "${cleanDbUrl}" -f "${sqlFullPath}"`);
+        restoreMethod = 'psql CLI Engine';
         restoreSuccess = true;
         restoreLogs = stdout || stderr || '';
-        console.log('✅ [RESTORE] Pemulihan database via Docker Container sukses!');
-      } catch (dockerErr: any) {
-        console.warn('⚠️ [RESTORE] Docker psql import gagal, beralih ke local psql / direct statement engine...', dockerErr?.message);
+        console.log('✅ [RESTORE] Pemulihan database via psql CLI sukses!');
+      } catch (psqlErr: any) {
+        console.warn('⚠️ [RESTORE] psql direct gagal atau belum tersedia:', psqlErr?.message);
       }
     }
 
-    // TAHAP 2: Local psql CLI (jika psql terinstal di host)
+    // TAHAP 2: Jika psql lokal belum berhasil, coba via Docker Container (sierin_postgres_dev / sierin_postgres)
     if (!restoreSuccess) {
-      const dbUrl = process.env.DATABASE_URL;
-      if (dbUrl) {
-        try {
-          console.log('[RESTORE] 💻 Mengimpor database melalui psql CLI lokal...');
-          const { stdout, stderr } = await execPromise(`psql "${dbUrl}" -f "${sqlFullPath}"`);
-          restoreMethod = 'Local psql CLI';
+      try {
+        const { stdout: psOut } = await execPromise(`docker ps --format "{{.Names}}"`);
+        const targetContainer = ['sierin_postgres_dev', 'sierin_postgres'].find(c => psOut.includes(c));
+        if (targetContainer) {
+          console.log(`[RESTORE] 🐳 Mengimpor database melalui Docker container "${targetContainer}"...`);
+          const containerSqlPath = `/tmp/${sqlFileName}`;
+          await execPromise(`docker cp "${sqlFullPath}" ${targetContainer}:${containerSqlPath}`);
+          const { stdout, stderr } = await execPromise(
+            `docker exec ${targetContainer} psql -U sierin_user -d sierin_db -f "${containerSqlPath}"`
+          );
+          await execPromise(`docker exec ${targetContainer} rm -f "${containerSqlPath}"`).catch(() => {});
+          restoreMethod = `Docker Container (${targetContainer})`;
           restoreSuccess = true;
           restoreLogs = stdout || stderr || '';
-          console.log('✅ [RESTORE] Pemulihan database via local psql sukses!');
-        } catch (localPsqlErr: any) {
-          console.warn('⚠️ [RESTORE] psql lokal tidak tersedia atau gagal...', localPsqlErr?.message);
+          console.log(`✅ [RESTORE] Pemulihan database via Docker Container ${targetContainer} sukses!`);
         }
+      } catch (dockerErr: any) {
+        console.warn('⚠️ [RESTORE] Docker container execution tidak tersedia:', dockerErr?.message);
       }
     }
 
-    // TAHAP 3: Direct Safe Statement Parser (Membaca file SQL dan mengeksekusi INSERT via Prisma Client)
+    // TAHAP 3: Direct Safe Statement Engine (Mengeksekusi pernyataan via Prisma Client)
     if (!restoreSuccess) {
       try {
         console.log('[RESTORE] ⚡ Mengimpor database via Prisma Direct Statement Engine...');
-        const rawSql = fs.readFileSync(sqlFullPath, 'utf-8');
 
-        // Matikan constraint sementara agar tidak terbentur foreign key
+        // Matikan constraint sementara
         await db.$executeRawUnsafe(`SET session_replication_role = 'replica';`).catch(() => {});
 
-        // Pisahkan baris / perintah
-        const lines = rawSql.split(/\r?\n/);
-        let currentStmt = '';
         let executedCount = 0;
-
-        for (const line of lines) {
-          const trimmed = line.trim();
+        for (const stmt of cleanedStatements) {
+          const trimmed = stmt.trim();
           if (!trimmed || trimmed.startsWith('--')) continue;
-
-          currentStmt += line + '\n';
-          if (trimmed.endsWith(';')) {
-            const stmtToRun = currentStmt.trim();
-            currentStmt = '';
-            if (stmtToRun && !stmtToRun.startsWith('SET') && !stmtToRun.startsWith('SELECT')) {
-              try {
-                await db.$executeRawUnsafe(stmtToRun);
-                executedCount++;
-              } catch (stmtErr: any) {
-                console.warn('⚠️ [RESTORE SQL SKIP]:', stmtErr?.message?.slice(0, 150), '| Query:', stmtToRun.substring(0, 80));
-              }
-            }
+          if (trimmed.startsWith('SET ') || trimmed.startsWith('SELECT ')) continue;
+          try {
+            await db.$executeRawUnsafe(trimmed);
+            executedCount++;
+          } catch (stmtErr: any) {
+            console.warn('⚠️ [RESTORE SQL SKIP]:', stmtErr?.message?.slice(0, 150), '| Query:', trimmed.substring(0, 80));
           }
         }
 

@@ -120,54 +120,49 @@ export async function listDriveBackups() {
     throw new Error('GOOGLE_DRIVE_FOLDER_ID belum dikonfigurasi di Pengaturan Aplikasi!');
   }
 
-  // Cari apakah ada folder "Backup ZIP" di dalam root folderId
-  let parentIds = [folderId.trim()];
+  // 1. Cari folder "Backup ZIP" (atau variasinya) di dalam root folderId dengan dukungan Shared Drives
+  const parentIds = new Set<string>([folderId.trim()]);
   try {
     const folderSearch = await drive.files.list({
-      q: `'${folderId.trim()}' in parents and name = 'Backup ZIP' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-      fields: 'files(id)',
+      q: `'${folderId.trim()}' in parents and (name = 'Backup ZIP' or name = 'backup zip' or name contains 'Backup' or name contains 'backup') and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      fields: 'files(id, name)',
     });
     if (folderSearch.data.files && folderSearch.data.files.length > 0) {
-      parentIds.push(folderSearch.data.files[0].id!);
+      folderSearch.data.files.forEach(f => {
+        if (f.id) parentIds.add(f.id);
+      });
     }
-  } catch (e) {}
+  } catch (e: any) {
+    console.warn('[GDRIVE] Warning saat mencari subfolder backup:', e?.message || e);
+  }
 
-  const parentQuery = parentIds.map(id => `'${id}' in parents`).join(' or ');
+  // 2. Kueri berkas ZIP dari root folder maupun folder Backup ZIP
+  const parentQuery = Array.from(parentIds).map(id => `'${id}' in parents`).join(' or ');
   const response = await drive.files.list({
-    q: `(${parentQuery}) and trashed = false and mimeType = 'application/zip'`,
+    q: `(${parentQuery}) and trashed = false and (mimeType = 'application/zip' or mimeType = 'application/x-zip-compressed' or name contains '.zip')`,
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
     fields: 'files(id, name, webViewLink, createdTime, size)',
     orderBy: 'createdTime desc',
-    pageSize: 100, // Fetch up to 100 to clean up old ones
+    pageSize: 100,
   });
 
   const files = response.data.files || [];
-  
-  // LIMITASI BACKUP: Hanya simpan backup 10 hari terakhir
-  const tenDaysAgo = new Date();
-  tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-
-  const filesToKeep = files.filter(f => f.createdTime && new Date(f.createdTime) >= tenDaysAgo);
-  const filesToDelete = files.filter(f => f.createdTime && new Date(f.createdTime) < tenDaysAgo);
-  
-  if (filesToDelete.length > 0) {
-    // Hapus backup lama di background
-    Promise.all(filesToDelete.map(async (file) => {
-      try {
-        if (file.id) {
-          await drive.files.delete({ fileId: file.id, supportsAllDrives: true });
-          console.log(`[RETENTION] Backup lama dihapus otomatis (> 10 hari): ${file.name}`);
-        }
-      } catch (err) {
-        console.error(`[RETENTION ERROR] Gagal menghapus ${file.name}:`, err);
-      }
-    })).catch(() => {});
-  }
-
-  return filesToKeep;
-
   return files;
+}
+
+/**
+ * 🗑️ Menghapus berkas cadangan dari Google Drive (mendukung Shared Drive)
+ */
+export async function deleteDriveFile(fileId: string) {
+  const drive = await getDriveClient();
+  await drive.files.delete({
+    fileId: fileId.trim(),
+    supportsAllDrives: true,
+  });
+  return true;
 }
 
 /**

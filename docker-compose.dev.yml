@@ -1,0 +1,99 @@
+# ----------------------------------------------------------------------
+# 📋 CHANGELOG:
+# ✅ Perubahan: Docker Compose khusus untuk Local Development di Mac / Linux.
+# ✨ Fitur Baru: Live Hot-Reloading, Host Volume Mounts, Automated PostgreSQL Healthcheck, dan WAHA Gateway.
+# 🎨 UI/UX Update: N/A (DevOps Local Infrastructure)
+# 🚀 Inovasi: Fast Inner-Loop Local Development Environment.
+# ----------------------------------------------------------------------
+
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. DATABASE SERVICE (PostgreSQL 16)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: sierin_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sierin_user
+      POSTGRES_PASSWORD: SierinSecurePass2026!
+      POSTGRES_DB: sierin_db
+    ports:
+      - "5433:5432" # 🔑 Host Port 5433 dipetakan ke Container Port 5432
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    networks:
+      - sierin_dev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sierin_user -d sierin_db"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 2. APPLICATION SERVICE (Next.js 14 Live Development Mode)
+  # ----------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: sierin_app_dev
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://sierin_user:SierinSecurePass2026!@postgres:5432/sierin_db?schema=public&connection_limit=10&pool_timeout=20"
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-si-erin-super-secret-key-2026}
+      NODE_ENV: development
+      PORT: 3000
+      WATCHPACK_POLLING: "true"
+      # Google Drive integration
+      GOOGLE_CLIENT_EMAIL: ${GOOGLE_CLIENT_EMAIL}
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID}
+      GOOGLE_USER_TO_IMPERSONATE: ${GOOGLE_USER_TO_IMPERSONATE}
+      GOOGLE_PRIVATE_KEY: ${GOOGLE_PRIVATE_KEY}
+    ports:
+      - "3000:3000" # 🔑 Akses langsung ke Next.js di browser: http://localhost:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+      - ./public/uploads:/app/public/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sierin_dev_network
+
+  # ----------------------------------------------------------------------------
+  # 3. WHATSAPP GATEWAY SERVICE (WAHA - WhatsApp HTTP API Core)
+  # ----------------------------------------------------------------------------
+  waha:
+    image: devlikeapro/waha:latest
+    platform: linux/amd64 # 🍎 Kompatibilitas untuk Mac Apple Silicon (M1/M2/M3/M4) via Docker Rosetta
+    container_name: sierin_waha_dev
+    restart: unless-stopped
+    environment:
+      WHATSAPP_DEFAULT_ENGINE: WEBJS
+      WAHA_ZIP_LOGS: "false"
+      WAHA_DASHBOARD_ENABLED: "true"
+      WAHA_DASHBOARD_USERNAME: "admin"
+      WAHA_DASHBOARD_PASSWORD: "SierinSecurePass2026!"
+      WAHA_NO_API_KEY: "true"
+    ports:
+      - "7005:3000" # 🔑 Akses WAHA Dashboard & API di browser: http://localhost:7005
+    volumes:
+      - wahadata_dev:/app/.sessions
+    networks:
+      - sierin_dev_network
+
+networks:
+  sierin_dev_network:
+    driver: bridge
+
+volumes:
+  pgdata_dev:
+    driver: local
+  wahadata_dev:
+    driver: local
