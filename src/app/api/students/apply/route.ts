@@ -324,6 +324,9 @@ export async function GET() {
       if (studentDept) {
         industryWhereClause = {
           OR: [
+            { department: { contains: studentDept, mode: 'insensitive' } },
+            { department: 'Semua Jurusan' },
+            { department: null },
             { sector: { contains: studentDept, mode: 'insensitive' } },
             { sector: { equals: 'Umum', mode: 'insensitive' } },
             { sector: { equals: studentDept } },

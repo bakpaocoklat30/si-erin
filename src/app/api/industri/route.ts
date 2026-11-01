@@ -21,12 +21,14 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit') ? Number(searchParams.get('limit')) : 10;
     const search = searchParams.get('search') || undefined;
     const sector = searchParams.get('sector') || undefined;
+    const department = searchParams.get('department') || undefined;
 
     const result = await IndustryService.getAllIndustries({
       page,
       limit,
       search,
       sector,
+      department,
     });
 
     return NextResponse.json({
@@ -65,7 +67,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const newIndustry = await IndustryService.createIndustry(body);
+    const userDept = (session?.user as any)?.department;
+    const newIndustry = await IndustryService.createIndustry({
+      ...body,
+      department: body.department !== undefined ? body.department : (userDept && userDept !== 'HUBIN' && userDept !== 'Semua Jurusan' ? userDept : null)
+    });
 
     return NextResponse.json({
       success: true,

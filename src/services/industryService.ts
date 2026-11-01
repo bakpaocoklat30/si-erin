@@ -22,6 +22,7 @@ export interface CreateIndustryDTO {
   email?: string | null;
   website?: string | null;
   totalQuota?: number;
+  department?: string | null;
 }
 
 export interface UpdateIndustryDTO extends Partial<CreateIndustryDTO> {}
@@ -35,6 +36,7 @@ export class IndustryService {
     limit?: number;
     search?: string;
     sector?: string;
+    department?: string;
   }) {
     const page = Number(params.page) || 1;
     const limit = Number(params.limit) || 10;
@@ -53,6 +55,10 @@ export class IndustryService {
 
     if (params.sector) {
       where.sector = { equals: params.sector, mode: 'insensitive' };
+    }
+
+    if (params.department && params.department !== 'ALL' && params.department !== 'Semua Jurusan') {
+      where.department = { contains: params.department, mode: 'insensitive' };
     }
 
     const [data, total] = await Promise.all([
@@ -144,6 +150,7 @@ export class IndustryService {
         email: payload.email || null,
         website: payload.website || null,
         totalQuota: payload.totalQuota ?? 0,
+        department: payload.department || null,
       },
     });
   }

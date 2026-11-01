@@ -147,6 +147,17 @@ export async function GET() {
       ];
     }
 
+    // 2b. Ambil master Jurusan / Department untuk dropdown & filter di frontend
+    let rawDepartments: any[] = [];
+    try {
+      rawDepartments = await db.department.findMany({
+        select: { id: true, code: true, name: true },
+        orderBy: { name: 'asc' }
+      });
+    } catch (deptErr) {
+      console.warn('Gagal memuat master Department:', deptErr);
+    }
+
     // 3. Format data & kalkulasi sisa kuota (jika totalQuota = -1, artinya Unlimited)
     const formattedIndustries = rawIndustries.map((ind) => {
       const activeAcceptedCount = ind.placements
@@ -191,7 +202,8 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: formattedIndustries,
-      categories: rawCategories
+      categories: rawCategories,
+      departments: rawDepartments
     });
   } catch (error: any) {
     console.error('Error GET /api/pokja/industries:', error);
