@@ -3,13 +3,27 @@ export const revalidate = 0;
 
 import { NextResponse } from 'next/server';
 import { 
-  Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, VerticalAlign
-, ImageRun} from 'docx';
+  Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, VerticalAlign,
+  ImageRun
+} from 'docx';
 import fs from 'fs';
 import path from 'path';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+
+const ALLOWED_ROLES = [
+  'ADMIN',
+  'SUPER_ADMIN',
+  'POKJA',
+  'TIM_POKJA',
+  'TATA_USAHA',
+  'TATA USAHA',
+  'TATAUSAHA',
+  'TU',
+  'GURU',
+  'PEMBIMBING'
+];
 
 async function createSection(
   industryId: string, 
@@ -22,23 +36,25 @@ async function createSection(
 ) {
   const industry = await db.industry.findUnique({ where: { id: industryId } });
   
-  let placementWhere: any = {
-    industryId: industryId,
-    status: {
-      in: ['DITERIMA', 'DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL']
-    }
-  };
-
-  if (departmentName && departmentName !== 'Semua Jurusan') {
-    placementWhere.student = {
-      department: departmentName
-    };
-  }
+  let placementWhere: any = {};
 
   if (placementIds && Array.isArray(placementIds) && placementIds.length > 0) {
     placementWhere.id = { in: placementIds };
-  } else if (groupId) {
-    placementWhere.groupId = groupId;
+  } else {
+    placementWhere.industryId = industryId;
+    placementWhere.status = {
+      in: ['DITERIMA', 'DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN', 'DITERIMA_INDUSTRI', 'COMPLETED', 'SELESAI_PKL']
+    };
+
+    if (departmentName && departmentName !== 'Semua Jurusan') {
+      placementWhere.student = {
+        department: { contains: departmentName, mode: 'insensitive' }
+      };
+    }
+
+    if (groupId && !groupId.includes('___')) {
+      placementWhere.groupId = groupId;
+    }
   }
 
   const placements = await db.internshipPlacement.findMany({
@@ -48,25 +64,62 @@ async function createSection(
 
   if (placements.length === 0) return null;
 
+  const deptQuery = departmentName && departmentName !== 'Semua Jurusan' 
+    ? departmentName 
+    : (placements[0]?.student?.department || 'Teknik Komputer dan Jaringan');
+
   const pokjaUser = await db.user.findFirst({
     where: {
       OR: [{ role: 'POKJA' }, { role: 'TIM_POKJA' }],
-      department: {
-        equals: departmentName && departmentName !== 'Semua Jurusan' ? departmentName : 'Teknik Komputer dan Jaringan',
-        mode: 'insensitive'
-      }
+      ...(deptQuery ? {
+        department: {
+          contains: deptQuery.split(' ')[0] || deptQuery,
+          mode: 'insensitive'
+        }
+      } : {})
     },
     orderBy: { createdAt: 'asc' }
   });
 
   const picName = pokjaUser?.name || "Abdul Ghofur, SST";
   const picPhone = pokjaUser?.phone || "081911481960";
-  const deptLabel = departmentName && departmentName !== 'Semua Jurusan' ? departmentName : "TKJ";
+  const deptLabel = deptQuery || "TKJ";
 
-  const students = placements.map((p: any) => p.student);
-  const startDate = placements[0].startDate ? new Date(placements[0].startDate) : new Date();
-  const endDate = placements[0].endDate ? new Date(placements[0].endDate) : new Date();
+  const students = placements.map((p: any) => p.student).filter(Boolean);
+  const rawStartDate = placements.find((p: any) => p.startDate)?.startDate || placements[0]?.startDate;
+  const rawEndDate = placements.find((p: any) => p.endDate)?.endDate || placements[0]?.endDate;
+  const startDate = rawStartDate ? new Date(rawStartDate) : new Date();
+  const endDate = rawEndDate ? new Date(rawEndDate) : new Date();
   const durationMonths = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+  const actualNomorSurat = nomorSurat || placements[0]?.nomorPengantaran || placements.find((p: any) => p.nomorPengantaran)?.nomorPengantaran || placements[0]?.letterNumber || "${nomor_naskah}";
+
+  const kopImagePath = path.join(process.cwd(), 'public/images/kop-surat-tugas.png');
+  const headerChildren: any[] = [];
+  if (fs.existsSync(kopImagePath)) {
+    headerChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new ImageRun({
+            data: fs.readFileSync(kopImagePath),
+            transformation: {
+              width: 700,
+              height: 137
+            }
+          })
+        ]
+      })
+    );
+  } else {
+    headerChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({ text: school.name || 'SMK NEGERI 1 ADIWERNA', font: 'Times New Roman', size: 28, bold: true })
+        ]
+      })
+    );
+  }
 
   return {
     properties: {
@@ -76,19 +129,7 @@ async function createSection(
       }
     },
     children: [
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        
-        children: [
-          new ImageRun({
-            data: fs.readFileSync(path.join(process.cwd(), 'public/images/kop-surat-tugas.png')),
-            transformation: {
-              width: 700,
-              height: 137
-            }
-          })
-        ]
-      }),
+      ...headerChildren,
       
       new Paragraph({ spacing: { before: 200, after: 200 }, children: [] }),
       
@@ -99,7 +140,7 @@ async function createSection(
           new TableRow({
             children: [
               new TableCell({ width: { size: 60, type: WidthType.PERCENTAGE }, children: [
-                new Paragraph({ children: [new TextRun({ text: `Nomor  : ${nomorSurat || "\${nomor_naskah}"}`, font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [new TextRun({ text: `Nomor  : ${actualNomorSurat}`, font: "Times New Roman", size: 24 })] }),
                 new Paragraph({ children: [new TextRun({ text: "Lamp.  : -", font: "Times New Roman", size: 24 })] }),
                 new Paragraph({ children: [
                   new TextRun({ text: "Hal      : ", font: "Times New Roman", size: 24 }), 
@@ -124,7 +165,7 @@ async function createSection(
         spacing: { after: 200 },
         indent: { firstLine: 720 },
         children: [
-          new TextRun({ text: `Menindaklanjuti surat balasan/konfirmasi yang kami terima dari Instansi/Perusahaan yang Bapak/Ibu pimpin terkait permohonan PKL, maka kami bermaksud menyampaikan bahwa kegiatan praktik kerja Lapangan murid kelas XII untuk Program Keahlian ${departmentName || 'Teknik Jaringan Komputer dan Telekomunikasi (TJKT)'} tahun pelajaran 2026/2027 akan mulai dilaksanakan pada tanggal `, font: "Times New Roman", size: 24 }),
+          new TextRun({ text: `Menindaklanjuti surat balasan/konfirmasi yang kami terima dari Instansi/Perusahaan yang Bapak/Ibu pimpin terkait permohonan PKL, maka kami bermaksud menyampaikan bahwa kegiatan praktik kerja Lapangan murid kelas XII untuk Program Keahlian ${deptLabel} tahun pelajaran 2026/2027 akan mulai dilaksanakan pada tanggal `, font: "Times New Roman", size: 24 }),
           new TextRun({ text: `${startDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})} s.d ${endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})}`, font: "Times New Roman", size: 24, bold: true }),
           new TextRun({ text: ` atau selama ± ${durationMonths} bulan`, font: "Times New Roman", size: 24, bold: true }),
         ],
@@ -146,7 +187,7 @@ async function createSection(
             children: [
               new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${idx + 1}`, font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
               new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: student.nis || "-", font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: student.name.toUpperCase(), font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (student.name || '').toUpperCase(), font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
               new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: student.className || "-", font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
               new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: student.phone || student.parentPhone || "-", font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
             ]
@@ -177,8 +218,8 @@ async function createSection(
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const userRole = String((session?.user as any)?.role || '').toUpperCase();
-    if (!session || !['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA', 'TATA_USAHA', 'GURU', 'PEMBIMBING'].includes(userRole)) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    if (!session || !ALLOWED_ROLES.includes(userRole)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -198,7 +239,7 @@ export async function POST(request: Request) {
 
     const sections = [];
     for (const g of groups) {
-      const groupNomor = nomorSurat || (g.students && g.students.length > 0 ? g.students[0].nomorPengantaran : '');
+      const groupNomor = nomorSurat || (g.students && g.students.length > 0 ? (g.students[0].nomorPengantaran || g.students[0].letterNumber) : '');
       const placementIds = g.students?.map((s: any) => s.placementId || s.id).filter(Boolean);
       const section = await createSection(g.industryId, g.departmentName, g.periodId, school, groupNomor, g.groupId, placementIds);
       if (section) sections.push(section);
@@ -225,31 +266,66 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const userRole = String((session?.user as any)?.role || '').toUpperCase();
-    if (!session || !['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA', 'TATA_USAHA', 'GURU', 'PEMBIMBING'].includes(userRole)) {
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
+    if (!session || !ALLOWED_ROLES.includes(userRole)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const industryId = searchParams.get('industryId');
-    const periodId = searchParams.get('periodId');
-    const departmentName = searchParams.get('department');
+    let industryId = searchParams.get('industryId');
+    let periodId = searchParams.get('periodId');
+    let departmentName = searchParams.get('department') || '';
     const nomorSurat = searchParams.get('nomorSurat') || '';
     const groupId = searchParams.get('groupId') || undefined;
     const placementIdsParam = searchParams.get('placementIds');
     const placementIds = placementIdsParam ? placementIdsParam.split(',').map(s => s.trim()).filter(Boolean) : undefined;
 
-    if (!industryId || !periodId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+    // Fallback: Jika industryId atau periodId tidak disediakan di query params, temukan dari placementIds atau groupId
+    if ((!industryId || !periodId) && placementIds && placementIds.length > 0) {
+      const samplePlacement = await db.internshipPlacement.findFirst({
+        where: { id: { in: placementIds } },
+        include: { student: true, industry: true }
+      });
+      if (samplePlacement) {
+        if (!industryId) industryId = samplePlacement.industryId;
+        if (!departmentName) departmentName = samplePlacement.student?.department || '';
+        if (!periodId) periodId = samplePlacement.periodId || 'PERIODE_DEFAULT';
+      }
+    }
+
+    if (!industryId && groupId) {
+      if (groupId.includes('___')) {
+        const parts = groupId.split('___');
+        industryId = parts[0];
+        if (!periodId) periodId = parts[1] || 'PERIODE_DEFAULT';
+        if (!departmentName) departmentName = parts[2] || '';
+      } else {
+        const samplePlacement = await db.internshipPlacement.findFirst({
+          where: { groupId: groupId },
+          include: { student: true, industry: true }
+        });
+        if (samplePlacement) {
+          industryId = samplePlacement.industryId;
+          if (!periodId) periodId = samplePlacement.periodId || 'PERIODE_DEFAULT';
+          if (!departmentName) departmentName = samplePlacement.student?.department || '';
+        }
+      }
+    }
+
+    if (!periodId) periodId = 'PERIODE_DEFAULT';
+    if (!industryId) {
+      return NextResponse.json({ error: 'Data industri tidak ditemukan' }, { status: 400 });
+    }
 
     const school = await db.schoolSetting.findFirst() || {
       name: 'SMK NEGERI 1 ADIWERNA', address: 'JL. Raya 2 PO BOX 24 Adiwerna', phone: '(0283) 443768', email: 'mail@smkn1adw.sch.id'
     };
     
     const industry = await db.industry.findUnique({ where: { id: industryId } });
-    const industryNameSafe = industry ? industry.name.replace(/[^a-zA-Z0-9 ]/g, '') : 'Industri';
+    const industryNameSafe = industry ? industry.name.replace(/[^a-zA-Z0-9 _-]/g, '').trim() : 'Industri';
     const filename = `Surat Penerjunan - ${industryNameSafe}.docx`;
 
-    const section = await createSection(industryId, departmentName || '', periodId, school, nomorSurat, groupId, placementIds);
+    const section = await createSection(industryId, departmentName, periodId, school, nomorSurat, groupId, placementIds);
     if (!section) return NextResponse.json({ error: 'Data kosong' }, { status: 404 });
 
     const doc = new Document({ sections: [section] });
@@ -262,7 +338,8 @@ export async function GET(request: Request) {
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error GET Surat Penerjunan DOCX:', error);
     return NextResponse.json({ error: 'Gagal membuat dokumen DOCX' }, { status: 500 });
   }
 }

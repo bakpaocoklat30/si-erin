@@ -571,6 +571,42 @@ export default function PokjaKelompokPrakerinPage() {
     window.open(url, '_blank');
   };
 
+  // Unduh Draft Surat Penerjunan PKL (DOCX)
+  const handleDownloadPenerjunanDocx = (group: GroupItem) => {
+    const rawList = group.placements || group.students || [];
+    const placementIds = rawList.map((p: any) => p.id || p.placementId).filter(Boolean);
+    const pIds = placementIds.join(',');
+    const params = new URLSearchParams();
+    if (group.industryId) params.set('industryId', group.industryId);
+    if (group.periodId) params.set('periodId', group.periodId);
+    if (group.departmentName) params.set('department', group.departmentName);
+    if (group.groupId) params.set('groupId', group.groupId);
+    if (pIds) params.set('placementIds', pIds);
+    const nomorSurat = (group.students && group.students[0]?.nomorPengantaran) || group.letterNumber || '';
+    if (nomorSurat) params.set('nomorSurat', nomorSurat);
+
+    const url = `/api/letters/penerjunan?${params.toString()}`;
+    window.open(url, '_blank');
+  };
+
+  // Unduh Draft Surat Penarikan PKL (DOCX)
+  const handleDownloadPenarikanDocx = (group: GroupItem) => {
+    const rawList = group.placements || group.students || [];
+    const placementIds = rawList.map((p: any) => p.id || p.placementId).filter(Boolean);
+    const pIds = placementIds.join(',');
+    const params = new URLSearchParams();
+    if (group.industryId) params.set('industryId', group.industryId);
+    if (group.periodId) params.set('periodId', group.periodId);
+    if (group.departmentName) params.set('department', group.departmentName);
+    if (group.groupId) params.set('groupId', group.groupId);
+    if (pIds) params.set('placementIds', pIds);
+    const nomorSurat = (group.students && group.students[0]?.nomorPenarikan) || group.letterNumber || '';
+    if (nomorSurat) params.set('nomorSurat', nomorSurat);
+
+    const url = `/api/letters/penarikan?${params.toString()}`;
+    window.open(url, '_blank');
+  };
+
   // Buka Modal Pratinjau Surat Permohonan DOCX
   const handleOpenDocxPreview = (group: GroupItem) => {
     setDocxPreviewGroup(group);
@@ -2273,24 +2309,46 @@ export default function PokjaKelompokPrakerinPage() {
                               </button>
                             )}
                             {group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
-                              <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center space-x-1">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Menunggu</span>
-                              </span>
+                              <>
+                                <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center space-x-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Menunggu</span>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadPenerjunanDocx(group)}
+                                  className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-sm border-blue-500"
+                                  title="Unduh Cadangan Berkas DOCX Surat Penerjunan"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Unduh DOCX</span>
+                                </button>
+                              </>
                             )}
                             
                             {/* Preview / Download Penerjunan */}
                             {(group.suratPengantaranUrl || (group.placements && group.placements.some(p => p.suratPengantaranUrl))) && (() => {
                               const pengantaranUrl = group.suratPengantaranUrl || group.placements?.find(p => p.suratPengantaranUrl)?.suratPengantaranUrl;
                               return (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenPdf(pengantaranUrl || null, `Surat Penerjunan/Pengantaran - ${group.industryName}`)}
-                                  className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border-emerald-500"
-                                >
-                                  <FileCheck2 className="w-3.5 h-3.5" />
-                                  <span>Preview / Unduh</span>
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPdf(pengantaranUrl || null, `Surat Penerjunan/Pengantaran - ${group.industryName}`)}
+                                    className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border-emerald-500"
+                                  >
+                                    <FileCheck2 className="w-3.5 h-3.5" />
+                                    <span>Preview / Unduh</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadPenerjunanDocx(group)}
+                                    className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 shadow-sm"
+                                    title="Unduh Berkas DOCX Surat Penerjunan"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    <span>DOCX</span>
+                                  </button>
+                                </>
                               );
                             })()}
                           </div>
@@ -2312,24 +2370,46 @@ export default function PokjaKelompokPrakerinPage() {
                               </button>
                             )}
                             {group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
-                              <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-orange-500/10 text-orange-600 border border-orange-500/20 flex items-center space-x-1">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Menunggu</span>
-                              </span>
+                              <>
+                                <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-orange-500/10 text-orange-600 border border-orange-500/20 flex items-center space-x-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Menunggu</span>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadPenarikanDocx(group)}
+                                  className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-sm border-blue-500"
+                                  title="Unduh Cadangan Berkas DOCX Surat Penarikan"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Unduh DOCX</span>
+                                </button>
+                              </>
                             )}
                             
                             {/* Preview / Download Penarikan */}
                             {(group.suratPenarikanUrl || (group.placements && group.placements.some(p => p.suratPenarikanUrl))) && (() => {
                               const penarikanUrl = group.suratPenarikanUrl || group.placements?.find(p => p.suratPenarikanUrl)?.suratPenarikanUrl;
                               return (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenPdf(penarikanUrl || null, `Surat Penarikan - ${group.industryName}`)}
-                                  className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border-emerald-500"
-                                >
-                                  <FileCheck2 className="w-3.5 h-3.5" />
-                                  <span>Preview / Unduh</span>
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPdf(penarikanUrl || null, `Surat Penarikan - ${group.industryName}`)}
+                                    className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border-emerald-500"
+                                  >
+                                    <FileCheck2 className="w-3.5 h-3.5" />
+                                    <span>Preview / Unduh</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadPenarikanDocx(group)}
+                                    className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 shadow-sm"
+                                    title="Unduh Berkas DOCX Surat Penarikan"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    <span>DOCX</span>
+                                  </button>
+                                </>
                               );
                             })()}
                           </div>
