@@ -78,8 +78,16 @@ export async function GET(request: Request) {
       select: {
         id: true,
         nis: true,
+        nisn: true,
         name: true,
         className: true,
+        department: true,
+        phone: true,
+        teacher: {
+          select: {
+            name: true
+          }
+        },
         placement: {
           select: {
             status: true,

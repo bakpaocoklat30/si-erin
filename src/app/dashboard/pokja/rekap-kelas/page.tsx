@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '@/app/theme-provider';
 import { useSession } from 'next-auth/react';
-import { Loader2, Users, Search, AlertCircle, BarChart3, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { 
+  Loader2, Users, Search, AlertCircle, BarChart3, Filter, ArrowUpDown, ArrowUp, ArrowDown,
+  Download, FileSpreadsheet, CheckCircle2
+} from 'lucide-react';
 
 const BELUM_MENDAFTAR = ['BELUM_MENDAFTAR'];
 const MENGAJUKAN = ['PENGAJUAN_DIKIRIM', 'REVIEW_POKJA', 'PEMBUATAN_SURAT', 'SURAT_DITERBITKAN', 'LETTER_ISSUED'];
@@ -27,6 +30,9 @@ export default function PokjaRekapKelasPage() {
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [exporting, setExporting] = useState<'csv' | 'excel' | null>(null);
+  const [exportSuccessMsg, setExportSuccessMsg] = useState('');
 
   const handleSort = (field: string) => {
     if (sortField !== field) {
@@ -100,14 +106,15 @@ export default function PokjaRekapKelasPage() {
       });
     }
 
-    // Filter pencarian (Nama, NIS, dan Industri)
+    // Filter pencarian (Nama, NIS, Industri, dan Guru Pembimbing)
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
       result = result.filter(s => {
         const nameMatch = s.name?.toLowerCase().includes(lowerSearch);
         const nisMatch = s.nis?.toLowerCase().includes(lowerSearch);
         const indMatch = s.placement?.industry?.name?.toLowerCase().includes(lowerSearch);
-        return Boolean(nameMatch || nisMatch || indMatch);
+        const teacherMatch = s.teacher?.name?.toLowerCase().includes(lowerSearch);
+        return Boolean(nameMatch || nisMatch || indMatch || teacherMatch);
       });
     }
 
@@ -132,6 +139,9 @@ export default function PokjaRekapKelasPage() {
         } else if (sortField === 'industry') {
           valA = a.placement?.industry?.name || '';
           valB = b.placement?.industry?.name || '';
+        } else if (sortField === 'teacher') {
+          valA = a.teacher?.name || '';
+          valB = b.teacher?.name || '';
         }
 
         const comp = valA.localeCompare(valB, 'id', { sensitivity: 'base', numeric: true });
@@ -194,6 +204,232 @@ export default function PokjaRekapKelasPage() {
     return 'bg-slate-100 text-slate-700 border-slate-200';
   };
 
+  const getExportFilename = (extension: 'csv' | 'xls') => {
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const parts = ['Rekap_Siswa_PKL'];
+    
+    if (selectedAcademicYear !== 'ALL') {
+      const ay = academicYears.find(a => a.id === selectedAcademicYear);
+      if (ay) parts.push(ay.year.replace(/[^a-zA-Z0-9]/g, '_'));
+    }
+    
+    if (selectedClassRoom !== 'ALL') {
+      parts.push(selectedClassRoom.replace(/[^a-zA-Z0-9]/g, '_'));
+    }
+    
+    if (selectedStatus !== 'ALL') {
+      parts.push(selectedStatus.toLowerCase());
+    }
+
+    parts.push(timestamp);
+    return `${parts.join('_')}.${extension}`;
+  };
+
+  const handleExportCSV = () => {
+    if (filteredStudents.length === 0) {
+      alert('Tidak ada data siswa untuk diekspor.');
+      return;
+    }
+
+    setExporting('csv');
+    try {
+      const headers = [
+        'No',
+        'NIS',
+        'NISN',
+        'Nama Siswa',
+        'Kelas',
+        'Jurusan',
+        'No. Telepon',
+        'Status Penempatan PKL',
+        'Industri / Instansi Penempatan',
+        'Guru Pembimbing'
+      ];
+
+      const rows = filteredStudents.map((s, idx) => [
+        String(idx + 1),
+        s.nis || '-',
+        s.nisn || '-',
+        s.name || '-',
+        s.className || '-',
+        s.department || '-',
+        s.phone || '-',
+        formatStatus(s.placement?.status),
+        s.placement?.industry?.name || 'Belum ada instansi',
+        s.teacher?.name || 'Belum ada pembimbing'
+      ]);
+
+      const csvContent = [
+        headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\r\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', getExportFilename('csv'));
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setExportSuccessMsg(`Berhasil mengekspor ${filteredStudents.length} data siswa ke format CSV!`);
+      setTimeout(() => setExportSuccessMsg(''), 4000);
+    } catch (err) {
+      alert('Terjadi kesalahan saat mengekspor data CSV.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (filteredStudents.length === 0) {
+      alert('Tidak ada data siswa untuk diekspor.');
+      return;
+    }
+
+    setExporting('excel');
+    try {
+      const academicYearLabel = selectedAcademicYear !== 'ALL' 
+        ? academicYears.find(a => a.id === selectedAcademicYear)?.year || selectedAcademicYear 
+        : 'Semua Tahun Pelajaran';
+      const classLabel = selectedClassRoom !== 'ALL' ? selectedClassRoom : 'Semua Kelas';
+      const statusLabel = selectedStatus !== 'ALL' ? formatStatus(selectedStatus) : 'Semua Status';
+      const exportDate = new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      let excelHtml = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8"/>
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>Rekap Siswa PKL</x:Name>
+                  <x:WorksheetOptions>
+                    <x:DisplayGridlines/>
+                  </x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+          <style>
+            .header-title { font-size: 16pt; font-weight: bold; color: #1E1B4B; text-align: center; }
+            th { background-color: #4338CA; color: #FFFFFF; font-weight: bold; border: 1px solid #94A3B8; padding: 10px; font-size: 11pt; text-align: center; }
+            td { border: 1px solid #CBD5E1; padding: 8px; font-size: 10pt; vertical-align: middle; }
+            .center { text-align: center; }
+            .text-num { mso-number-format:"\\@"; text-align: center; }
+            .status-diterima { background-color: #D1FAE5; color: #065F46; font-weight: bold; text-align: center; }
+            .status-menunggu { background-color: #FEF3C7; color: #92400E; font-weight: bold; text-align: center; }
+            .status-mengajukan { background-color: #DBEAFE; color: #1E40AF; font-weight: bold; text-align: center; }
+            .status-belum { background-color: #F1F5F9; color: #475569; font-weight: bold; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <table style="width: 100%; margin-bottom: 20px;">
+            <tr>
+              <td colspan="10" class="header-title">REKAPITULASI PROGRES PENEMPATAN SISWA PKL</td>
+            </tr>
+            <tr>
+              <td colspan="10" style="text-align: center; font-size: 10pt; color: #64748B;">Sistem Informasi Prakerin (SI-ERIN)</td>
+            </tr>
+            <tr><td colspan="10"></td></tr>
+            <tr>
+              <td colspan="2"><strong>Tahun Pelajaran:</strong></td>
+              <td colspan="3">${academicYearLabel}</td>
+              <td colspan="2"><strong>Waktu Ekspor:</strong></td>
+              <td colspan="3">${exportDate}</td>
+            </tr>
+            <tr>
+              <td colspan="2"><strong>Filter Kelas:</strong></td>
+              <td colspan="3">${classLabel}</td>
+              <td colspan="2"><strong>Filter Status:</strong></td>
+              <td colspan="3">${statusLabel}</td>
+            </tr>
+            <tr>
+              <td colspan="2"><strong>Total Siswa Terfilter:</strong></td>
+              <td colspan="8"><strong>${filteredStudents.length} Siswa</strong> (Diterima: ${stats.diterima}, Menunggu: ${stats.menunggu}, Mengajukan: ${stats.mengajukan}, Belum Mendaftar: ${stats.belumMendaftar})</td>
+            </tr>
+          </table>
+
+          <table border="1" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="width: 40px;">No</th>
+                <th style="width: 100px;">NIS</th>
+                <th style="width: 110px;">NISN</th>
+                <th style="width: 220px;">Nama Siswa</th>
+                <th style="width: 100px;">Kelas</th>
+                <th style="width: 180px;">Jurusan</th>
+                <th style="width: 120px;">No. Telepon</th>
+                <th style="width: 160px;">Status Penempatan PKL</th>
+                <th style="width: 240px;">Industri / Instansi Penempatan</th>
+                <th style="width: 200px;">Guru Pembimbing</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      filteredStudents.forEach((s, idx) => {
+        const status = s.placement?.status;
+        let statusClass = 'status-belum';
+        if (DITERIMA.includes(status)) statusClass = 'status-diterima';
+        else if (MENUNGGU_BALASAN.includes(status)) statusClass = 'status-menunggu';
+        else if (MENGAJUKAN.includes(status)) statusClass = 'status-mengajukan';
+
+        const rowBg = idx % 2 === 1 ? 'style="background-color: #F8FAFC;"' : '';
+
+        excelHtml += `
+          <tr ${rowBg}>
+            <td class="center">${idx + 1}</td>
+            <td class="text-num">${s.nis || '-'}</td>
+            <td class="text-num">${s.nisn || '-'}</td>
+            <td><strong>${s.name || '-'}</strong></td>
+            <td class="center">${s.className || '-'}</td>
+            <td>${s.department || '-'}</td>
+            <td class="text-num">${s.phone || '-'}</td>
+            <td class="${statusClass}">${formatStatus(s.placement?.status)}</td>
+            <td>${s.placement?.industry?.name ? `<strong>${s.placement.industry.name}</strong>` : '<em>Belum ada instansi</em>'}</td>
+            <td>${s.teacher?.name || '<em>Belum ada pembimbing</em>'}</td>
+          </tr>
+        `;
+      });
+
+      excelHtml += `
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob(['\uFEFF' + excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', getExportFilename('xls'));
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setExportSuccessMsg(`Berhasil mengekspor ${filteredStudents.length} data siswa ke format Excel!`);
+      setTimeout(() => setExportSuccessMsg(''), 4000);
+    } catch (err) {
+      alert('Terjadi kesalahan saat mengekspor data Excel.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
   return (
     <div className={`min-h-screen p-6 sm:p-10 space-y-8 transition-colors duration-300 pb-28 ${
       theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100/80 text-slate-900'
@@ -216,7 +452,47 @@ export default function PokjaRekapKelasPage() {
             Pantau progres penempatan PKL siswa berdasarkan tahun pelajaran dan kelas.
           </p>
         </div>
+
+        {/* TOMBOL EKSPOR DATA KE CSV DAN EXCEL */}
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={filteredStudents.length === 0 || exporting !== null}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center space-x-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
+            title="Unduh data dalam format Microsoft Excel (.xls)"
+          >
+            {exporting === 'excel' ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="w-4 h-4" />
+            )}
+            <span>{exporting === 'excel' ? 'Mengekspor...' : 'Ekspor Excel'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            disabled={filteredStudents.length === 0 || exporting !== null}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center space-x-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-indigo-600/20 transition-all cursor-pointer"
+            title="Unduh data dalam format CSV (.csv)"
+          >
+            {exporting === 'csv' ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            <span>{exporting === 'csv' ? 'Mengekspor...' : 'Ekspor CSV'}</span>
+          </button>
+        </div>
       </div>
+
+      {exportSuccessMsg && (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center space-x-2 animate-in fade-in">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <span className="text-sm font-semibold">{exportSuccessMsg}</span>
+        </div>
+      )}
 
       {/* FILTER BOX */}
       <div className={`p-6 rounded-2xl border shadow-sm ${
@@ -451,6 +727,24 @@ export default function PokjaRekapKelasPage() {
                         )}
                       </div>
                     </th>
+
+                    {/* Guru Pembimbing */}
+                    <th 
+                      onClick={() => handleSort('teacher')}
+                      className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-indigo-600 transition-colors"
+                      title="Klik untuk mengurutkan Guru Pembimbing"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Guru Pembimbing</span>
+                        {sortField === 'teacher' && sortDirection === 'asc' ? (
+                          <ArrowUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : sortField === 'teacher' && sortDirection === 'desc' ? (
+                          <ArrowDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
+                        )}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -479,11 +773,20 @@ export default function PokjaRekapKelasPage() {
                             <span className="text-slate-400 italic">Belum ada instansi</span>
                           )}
                         </td>
+                        <td className="px-6 py-4">
+                          {student.teacher?.name ? (
+                            <span className="font-medium text-slate-700 dark:text-slate-300">
+                              {student.teacher.name}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Belum ada pembimbing</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                         Tidak ada data siswa yang sesuai filter
                       </td>
                     </tr>
