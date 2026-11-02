@@ -48,7 +48,6 @@ export async function PUT(
               address: (body.industryAddress || '').trim() || null,
               sector: 'Instansi / Kemitraan Khusus',
               department: userDept || 'ALL',
-              isActive: true,
             }
           });
         } else if (body.industryAddress && (!foundIndustry.address || foundIndustry.address.trim() === '')) {

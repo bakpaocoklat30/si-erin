@@ -300,7 +300,6 @@ export async function POST(req: NextRequest) {
             address: (industryAddress || '').trim() || null,
             sector: 'Instansi / Kemitraan Khusus',
             department: userDept || 'ALL',
-            isActive: true,
           }
         });
       } else if (industryAddress && (!foundIndustry.address || foundIndustry.address.trim() === '')) {
@@ -319,6 +318,29 @@ export async function POST(req: NextRequest) {
         error: 'Tujuan (Industri/Instansi), Guru Utama, dan Tanggal Penugasan wajib diisi!' 
       }, { status: 400 });
     }
+
+    // Pastikan periodId valid untuk relasi foreign key
+    let validPeriodId: string | null = null;
+    if (periodId && typeof periodId === 'string' && periodId.trim() !== '') {
+      const p = await prisma.internshipPeriod.findUnique({
+        where: { id: periodId.trim() },
+        select: { id: true }
+      });
+      if (p) validPeriodId = p.id;
+    }
+    if (!validPeriodId) {
+      const activeP = await prisma.internshipPeriod.findFirst({
+        where: { isActive: true },
+        select: { id: true }
+      });
+      if (activeP) validPeriodId = activeP.id;
+    }
+
+    // Validasi format tanggal
+    const mDate = new Date(monitoringDate);
+    const validMonitoringDate = isNaN(mDate.getTime()) ? new Date() : mDate;
+    const rDate = returnDate ? new Date(returnDate) : validMonitoringDate;
+    const validReturnDate = isNaN(rDate.getTime()) ? validMonitoringDate : rDate;
 
     // Jika pengguna mengisi / memperbaiki alamat industri langsung di form, simpan ke database industri
     if (finalIndustryId && industryAddress && typeof industryAddress === 'string') {
@@ -362,9 +384,9 @@ export async function POST(req: NextRequest) {
         department: userDept || 'ALL',
         companionTeachers: Array.isArray(companionTeachers) ? companionTeachers : [],
         targetIndustries: parsedTargetIndustries,
-        periodId: periodId || null,
-        monitoringDate: new Date(monitoringDate),
-        returnDate: returnDate ? new Date(returnDate) : new Date(monitoringDate),
+        periodId: validPeriodId,
+        monitoringDate: validMonitoringDate,
+        returnDate: validReturnDate,
         letterNumber: letterNumber || '${nomor_naskah}',
         sppdNumber: sppdNumber || '${nomor_naskah}',
         purpose: purpose || 'Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)',
