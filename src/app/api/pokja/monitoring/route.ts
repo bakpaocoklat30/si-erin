@@ -255,6 +255,8 @@ export async function POST(req: NextRequest) {
     const {
       industryId,
       industryAddress,
+      customDestinationName,
+      destinationMode,
       teacherId,
       teacherRank,
       companionTeachers,
@@ -273,17 +275,55 @@ export async function POST(req: NextRequest) {
       notes
     } = body;
 
-    if (!industryId || !teacherId || !monitoringDate) {
+    const userDept = (session.user as any)?.department;
+    let finalIndustryId = industryId;
+    const destName = (customDestinationName || (destinationMode === 'MANUAL' ? destinationPlace : null) || '').trim();
+
+    // 🌟 Dukungan Tujuan Manual / Custom Tempat / Instansi (Surat Tugas Custom)
+    if (destinationMode === 'MANUAL' || industryId === 'CUSTOM' || industryId === 'MANUAL' || (!industryId && destName)) {
+      if (!destName) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Nama tempat / instansi tujuan penugasan wajib diisi!' 
+        }, { status: 400 });
+      }
+
+      // Cari atau buat record Industry baru agar foreign key relation tetap terpenuhi
+      let foundIndustry = await prisma.industry.findUnique({
+        where: { name: destName }
+      });
+
+      if (!foundIndustry) {
+        foundIndustry = await prisma.industry.create({
+          data: {
+            name: destName,
+            address: (industryAddress || '').trim() || null,
+            sector: 'Instansi / Kemitraan Khusus',
+            department: userDept || 'ALL',
+            isActive: true,
+          }
+        });
+      } else if (industryAddress && (!foundIndustry.address || foundIndustry.address.trim() === '')) {
+        await prisma.industry.update({
+          where: { id: foundIndustry.id },
+          data: { address: industryAddress.trim() }
+        }).catch(() => {});
+      }
+
+      finalIndustryId = foundIndustry.id;
+    }
+
+    if (!finalIndustryId || !teacherId || !monitoringDate) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Industri, Guru Utama, dan Tanggal Monitoring wajib diisi!' 
+        error: 'Tujuan (Industri/Instansi), Guru Utama, dan Tanggal Penugasan wajib diisi!' 
       }, { status: 400 });
     }
 
     // Jika pengguna mengisi / memperbaiki alamat industri langsung di form, simpan ke database industri
-    if (industryAddress && typeof industryAddress === 'string') {
+    if (finalIndustryId && industryAddress && typeof industryAddress === 'string') {
       await prisma.industry.update({
-        where: { id: industryId },
+        where: { id: finalIndustryId },
         data: { address: industryAddress.trim() }
       }).catch((err) => console.error('Error updating industry address:', err));
     }
@@ -298,12 +338,12 @@ export async function POST(req: NextRequest) {
 
     // Cari data industri untuk mengisi default destinationPlace jika belum diisi
     const industry = await prisma.industry.findUnique({
-      where: { id: industryId }
+      where: { id: finalIndustryId }
     });
 
     const parsedTargetIndustries = Array.isArray(targetIndustries) ? targetIndustries : [];
     const destinationList = [
-      industry?.name,
+      destName || industry?.name,
       ...parsedTargetIndustries.map((ind: any) => ind?.name).filter(Boolean)
     ];
 
@@ -312,14 +352,12 @@ export async function POST(req: NextRequest) {
       (destinationList.length > 1
         ? destinationList.join(', ')
         : industry
-        ? `${industry.name} (${industry.address || industry.regency || ''})`
-        : '');
-
-    const userDept = (session.user as any)?.department;
+        ? `${industry.name}${industry.address ? ` (${industry.address})` : ''}`
+        : destName || '');
 
     const newAssignment = await prisma.monitoringAssignment.create({
       data: {
-        industryId,
+        industryId: finalIndustryId,
         teacherId,
         department: userDept || 'ALL',
         companionTeachers: Array.isArray(companionTeachers) ? companionTeachers : [],
@@ -346,7 +384,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Penugasan monitoring guru berhasil dijadwalkan!',
+      message: 'Penugasan surat tugas berhasil dijadwalkan!',
       data: newAssignment
     });
   } catch (error: any) {

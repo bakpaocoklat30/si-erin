@@ -128,11 +128,19 @@ function getAssignmentType(purpose?: string | null) {
       badgeClass: 'bg-purple-500/15 text-purple-400 border-purple-500/30'
     };
   }
+  if (p.includes('monitoring')) {
+    return {
+      type: 'MONITORING',
+      label: 'Monitoring',
+      icon: '📋',
+      badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+    };
+  }
   return {
-    type: 'MONITORING',
-    label: 'Monitoring',
-    icon: '📋',
-    badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+    type: 'CUSTOM',
+    label: 'Tugas Custom',
+    icon: '📝',
+    badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
   };
 }
 
@@ -477,6 +485,10 @@ export default function PokjaMonitoringPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Form Field State
+  const [isCustomDuty, setIsCustomDuty] = useState(false);
+  const [destinationMode, setDestinationMode] = useState<'SELECT' | 'MANUAL'>('SELECT');
+  const [manualDestinationName, setManualDestinationName] = useState('');
+  const [manualDestinationAddress, setManualDestinationAddress] = useState('');
   const [formIndustryId, setFormIndustryId] = useState('');
   const [formIndustryAddress, setFormIndustryAddress] = useState('');
   const [formTeacherId, setFormTeacherId] = useState('');
@@ -955,10 +967,14 @@ export default function PokjaMonitoringPage() {
     }
   };
 
-  // Handler: Buka Modal Tambah Baru
+  // Handler: Buka Modal Tambah Baru (Monitoring Standar)
   const handleOpenAddModal = () => {
     setIsEditing(false);
     setEditingId(null);
+    setIsCustomDuty(false);
+    setDestinationMode('SELECT');
+    setManualDestinationName('');
+    setManualDestinationAddress('');
 
     // Default dates (Hari ini atau besok)
     const todayStr = new Date().toISOString().split('T')[0];
@@ -988,10 +1004,60 @@ export default function PokjaMonitoringPage() {
     setShowFormModal(true);
   };
 
+  // Handler: Buka Modal Surat Tugas Custom Baru
+  const handleOpenCustomModal = () => {
+    setIsEditing(false);
+    setEditingId(null);
+    setIsCustomDuty(true);
+    setDestinationMode('MANUAL');
+    setManualDestinationName('');
+    setManualDestinationAddress('');
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const firstInd = industries[0];
+    setFormIndustryId(firstInd?.id || '');
+    setFormIndustryAddress('');
+    const firstTeacher = teachers[0];
+    setFormTeacherId(firstTeacher?.id || '');
+    setFormTeacherRank(firstTeacher?.rank || '');
+    setFormMonitoringDate(todayStr);
+    setFormReturnDate(todayStr);
+    setFormLetterNumber('${nomor_naskah}');
+    setFormSppdNumber('${nomor_naskah}');
+    setFormPurpose('');
+    setFormTransportType('Mobil Dinas / Kendaraan Umum');
+    setFormDeparturePlace('SMK Negeri 1 Adiwerna');
+    setFormDestinationPlace('');
+    setFormBudgetSource('SMK Negeri 1 Adiwerna');
+    setFormBudgetAccount('Dana BOS');
+    setFormNotes('');
+    setFormStatus('TERJADWAL');
+    setCompanions([]);
+    setTargetIndustries([]);
+    setSelectedAddIndustryId('');
+
+    setShowFormModal(true);
+  };
+
   // Handler: Buka Modal Edit
   const handleOpenEditModal = (assignment: MonitoringAssignmentData) => {
     setIsEditing(true);
     setEditingId(assignment.id || null);
+
+    const aType = getAssignmentType(assignment.purpose).type;
+    const isCustom = aType === 'CUSTOM';
+    setIsCustomDuty(isCustom);
+
+    const indExists = industries.some((i) => i.id === assignment.industry.id);
+    if (!indExists || isCustom) {
+      setDestinationMode('MANUAL');
+      setManualDestinationName(assignment.industry?.name || assignment.destinationPlace || '');
+      setManualDestinationAddress(assignment.industry?.address || '');
+    } else {
+      setDestinationMode('SELECT');
+      setManualDestinationName('');
+      setManualDestinationAddress('');
+    }
 
     const mDate = assignment.monitoringDate ? new Date(assignment.monitoringDate).toISOString().split('T')[0] : '';
     const rDate = assignment.returnDate ? new Date(assignment.returnDate).toISOString().split('T')[0] : mDate;
@@ -1004,7 +1070,7 @@ export default function PokjaMonitoringPage() {
     setFormReturnDate(rDate);
     setFormLetterNumber(assignment.letterNumber || '${nomor_naskah}');
     setFormSppdNumber(assignment.sppdNumber || '${nomor_naskah}');
-    setFormPurpose(assignment.purpose || 'Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)');
+    setFormPurpose(assignment.purpose || (isCustom ? '' : 'Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)'));
     setFormTransportType(assignment.transportType || 'Mobil Dinas / Kendaraan Umum');
     setFormDeparturePlace(assignment.departurePlace || 'SMK Negeri 1 Adiwerna');
     setFormDestinationPlace(assignment.destinationPlace || assignment.industry.name);
@@ -1159,16 +1225,36 @@ export default function PokjaMonitoringPage() {
   // Handler: Submit Form Penjadwalan
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formIndustryId || !formTeacherId || !formMonitoringDate) {
-      alert('Industri, Guru Utama, dan Tanggal Monitoring wajib diisi!');
+    const isManual = destinationMode === 'MANUAL';
+
+    if (isManual) {
+      if (!manualDestinationName || manualDestinationName.trim() === '') {
+        alert('Nama tempat / instansi tujuan penugasan wajib diisi!');
+        return;
+      }
+    } else {
+      if (!formIndustryId) {
+        alert('Industri mitra tujuan wajib dipilih!');
+        return;
+      }
+    }
+
+    if (!formTeacherId || !formMonitoringDate) {
+      alert('Guru Utama dan Tanggal Penugasan wajib diisi!');
       return;
     }
 
-    if (!formIndustryAddress || formIndustryAddress.trim() === '') {
+    if (isCustomDuty && (!formPurpose || formPurpose.trim() === '')) {
+      alert('Kepentingan / Keperluan Surat Tugas wajib diisi!');
+      return;
+    }
+
+    const effectiveAddress = isManual ? manualDestinationAddress.trim() : formIndustryAddress.trim();
+    if (!effectiveAddress) {
       const confirmEmpty = confirm(
-        '⚠️ PERINGATAN: Alamat Industri Tujuan masih kosong!\n\n' +
+        '⚠️ PERINGATAN: Alamat Tempat / Industri Tujuan masih kosong!\n\n' +
         'Jika disimpan tanpa alamat, kolom alamat di Surat Tugas dan SPPD akan tercetak tanda strip (-).\n\n' +
-        '• Klik [Cancel / Batal] untuk mengisi alamat terlebih dahulu (bisa ketik langsung di form ini atau via menu Industri Mitra).\n' +
+        '• Klik [Cancel / Batal] untuk mengisi alamat terlebih dahulu.\n' +
         '• Klik [OK] jika tetap ingin menyimpan tanpa alamat.'
       );
       if (!confirmEmpty) return;
@@ -1177,19 +1263,28 @@ export default function PokjaMonitoringPage() {
     setSubmitting(true);
     setMessage(null);
 
+    const effectiveDestinationPlace = isManual
+      ? (manualDestinationAddress.trim()
+          ? `${manualDestinationName.trim()} (${manualDestinationAddress.trim()})`
+          : manualDestinationName.trim())
+      : formDestinationPlace;
+
     const payload = {
-      industryId: formIndustryId,
-      industryAddress: formIndustryAddress.trim(),
+      destinationMode,
+      isManualDestination: isManual,
+      customDestinationName: isManual ? manualDestinationName.trim() : '',
+      industryId: isManual ? 'CUSTOM' : formIndustryId,
+      industryAddress: effectiveAddress,
       teacherId: formTeacherId,
       teacherRank: formTeacherRank.trim(),
       monitoringDate: formMonitoringDate,
       returnDate: formReturnDate || formMonitoringDate,
       letterNumber: formLetterNumber,
       sppdNumber: formSppdNumber,
-      purpose: formPurpose,
+      purpose: formPurpose.trim() || 'Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)',
       transportType: formTransportType,
       departurePlace: formDeparturePlace,
-      destinationPlace: formDestinationPlace,
+      destinationPlace: effectiveDestinationPlace,
       budgetSource: formBudgetSource,
       budgetAccount: formBudgetAccount,
       notes: formNotes,
@@ -1379,7 +1474,16 @@ export default function PokjaMonitoringPage() {
             >
               <Plus className="w-5 h-5" />
               <span>Jadwalkan Monitoring</span>
-              </button>
+            </button>
+
+            <button
+              onClick={handleOpenCustomModal}
+              className="inline-flex items-center space-x-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-purple-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              title="Buat Surat Tugas untuk keperluan khusus / kegiatan kedinasan lainnya dengan tujuan bebas atau mitra DUDI"
+            >
+              <FileText className="w-5 h-5" />
+              <span>Surat Tugas Custom</span>
+            </button>
 
               <button
                 onClick={handleExportCsv}
@@ -1573,9 +1677,10 @@ export default function PokjaMonitoringPage() {
               }`}
             >
               <option value="ALL">Semua Jenis Penugasan</option>
-              <option value="PENERJUNAN">🚚 Penerjunan PKL</option>
               <option value="MONITORING">📋 Monitoring PKL</option>
+              <option value="PENERJUNAN">🚚 Penerjunan PKL</option>
               <option value="PENARIKAN">🎓 Penarikan PKL</option>
+              <option value="CUSTOM">📝 Surat Tugas Custom</option>
             </select>
           </div>
 
@@ -1777,12 +1882,20 @@ export default function PokjaMonitoringPage() {
                         {(() => {
                           const aType = getAssignmentType(assignment.purpose);
                           return (
-                            <span
-                              className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${aType.badgeClass}`}
-                            >
-                              <span>{aType.icon}</span>
-                              <span>{aType.label}</span>
-                            </span>
+                            <div className="flex flex-col items-center">
+                              <span
+                                className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${aType.badgeClass}`}
+                                title={assignment.purpose || ''}
+                              >
+                                <span>{aType.icon}</span>
+                                <span>{aType.label}</span>
+                              </span>
+                              {aType.type === 'CUSTOM' && assignment.purpose && (
+                                <span className="text-[10px] text-slate-400 max-w-[130px] truncate mt-0.5 font-medium" title={assignment.purpose}>
+                                  {assignment.purpose}
+                                </span>
+                              )}
+                            </div>
                           );
                         })()}
                       </td>
@@ -2167,15 +2280,23 @@ export default function PokjaMonitoringPage() {
             {/* Modal Header */}
             <div className="px-6 py-5 border-b border-slate-800/30 flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="p-2.5 rounded-2xl bg-indigo-500/10 text-indigo-500">
-                  <ClipboardCheck className="w-6 h-6" />
+                <div className={`p-2.5 rounded-2xl ${isCustomDuty ? 'bg-purple-500/10 text-purple-400' : 'bg-indigo-500/10 text-indigo-500'}`}>
+                  {isCustomDuty ? <FileText className="w-6 h-6" /> : <ClipboardCheck className="w-6 h-6" />}
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">
-                    {isEditing ? 'Ubah Rincian Monitoring Guru' : 'Jadwalkan Monitoring Baru'}
+                    {isEditing
+                      ? isCustomDuty
+                        ? 'Ubah Surat Tugas Custom'
+                        : 'Ubah Rincian Monitoring Guru'
+                      : isCustomDuty
+                      ? 'Buat Surat Tugas Custom'
+                      : 'Jadwalkan Monitoring Baru'}
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Tentukan industri tujuan, guru yang bertugas, dan parameter surat tugas & SPPD.
+                    {isCustomDuty
+                      ? 'Buat surat tugas resmi dengan tujuan bebas (manual / mitra DUDI) dan keperluan penugasan yang dapat diinput sendiri.'
+                      : 'Tentukan industri tujuan, guru yang bertugas, dan parameter surat tugas & SPPD.'}
                   </p>
                 </div>
               </div>
@@ -2190,58 +2311,196 @@ export default function PokjaMonitoringPage() {
 
             {/* Modal Body: Form Fields */}
             <form onSubmit={handleSubmitForm} className="overflow-y-auto p-6 space-y-5 flex-1">
-              {/* BARIS 1: PILIH INDUSTRI UTAMA (DROPDOWN + ALAMAT LANGSUNG DI SEBELAHNYA) */}
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Kolom Kiri: Dropdown Pilih Industri Mitra Utama */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Industri Mitra Tujuan Utama (DUDI) <span className="text-rose-500">*</span>
+              {/* KEPENTINGAN / KEPERLUAN PENUGASAN (KHUSUS SURAT TUGAS CUSTOM) */}
+              {isCustomDuty && (
+                <div className="p-4 rounded-2xl border border-purple-500/30 bg-purple-500/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-purple-400 flex items-center space-x-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Kepentingan / Keperluan Penugasan <span className="text-rose-500">*</span></span>
                     </label>
-                    <select
-                      required
-                      value={formIndustryId}
-                      onChange={(e) => handleIndustryChange(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-2xl border text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        theme === 'dark' ? 'bg-slate-800/90 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                      }`}
-                    >
-                      <option value="" disabled>
-                        -- Pilih Industri Mitra Utama --
-                      </option>
-                      {industries.map((ind) => (
-                        <option key={ind.id} value={ind.id}>
-                          {ind.name} ({ind._count?.placements || 0} Siswa PKL)
-                        </option>
-                      ))}
-                    </select>
+                    <span className="text-[10px] text-purple-300 font-semibold bg-purple-500/15 px-2 py-0.5 rounded-full">
+                      Ketik manual keperluan tugas
+                    </span>
                   </div>
-
-                  {/* Kolom Kanan: Alamat Industri Langsung Muncul di Sebelahnya */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Alamat Industri Tujuan
-                      </label>
-                      <span className="text-[10px] text-indigo-400 font-semibold bg-indigo-500/10 px-2 py-0.5 rounded-full">
-                        Dapat langsung diperbaiki jika kosong
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Masukkan / perbaiki alamat industri lengkap..."
-                      value={formIndustryAddress}
-                      onChange={(e) => handleIndustryAddressChange(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 ${
-                        formIndustryId && (!formIndustryAddress || formIndustryAddress.trim() === '')
-                          ? 'border-amber-500/80 bg-amber-500/10 text-amber-500 focus:ring-amber-500 placeholder-amber-400/70'
-                          : theme === 'dark'
-                          ? 'bg-slate-800/90 border-slate-700 text-white placeholder-slate-500 focus:ring-indigo-500'
-                          : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:ring-indigo-500'
-                      }`}
-                    />
+                  <textarea
+                    required={isCustomDuty}
+                    rows={2}
+                    value={formPurpose}
+                    onChange={(e) => setFormPurpose(e.target.value)}
+                    placeholder="Contoh: Melaksanakan koordinasi penjajakan kemitraan DUDI / Pendampingan LKS / Sinkronisasi Kurikulum..."
+                    className={`w-full px-4 py-3 rounded-2xl border text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                      theme === 'dark' ? 'bg-slate-800/90 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                    }`}
+                  />
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[11px] text-slate-400 mr-1">Rekomendasi Cepat:</span>
+                    {[
+                      'Koordinasi Sinkronisasi Kurikulum Industri',
+                      'Penjajakan Kemitraan & MoU DUDI',
+                      'Pendampingan Siswa Lomba Keterampilan Siswa (LKS)',
+                      'Koordinasi Penyelenggaraan Uji Kompetensi Keahlian (UKK)',
+                      'Kunjungan Kerja Dinas Pendidikan Wilayah'
+                    ].map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setFormPurpose(`Melaksanakan kegiatan ${item}`)}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 border border-purple-500/20 transition-all cursor-pointer"
+                      >
+                        + {item}
+                      </button>
+                    ))}
                   </div>
                 </div>
+              )}
+
+              {/* BARIS PILIHAN TEMPAT / INSTANSI TUJUAN */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Tempat / Instansi Tujuan <span className="text-rose-500">*</span>
+                  </label>
+                  {/* Toggle Pilihan Tujuan: Mitra Industri vs Ketik Manual */}
+                  <div className="inline-flex p-1 rounded-xl bg-slate-800 border border-slate-700 text-xs font-semibold self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDestinationMode('SELECT');
+                        if (formIndustryId) {
+                          const sel = industries.find((i) => i.id === formIndustryId);
+                          if (sel) {
+                            setFormIndustryAddress(sel.address || '');
+                            syncDestinationPlace(sel.id, sel.address || '', targetIndustries);
+                          }
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                        destinationMode === 'SELECT'
+                          ? 'bg-indigo-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      🏢 Pilih dari Mitra Industri
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDestinationMode('MANUAL');
+                        if (!manualDestinationName && formDestinationPlace) {
+                          setManualDestinationName(formDestinationPlace);
+                          setManualDestinationAddress(formIndustryAddress);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                        destinationMode === 'MANUAL'
+                          ? 'bg-purple-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ✏️ Ketik Manual Tujuan
+                    </button>
+                  </div>
+                </div>
+
+                {destinationMode === 'SELECT' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Kolom Kiri: Dropdown Pilih Industri Mitra Utama */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Industri Mitra Tujuan Utama (DUDI) <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        required={destinationMode === 'SELECT'}
+                        value={formIndustryId}
+                        onChange={(e) => handleIndustryChange(e.target.value)}
+                        className={`w-full px-4 py-3 rounded-2xl border text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          theme === 'dark' ? 'bg-slate-800/90 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                        }`}
+                      >
+                        <option value="" disabled>
+                          -- Pilih Industri Mitra Utama --
+                        </option>
+                        {industries.map((ind) => (
+                          <option key={ind.id} value={ind.id}>
+                            {ind.name} ({ind._count?.placements || 0} Siswa PKL)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Kolom Kanan: Alamat Industri Langsung Muncul di Sebelahnya */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          Alamat Industri Tujuan
+                        </label>
+                        <span className="text-[10px] text-indigo-400 font-semibold bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                          Dapat langsung diperbaiki jika kosong
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Masukkan / perbaiki alamat industri lengkap..."
+                        value={formIndustryAddress}
+                        onChange={(e) => handleIndustryAddressChange(e.target.value)}
+                        className={`w-full px-4 py-3 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 ${
+                          formIndustryId && (!formIndustryAddress || formIndustryAddress.trim() === '')
+                            ? 'border-amber-500/80 bg-amber-500/10 text-amber-500 focus:ring-amber-500 placeholder-amber-400/70'
+                            : theme === 'dark'
+                            ? 'bg-slate-800/90 border-slate-700 text-white placeholder-slate-500 focus:ring-indigo-500'
+                            : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:ring-indigo-500'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-2xl border border-purple-500/30 bg-purple-500/5">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-purple-400">
+                        Nama Tempat / Instansi / Lembaga Tujuan <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required={destinationMode === 'MANUAL'}
+                        placeholder="Contoh: Balai Besar Penjaminan Mutu Pendidikan / Dinas Pendidikan / PT Telkom"
+                        value={manualDestinationName}
+                        onChange={(e) => {
+                          setManualDestinationName(e.target.value);
+                          const fullDest = manualDestinationAddress.trim()
+                            ? `${e.target.value.trim()} (${manualDestinationAddress.trim()})`
+                            : e.target.value.trim();
+                          setFormDestinationPlace(fullDest);
+                        }}
+                        className={`w-full px-4 py-3 rounded-2xl border text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                          theme === 'dark' ? 'bg-slate-800/90 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                        }`}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-purple-400">
+                        Alamat / Kota Tempat Tujuan
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Jl. Pemuda No. 134, Semarang / Slawi"
+                        value={manualDestinationAddress}
+                        onChange={(e) => {
+                          setManualDestinationAddress(e.target.value);
+                          const fullDest = e.target.value.trim()
+                            ? `${manualDestinationName.trim()} (${e.target.value.trim()})`
+                            : manualDestinationName.trim();
+                          setFormDestinationPlace(fullDest);
+                          setFormIndustryAddress(e.target.value);
+                        }}
+                        className={`w-full px-4 py-3 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                          theme === 'dark' ? 'bg-slate-800/90 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* SUB-BARIS: INDUSTRI TAMBAHAN / RUTE KUNJUNGAN SEKALIGUS */}
                 <div className="p-4 rounded-2xl border border-dashed border-indigo-500/30 bg-indigo-500/5 space-y-3">
@@ -2587,20 +2846,38 @@ export default function PokjaMonitoringPage() {
 
               {/* BARIS 6: KENDARAAN & SUMBER ANGGARAN SPPD */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Maksud Perjalanan (Tujuan)</label>
-                  <select
-                    value={formPurpose}
-                    onChange={(e) => setFormPurpose(e.target.value)}
-                    className={`w-full px-3 py-2.5 rounded-2xl border text-xs font-semibold ${theme === "dark" ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
-                  >
-                    <option value="Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)">Monitoring PKL</option>
-                    <option value="Melaksanakan kegiatan Penerjunan/Pengantaran siswa Praktik Kerja Lapangan (PKL)">Penerjunan / Pengantaran PKL</option>
-                    <option value="Melaksanakan kegiatan Penarikan/Penjemputan siswa Praktik Kerja Lapangan (PKL)">Penarikan / Penjemputan PKL</option>
-                  </select>
-                </div>
+                {!isCustomDuty && (
+                  <div className="space-y-1.5 sm:col-span-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Maksud Perjalanan Dinas</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomDuty(true)}
+                        className="text-[11px] font-bold text-purple-400 hover:text-purple-300 transition-colors cursor-pointer"
+                      >
+                        + Beralih ke Surat Tugas Custom
+                      </button>
+                    </div>
+                    <select
+                      value={['Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)', 'Melaksanakan kegiatan Penerjunan/Pengantaran siswa Praktik Kerja Lapangan (PKL)', 'Melaksanakan kegiatan Penarikan/Penjemputan siswa Praktik Kerja Lapangan (PKL)'].includes(formPurpose) ? formPurpose : 'CUSTOM'}
+                      onChange={(e) => {
+                        if (e.target.value === 'CUSTOM') {
+                          setIsCustomDuty(true);
+                        } else {
+                          setFormPurpose(e.target.value);
+                        }
+                      }}
+                      className={`w-full px-3 py-2.5 rounded-2xl border text-xs font-semibold ${theme === "dark" ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
+                    >
+                      <option value="Melaksanakan kegiatan Monitoring siswa Praktik Kerja Lapangan (PKL)">Monitoring Siswa PKL</option>
+                      <option value="Melaksanakan kegiatan Penerjunan/Pengantaran siswa Praktik Kerja Lapangan (PKL)">Penerjunan / Pengantaran Siswa PKL</option>
+                      <option value="Melaksanakan kegiatan Penarikan/Penjemputan siswa Praktik Kerja Lapangan (PKL)">Penarikan / Penjemputan Siswa PKL</option>
+                      <option value="CUSTOM">✏️ Kepentingan Custom / Lainnya...</option>
+                    </select>
+                  </div>
+                )}
 
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Alat Angkut</label>
                   <select
                     value={formTransportType}
@@ -2685,10 +2962,22 @@ export default function PokjaMonitoringPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+                  className={`inline-flex items-center space-x-2 px-6 py-2.5 rounded-xl text-white text-xs font-bold shadow-lg transition-all cursor-pointer ${
+                    isCustomDuty
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-600/30'
+                      : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30'
+                  }`}
                 >
                   {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  <span>{isEditing ? 'Simpan Perubahan' : 'Jadwalkan Penugasan'}</span>
+                  <span>
+                    {isEditing
+                      ? isCustomDuty
+                        ? 'Simpan Perubahan Surat Tugas'
+                        : 'Simpan Perubahan'
+                      : isCustomDuty
+                      ? 'Terbitkan Surat Tugas Custom'
+                      : 'Jadwalkan Penugasan'}
+                  </span>
                 </button>
               </div>
             </form>

@@ -32,7 +32,35 @@ export async function PUT(
       return NextResponse.json({ success: false, error: 'Data penugasan monitoring tidak ditemukan.' }, { status: 404 });
     }
 
-    const targetIndustryId = body.industryId || existing.industryId;
+    const userDept = (session.user as any)?.department;
+    let targetIndustryId = body.industryId || existing.industryId;
+    const destName = (body.customDestinationName || (body.destinationMode === 'MANUAL' ? body.destinationPlace : null) || '').trim();
+
+    if (body.destinationMode === 'MANUAL' || body.industryId === 'CUSTOM' || (destName && body.isManualDestination)) {
+      if (destName) {
+        let foundIndustry = await prisma.industry.findUnique({
+          where: { name: destName }
+        });
+        if (!foundIndustry) {
+          foundIndustry = await prisma.industry.create({
+            data: {
+              name: destName,
+              address: (body.industryAddress || '').trim() || null,
+              sector: 'Instansi / Kemitraan Khusus',
+              department: userDept || 'ALL',
+              isActive: true,
+            }
+          });
+        } else if (body.industryAddress && (!foundIndustry.address || foundIndustry.address.trim() === '')) {
+          await prisma.industry.update({
+            where: { id: foundIndustry.id },
+            data: { address: body.industryAddress.trim() }
+          }).catch(() => {});
+        }
+        targetIndustryId = foundIndustry.id;
+      }
+    }
+
     if (targetIndustryId && typeof body.industryAddress === 'string') {
       await prisma.industry.update({
         where: { id: targetIndustryId },
