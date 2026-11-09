@@ -8,7 +8,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTheme } from '@/app/theme-provider';
 import { 
@@ -19,11 +19,26 @@ import {
   Search,
   ChevronRight,
   Mail,
-  ShieldCheck
+  ShieldCheck,
+  BellRing
 } from 'lucide-react';
 
 export default function TataUsahaDashboardPage() {
   const { theme } = useTheme();
+  const [counts, setCounts] = useState<{ permohonan?: number; penerjunan?: number }>({});
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/tata-usaha?summary=true')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && data.counts) {
+          setCounts(data.counts);
+        }
+      })
+      .catch(err => console.error('Failed to fetch TU stats:', err))
+      .finally(() => setLoadingStats(false));
+  }, []);
 
   const menuItems = [
     {
@@ -32,7 +47,9 @@ export default function TataUsahaDashboardPage() {
       icon: FileText,
       href: '/dashboard/persuratan/permohonan',
       color: 'from-blue-500 to-cyan-500',
-      iconColor: 'text-cyan-100'
+      iconColor: 'text-cyan-100',
+      badgeCount: counts.permohonan,
+      badgeLabel: 'Antrean'
     },
     {
       title: 'Surat Penerjunan',
@@ -40,7 +57,9 @@ export default function TataUsahaDashboardPage() {
       icon: Truck,
       href: '/dashboard/persuratan/penerjunan',
       color: 'from-emerald-500 to-teal-500',
-      iconColor: 'text-teal-100'
+      iconColor: 'text-teal-100',
+      badgeCount: counts.penerjunan,
+      badgeLabel: 'Permintaan Masuk'
     },
     {
       title: 'Surat Tugas dan SPPD',
@@ -64,7 +83,7 @@ export default function TataUsahaDashboardPage() {
     <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
       {/* HEADER */}
-      <div className="flex items-center space-x-4 mb-8">
+      <div className="flex items-center space-x-4 mb-4">
         <div className="p-4 rounded-2xl bg-indigo-500/10 text-indigo-500">
           <ShieldCheck className="w-8 h-8" />
         </div>
@@ -75,6 +94,35 @@ export default function TataUsahaDashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* NOTIFIKASI REQUEST PENERJUNAN DARI POKJA */}
+      {(counts.penerjunan ?? 0) > 0 && (
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-indigo-500/10 border border-emerald-500/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm animate-in fade-in duration-500">
+          <div className="flex items-center space-x-3.5">
+            <div className="p-3 rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 shrink-0">
+              <Truck className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Request Surat Penerjunan dari Pokja Masuk</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500 text-white animate-pulse">
+                  {counts.penerjunan} Siswa
+                </span>
+              </h4>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+                Tim Pokja telah mengajukan request penerjunan untuk kelompok siswa. Silakan klik tombol di samping untuk mencetak Surat Tugas dan mengunggah Surat Pengantaran.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/persuratan/penerjunan"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-2xl shadow-md shadow-emerald-600/30 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+          >
+            <span>Buka Surat Penerjunan</span>
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
 
       {/* QUICK ACCESS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
@@ -91,8 +139,20 @@ export default function TataUsahaDashboardPage() {
               
               <div className="p-8 flex items-start justify-between">
                 <div className="space-y-4">
-                  <div className={`inline-flex p-3 rounded-2xl bg-gradient-to-br ${item.color} shadow-lg`}>
-                    <item.icon className={`w-7 h-7 ${item.iconColor}`} />
+                  <div className="flex items-center gap-3">
+                    <div className={`inline-flex p-3 rounded-2xl bg-gradient-to-br ${item.color} shadow-lg`}>
+                      <item.icon className={`w-7 h-7 ${item.iconColor}`} />
+                    </div>
+                    {item.badgeCount !== undefined && item.badgeCount > 0 && (
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black shadow-md ${
+                        item.title === 'Surat Penerjunan' 
+                          ? 'bg-emerald-500 text-white animate-pulse' 
+                          : 'bg-blue-500 text-white'
+                      }`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                        {item.badgeCount} {item.badgeLabel}
+                      </span>
+                    )}
                   </div>
                   
                   <div>

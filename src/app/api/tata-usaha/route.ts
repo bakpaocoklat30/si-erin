@@ -30,10 +30,10 @@ function safeString(val: any): string {
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const userRole = (session?.user as any)?.role;
+    const userRole = String((session?.user as any)?.role || '').toUpperCase().trim();
 
     // RBAC Guard: Hanya Role ADMIN, POKJA, TIM_POKJA, dan TATA_USAHA yang diizinkan
-    if (!session || !['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA', 'TATA_USAHA', 'TU'].includes(userRole)) {
+    if (!session || !['ADMIN', 'SUPER_ADMIN', 'POKJA', 'TIM_POKJA', 'TATA_USAHA', 'TATA USAHA', 'TATAUSAHA', 'TU'].includes(userRole)) {
       return NextResponse.json({ 
         success: false, 
         error: 'Unauthorized - Akses khusus untuk Tim Tata Usaha & Pokja' 
@@ -42,8 +42,36 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const filterStatus = searchParams.get('status') || 'ALL'; // ALL, QUEUE (Stage 3), ISSUED (Stage 4)
+    const isSummary = searchParams.get('summary') === 'true';
 
     const prisma = db as any;
+
+    if (isSummary) {
+      const [permohonanCount, penerjunanCount] = await Promise.all([
+        prisma.internshipPlacement.count({
+          where: {
+            OR: [
+              { stage: 3 },
+              { status: 'PEMBUATAN_SURAT' },
+              { status: 'POKJA_APPROVED' }
+            ]
+          }
+        }),
+        prisma.internshipPlacement.count({
+          where: {
+            status: 'REQUEST_PENGANTARAN'
+          }
+        })
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        counts: {
+          permohonan: permohonanCount,
+          penerjunan: penerjunanCount
+        }
+      });
+    }
 
     let whereCondition: any = {
       OR: [

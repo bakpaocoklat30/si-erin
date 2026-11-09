@@ -24,7 +24,7 @@ import {
   Calendar,
   CheckCircle2,
   FileText,
-  Upload, Send,
+  Upload, Send, Truck,
   Eye,
   Search,
   X,
@@ -149,6 +149,7 @@ export default function PokjaKelompokPrakerinPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [isSubmittingBulkPenerjunan, setIsSubmittingBulkPenerjunan] = useState(false);
   const [showMassUploadModal, setShowMassUploadModal] = useState(false);
   const [massUploadFile, setMassUploadFile] = useState<File | null>(null);
   const [massUploadMappings, setMassUploadMappings] = useState<Record<string, {start: string, end: string}>>({});
@@ -335,6 +336,21 @@ export default function PokjaKelompokPrakerinPage() {
       return matchInd || matchPeriod || matchSurat || matchStudent;
     });
   }, [groups, searchTerm]);
+
+  // Kunci semua kelompok yang saat ini tampil di filter
+  const allFilteredGroupKeys = useMemo(() => {
+    return filteredGroups.map(g => g.groupKey || g.groupId || g.industryId || '').filter(Boolean);
+  }, [filteredGroups]);
+
+  const isAllSelected = allFilteredGroupKeys.length > 0 && allFilteredGroupKeys.every(k => selectedGroups.includes(k));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedGroups([]);
+    } else {
+      setSelectedGroups(allFilteredGroupKeys);
+    }
+  };
 
   // ----------------------------------------------------------------------
   // 🌟 FUNGSI EKSPOR CSV DATA KELOMPOK PRAKERIN
@@ -884,6 +900,66 @@ export default function PokjaKelompokPrakerinPage() {
       }
     } catch (e) {
       alert('Terjadi kesalahan jaringan');
+    }
+  };
+
+  // 🚀 Aksi Massal: Bulk Request Penerjunan ke Tata Usaha
+  const handleBulkRequestPenerjunan = async () => {
+    const selectedGroupItems = filteredGroups.filter(g => {
+      const key = g.groupKey || g.groupId || g.industryId || '';
+      return selectedGroups.includes(key);
+    });
+
+    if (selectedGroupItems.length === 0) {
+      alert('Pilih setidaknya satu kelompok terlebih dahulu.');
+      return;
+    }
+
+    // Ambil seluruh placement ID dari kelompok-kelompok yang dipilih
+    const placementIds: string[] = [];
+    selectedGroupItems.forEach(group => {
+      const rawList = group.placements || group.students || [];
+      rawList.forEach((p: any) => {
+        const pid = p.id || p.placementId;
+        if (pid && !placementIds.includes(pid)) {
+          placementIds.push(pid);
+        }
+      });
+    });
+
+    if (placementIds.length === 0) {
+      alert('Tidak ditemukan data penempatan siswa pada kelompok yang dipilih.');
+      return;
+    }
+
+    const confirmMsg = `Kirim request penerjunan untuk ${selectedGroupItems.length} kelompok terpilih (${placementIds.length} siswa) ke Tata Usaha?\n\nSetelah dikirim, data kelompok akan otomatis diteruskan dan muncul di menu Tata Usaha (Surat Penerjunan) untuk diproses penerbitan surat tugasnya.`;
+    if (!confirm(confirmMsg)) return;
+
+    setIsSubmittingBulkPenerjunan(true);
+    try {
+      const res = await fetch('/api/pokja/groups', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placementIds: placementIds,
+          status: 'REQUEST_PENGANTARAN'
+        })
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && (data?.success || data?.count !== undefined)) {
+        alert(`✅ Berhasil! Request penerjunan untuk ${selectedGroupItems.length} kelompok (${placementIds.length} siswa) telah dikirim ke Tata Usaha.\n\nKelompok ini sekarang berstatus "Menunggu Surat Penerjunan" dan sudah tampil di menu Tata Usaha.`);
+        setSelectedGroups([]);
+        fetchGroupsData(selectedPeriodId, selectedStatus);
+      } else {
+        alert('Gagal request penerjunan massal: ' + (data?.error || 'Terjadi kesalahan sistem'));
+      }
+    } catch (e) {
+      console.error('Error bulk request penerjunan:', e);
+      alert('Terjadi kesalahan jaringan saat request penerjunan massal.');
+    } finally {
+      setIsSubmittingBulkPenerjunan(false);
     }
   };
 
@@ -1739,9 +1815,24 @@ export default function PokjaKelompokPrakerinPage() {
         </div>
       </div>
 
-      {/* STATISTIK KELOMPOK */}
-      <div className="flex flex-wrap justify-between items-center gap-2 text-xs font-extrabold text-slate-700 dark:text-slate-300 px-2">
-        <span>Menampilkan <strong>{filteredGroups.length}</strong> Kelompok Terverifikasi ({pokjaDepartment})</span>
+      {/* STATISTIK KELOMPOK & PILIH SEMUA */}
+      <div className="flex flex-wrap justify-between items-center gap-3 text-xs font-extrabold text-slate-700 dark:text-slate-300 px-2">
+        <div className="flex items-center gap-3">
+          {filteredGroups.length > 0 && (
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 transition-colors">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded cursor-pointer accent-indigo-600"
+              />
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                {isAllSelected ? 'Batal Pilih Semua' : 'Pilih Semua'}
+              </span>
+            </label>
+          )}
+          <span>Menampilkan <strong>{filteredGroups.length}</strong> Kelompok Terverifikasi ({pokjaDepartment})</span>
+        </div>
         <span>Total Siswa Terverifikasi: <strong>{filteredGroups.reduce((acc, g) => acc + (g.students || g.placements || []).length, 0)}</strong> Orang</span>
       </div>
 
@@ -1759,9 +1850,25 @@ export default function PokjaKelompokPrakerinPage() {
         <div className="sticky top-4 z-40 mb-6 p-4 rounded-2xl shadow-2xl bg-indigo-600 border border-indigo-500 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center space-x-3">
             <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 font-bold">{selectedGroups.length}</span>
-            <span className="font-bold">Penugasan Terpilih</span>
+            <span className="font-bold">Kelompok Terpilih</span>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            {/* BULK REQUEST PENERJUNAN BUTTON */}
+            <button
+              type="button"
+              disabled={isSubmittingBulkPenerjunan}
+              onClick={handleBulkRequestPenerjunan}
+              className="px-4 py-2 bg-teal-500 hover:bg-teal-400 active:bg-teal-600 disabled:opacity-60 text-white font-bold rounded-xl text-sm flex items-center gap-2 shadow-lg cursor-pointer transition-all"
+              title="Kirim Request Penerjunan ke Tata Usaha untuk kelompok terpilih"
+            >
+              {isSubmittingBulkPenerjunan ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Truck className="w-4 h-4" />
+              )}
+              <span>Request Penerjunan ({selectedGroups.length})</span>
+            </button>
+
             <button
               onClick={async () => {
                 const nonGasalKeys = selectedGroups.filter(key => {
@@ -1802,6 +1909,14 @@ export default function PokjaKelompokPrakerinPage() {
             >
               <Upload className="w-4 h-4" />
               <span>Unggah Massal Laporan</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedGroups([])}
+              className="px-3 py-2 bg-indigo-700/60 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
+              title="Batalkan seleksi kelompok"
+            >
+              Batal
             </button>
           </div>
         </div>
@@ -2298,7 +2413,7 @@ export default function PokjaKelompokPrakerinPage() {
                           <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">3. Surat Penerjunan</h5>
                           <div className="flex flex-wrap items-center gap-2">
                             {/* Request Penerjunan */}
-                            {group.placements?.some(p => ['DISETUJUI_INDUSTRI', 'MENUNGGU_PENERJUNAN'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENGANTARAN') && (
+                            {group.placements?.some(p => ['DISETUJUI_INDUSTRI', 'MENUNGGU_PENERJUNAN', 'DITERIMA', 'DITERIMA_INDUSTRI'].includes(p.status) || group.suratBalasanUrl) && !group.placements?.some(p => ['REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN'].includes(p.status)) && (
                               <button
                                 type="button"
                                 onClick={() => handleRequestPenerjunan(group)}
@@ -2312,7 +2427,7 @@ export default function PokjaKelompokPrakerinPage() {
                               <>
                                 <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center space-x-1">
                                   <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Menunggu</span>
+                                  <span>Menunggu di TU</span>
                                 </span>
                                 <button
                                   type="button"
