@@ -90,7 +90,19 @@ async function createSection(
   const rawEndDate = placements.find((p: any) => p.endDate)?.endDate || placements[0]?.endDate;
   const startDate = rawStartDate ? new Date(rawStartDate) : new Date();
   const endDate = rawEndDate ? new Date(rawEndDate) : new Date();
+  const endDateFormatted = endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const actualNomorSurat = nomorSurat || placements[0]?.nomorPenarikan || placements.find((p: any) => p.nomorPenarikan)?.nomorPenarikan || placements[0]?.letterNumber || "${nomor_naskah}";
+
+  // Susun alamat lengkap DUDI
+  const jalan = industry?.address || '';
+  const rtRw = (industry?.rt || industry?.rw) ? `RT ${industry?.rt || '-'}/RW ${industry?.rw || '-'}` : '';
+  const dusun = industry?.dusun ? `Dusun ${industry.dusun}` : '';
+  const kel = industry?.desaKelurahan ? `Desa ${industry.desaKelurahan}` : '';
+  const kec = industry?.subDistrict ? `Kec. ${industry.subDistrict}` : '';
+  const kab = industry?.regency ? `${industry.regency}` : '';
+  const kodepos = industry?.postalCode ? `(${industry.postalCode})` : '';
+  const addressParts = [jalan, rtRw, dusun, kel, kec, kab, kodepos].filter(Boolean);
+  const completeAddress = addressParts.length > 0 ? addressParts.join(', ') : (industry?.address || 'Tempat');
 
   const kopImagePath = path.join(process.cwd(), 'public/images/kop-surat-tugas.png');
   const headerChildren: any[] = [];
@@ -154,36 +166,56 @@ async function createSection(
         ],
       }),
 
-      new Paragraph({ spacing: { before: 400 }, children: [new TextRun({ text: "Kepada Yth. Pimpinan", font: "Times New Roman", size: 24 })] }),
-      new Paragraph({ children: [new TextRun({ text: industry?.name || "Perusahaan", font: "Times New Roman", size: 24, bold: true })] }),
-      new Paragraph({ children: [new TextRun({ text: industry?.address || "Tempat", font: "Times New Roman", size: 24 })] }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: { top: { style: BorderStyle.NONE, size: 0 }, bottom: { style: BorderStyle.NONE, size: 0 }, left: { style: BorderStyle.NONE, size: 0 }, right: { style: BorderStyle.NONE, size: 0 }, insideHorizontal: { style: BorderStyle.NONE, size: 0 }, insideVertical: { style: BorderStyle.NONE, size: 0 } },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [] }),
+              new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+                new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Kepada Yth. Pimpinan", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [new TextRun({ text: industry?.name || "Perusahaan", font: "Times New Roman", size: 24, bold: true })] }),
+                new Paragraph({ children: [new TextRun({ text: completeAddress, font: "Times New Roman", size: 24 })] }),
+              ]}),
+            ],
+          }),
+        ],
+      }),
       
-      new Paragraph({ spacing: { before: 400 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Dengan hormat,", font: "Times New Roman", size: 24 })] }),
+      new Paragraph({ spacing: { before: 300 }, children: [new TextRun({ text: "Dengan hormat,", font: "Times New Roman", size: 24 })] }),
       new Paragraph({
         alignment: AlignmentType.JUSTIFIED,
-        spacing: { after: 200 },
+        spacing: { before: 100, after: 150 },
         indent: { firstLine: 720 },
         children: [
-          new TextRun({ text: `Menindaklanjuti pelaksanaan kegiatan Praktik Kerja Lapangan (PKL) peserta didik kelas XII untuk Program Keahlian `, font: "Times New Roman", size: 24 }),
+          new TextRun({ text: `Menindaklanjuti pelaksanaan kegiatan Praktik Kerja Lapangan (PKL) peserta didik kelas XII untuk Konsentrasi Keahlian `, font: "Times New Roman", size: 24 }),
           new TextRun({ text: `${deptLabel} `, font: "Times New Roman", size: 24, bold: true }),
-          new TextRun({ text: `tahun pelajaran 2026/2027 yang telah berjalan di `, font: "Times New Roman", size: 24 }),
+          new TextRun({ text: `tahun pelajaran 2026/2027 telah berjalan di `, font: "Times New Roman", size: 24 }),
           new TextRun({ text: `${industry?.name || 'Perusahaan'}`, font: "Times New Roman", size: 24, bold: true }),
           new TextRun({ text: ` yang Bapak/Ibu pimpin.`, font: "Times New Roman", size: 24 }),
         ],
       }),
       new Paragraph({
         alignment: AlignmentType.JUSTIFIED,
-        spacing: { after: 200 },
+        spacing: { after: 150 },
         indent: { firstLine: 720 },
         children: [
-          new TextRun({ text: `Selanjutnya kami sampaikan penghargaan dan terima kasih atas kesempatan yang telah diberikan kepada siswa/siswi kami yang telah melaksanakan kegiatan PKL di `, font: "Times New Roman", size: 24 }),
+          new TextRun({ text: `Selanjutnya kami sampaikan penghargaan dan terimakasih atas kesempatan yang telah diberikan kepada siswa/siswi kami yang telah melaksanakan kegiatan PKL di `, font: "Times New Roman", size: 24 }),
           new TextRun({ text: `${industry?.name || 'Perusahaan'}`, font: "Times New Roman", size: 24, bold: true }),
-          new TextRun({ text: `, sehingga kegiatan ini dapat terlaksana sebagaimana mestinya. Apabila selama pelaksanaan PKL ada hal-hal yang kurang berkenan kami mohon maaf sebesar-besarnya. Kami harap, kerjasama yang telah terjalin dengan baik selama ini dapat terus berlangsung, sehingga untuk periode yang akan datang siswa/siswi kami dapat melaksanakan kegiatan PKL di `, font: "Times New Roman", size: 24 }),
-          new TextRun({ text: `${industry?.name || 'Perusahaan'}`, font: "Times New Roman", size: 24, bold: true }),
-          new TextRun({ text: `.`, font: "Times New Roman", size: 24 }),
+          new TextRun({ text: `, sehingga kegiatan ini dapat terlaksana sebagaimana mestinya.`, font: "Times New Roman", size: 24 }),
         ],
       }),
-      new Paragraph({ spacing: { after: 200 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Adapun daftar nama murid yang melaksanakan kegiatan praktik kerja lapangan:", font: "Times New Roman", size: 24 })] }),
+      new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 150 },
+        indent: { firstLine: 720 },
+        children: [
+          new TextRun({ text: `Adapun daftar nama siswa yang berakhir masa PKL per tanggal `, font: "Times New Roman", size: 24 }),
+          new TextRun({ text: `${endDateFormatted}`, font: "Times New Roman", size: 24, bold: true }),
+          new TextRun({ text: ` adalah sebagai berikut:`, font: "Times New Roman", size: 24 }),
+        ],
+      }),
       
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
@@ -208,24 +240,43 @@ async function createSection(
         ]
       }),
       
-      new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { before: 200, after: 200 }, indent: { firstLine: 720 }, children: [
-        new TextRun({ text: `Sebagai tambahan informasi, pelaksanaan kegiatan PKL akan berakhir pada tanggal `, font: "Times New Roman", size: 24 }),
-        new TextRun({ text: `${endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})} `, font: "Times New Roman", size: 24, bold: true }),
-        new TextRun({ text: `sesuai dengan surat permohonan yang sebelumnya kami ajukan. Apabila dalam kegiatan PKL ini, Instansi/Perusahaan dirasa perlu menambah durasi waktu pelaksanaan kegiatan, kami pihak sekolah mengizinkan peserta didik untuk diperpanjang sesuai dengan kebutuhan dari Perusahaan dan mohon untuk dibuatkan surat pemberitahuannya kepada kami dengan menghubungi Kontak PIC (`, font: "Times New Roman", size: 24 }),
-        new TextRun({ text: "Person in Charge", font: "Times New Roman", size: 24, italics: true }),
-        new TextRun({ text: `) dari kami yang dapat dihubungi di nomor WhatsApp `, font: "Times New Roman", size: 24 }),
-        new TextRun({ text: `${picPhone} a.n ${picName}`, font: "Times New Roman", size: 24, bold: true }),
-        new TextRun({ text: ` selaku Pokja PKL ${deptLabel} SMKN 1 Adiwerna, atau dapat melalui surel `, font: "Times New Roman", size: 24 }),
-        new TextRun({ text: "tkj@smkn1adw.sch.id", font: "Times New Roman", size: 24, underline: {} }),
-        new TextRun({ text: ".", font: "Times New Roman", size: 24 }),
-      ]}),
-      new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { after: 400 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Demikian surat ini kami sampaikan, atas perhatian dan kerjasamanya disampaikan terimakasih.", font: "Times New Roman", size: 24 })] }),
+      new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { before: 200, after: 150 },
+        indent: { firstLine: 720 },
+        children: [
+          new TextRun({ text: `Apabila selama pelaksanaan PKL ada hal-hal yang kurang berkenan kami mohon maaf sebesar-besarnya. Kami harap, kerjasama yang telah terjalin dengan baik selama ini dapat terus berlangsung, sehingga untuk periode yang akan datang siswa/siswi kami dapat melaksanakan kegiatan PKL di `, font: "Times New Roman", size: 24 }),
+          new TextRun({ text: `${industry?.name || 'Perusahaan'}`, font: "Times New Roman", size: 24, bold: true }),
+          new TextRun({ text: `.`, font: "Times New Roman", size: 24 }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 300 },
+        indent: { firstLine: 720 },
+        children: [
+          new TextRun({ text: "Demikian surat ini kami sampaikan, atas perhatian dan kerjasamanya disampaikan terimakasih.", font: "Times New Roman", size: 24 })
+        ]
+      }),
       
-      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${jabatan_pengirim}", font: "Times New Roman", size: 24 })] }),
-      new Paragraph({ spacing: { before: 600 }, alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${ttd_pengirim}", font: "Times New Roman", size: 24 })] }),
-      new Paragraph({ spacing: { before: 600 }, alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${nama_pengirim}", font: "Times New Roman", size: 24, bold: true })] }),
-      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Pembina Utama Muda. IV/c", font: "Times New Roman", size: 24 })] }),
-      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "NIP ${nip_pengirim}", font: "Times New Roman", size: 24 })] }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: { top: { style: BorderStyle.NONE, size: 0 }, bottom: { style: BorderStyle.NONE, size: 0 }, left: { style: BorderStyle.NONE, size: 0 }, right: { style: BorderStyle.NONE, size: 0 }, insideHorizontal: { style: BorderStyle.NONE, size: 0 }, insideVertical: { style: BorderStyle.NONE, size: 0 } },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 55, type: WidthType.PERCENTAGE }, children: [] }),
+              new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, children: [
+                new Paragraph({ children: [new TextRun({ text: "${jabatan_pengirim}", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ spacing: { before: 500, after: 500 }, children: [new TextRun({ text: "${ttd_pengirim}", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [new TextRun({ text: "${nama_pengirim}", font: "Times New Roman", size: 24, bold: true })] }),
+                new Paragraph({ children: [new TextRun({ text: "Pembina Utama Muda. IV/c", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [new TextRun({ text: "NIP ${nip_pengirim}", font: "Times New Roman", size: 24 })] }),
+              ]}),
+            ],
+          }),
+        ],
+      }),
     ],
   };
 }

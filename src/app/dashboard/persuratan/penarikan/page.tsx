@@ -228,12 +228,13 @@ export default function SuratPenarikanPage() {
   const generatePenarikanHtml = (g: any) => {
     const students = g.students || [];
     const endDate = students[0]?.endDate ? new Date(students[0].endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'}) : '[Tanggal Selesai]';
-        const deptLabel = g.departmentName || 'Teknik Komputer dan Jaringan';
+    const deptLabel = g.departmentName || 'Teknik Komputer dan Jaringan';
+    const fullAddress = g.industryAddress || g.fullAddress || g.jalan || 'Alamat Perusahaan';
     
     return `
       <div style="font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: black; max-width: 100%; word-wrap: break-word;">
         <!-- KOP SURAT -->
-        <div style="text-align: center;  margin-bottom: 20px;">
+        <div style="text-align: center; margin-bottom: 20px;">
           <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
         </div>
 
@@ -256,25 +257,51 @@ export default function SuratPenarikanPage() {
         <div style="margin-top: 30px; margin-left: 50%;">
           Kepada Yth. Pimpinan<br/>
           <b>${g.industryName || 'Perusahaan'}</b><br/>
-          ${g.industryAddress || 'Alamat Perusahaan'}<br/>
-          di<br/>
-          &nbsp;&nbsp;&nbsp;Tempat
+          ${fullAddress}
         </div>
 
         <!-- ISI SURAT -->
-        <div style="margin-top: 25px; text-indent: 40px;">
+        <div style="margin-top: 25px;">
           Dengan hormat,
         </div>
         <div style="text-align: justify; text-indent: 40px; margin-top: 5px;">
-          Menindaklanjuti pelaksanaan kegiatan Praktik Kerja Lapangan (PKL) peserta didik kelas XII untuk Konsentrasi Keahlian ${deptLabel} tahun pelajaran 2025/2026 telah berjalan di <b>${g.industryName}</b> yang Bapak/Ibu pimpin.
+          Menindaklanjuti pelaksanaan kegiatan Praktik Kerja Lapangan (PKL) peserta didik kelas XII untuk Konsentrasi Keahlian ${deptLabel} tahun pelajaran 2026/2027 telah berjalan di <b>${g.industryName}</b> yang Bapak/Ibu pimpin.
         </div>
-        <div style="text-align: justify; text-indent: 40px; margin-top: 5px;">
-          Selanjutnya kami sampaikan penghargaan dan terimakasih atas kesempatan yang telah diberikan kepada siswa/siswi kami yang telah melaksanakan kegiatan PKL di <b>${g.industryName}</b>, sehingga kegiatan ini dapat terlaksana sebagaimana mestinya. Apabila selama pelaksanaan PKL ada hal-hal yang kurang berkenan kami mohon maaf sebesar-besarnya. Kami harap, kerjasama yang telah terjalin dengan baik selama ini dapat terus berlangsung, sehingga untuk periode yang akan datang siswa/siswi kami dapat melaksanakan kegiatan PKL di <b>${g.industryName}</b>.
+        <div style="text-align: justify; text-indent: 40px; margin-top: 10px;">
+          Selanjutnya kami sampaikan penghargaan dan terimakasih atas kesempatan yang telah diberikan kepada siswa/siswi kami yang telah melaksanakan kegiatan PKL di <b>${g.industryName}</b>, sehingga kegiatan ini dapat terlaksana sebagaimana mestinya.
         </div>
-        <div style="text-align: justify; text-indent: 40px; margin-top: 5px;">
-          Sebagai tambahan informasi pelaksanaan PKL akan berakhir di tanggal <b>${endDate}</b> sesuai dengan surat permohonan yang sebelumnya kami ajukan. Apabila dalam kegiatan PKL ini, Perusahaan dirasa perlu menambah durasi waktu pelaksanaan kami pihak sekolah mengizinkan siswa/siswa untuk diperpanjang sesuai dengan kebutuhan dari Perusahaan dan mohon untuk dibuatkan surat pemberitahuannya kepada kami dengan menghubungi nomor WhatsApp [No HP] a.n [Nama Pokja] selaku Pokja PKL ${deptLabel} SMKN 1 Adiwerna, atau dapat melalui alamat surel <span style="text-decoration: underline;">tkj@smkn1adw.sch.id</span>.
+        <div style="text-align: justify; text-indent: 40px; margin-top: 10px;">
+          Adapun daftar nama siswa yang berakhir masa PKL per tanggal <b>${endDate}</b> adalah sebagai berikut:
         </div>
-        <div style="text-align: justify; text-indent: 40px; margin-top: 15px;">
+
+        <!-- TABEL DAFTAR SISWA -->
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px;">
+          <thead>
+            <tr style="background-color: #f8fafc;">
+              <th style="border: 1px solid black; padding: 6px; text-align: center; font-size: 11pt;">NO</th>
+              <th style="border: 1px solid black; padding: 6px; text-align: center; font-size: 11pt;">NIS</th>
+              <th style="border: 1px solid black; padding: 6px; text-align: center; font-size: 11pt;">NAMA</th>
+              <th style="border: 1px solid black; padding: 6px; text-align: center; font-size: 11pt;">KELAS</th>
+              <th style="border: 1px solid black; padding: 6px; text-align: center; font-size: 11pt;">NO. HP/WA</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${students.map((s: any, idx: number) => `
+              <tr>
+                <td style="border: 1px solid black; padding: 6px; text-align: center; font-size: 11pt;">${idx + 1}</td>
+                <td style="border: 1px solid black; padding: 6px; text-align: center; font-size: 11pt;">${s.nis || '-'}</td>
+                <td style="border: 1px solid black; padding: 6px; text-align: left; font-size: 11pt; text-transform: uppercase;">${s.name || '-'}</td>
+                <td style="border: 1px solid black; padding: 6px; text-align: center; font-size: 11pt;">${s.className || '-'}</td>
+                <td style="border: 1px solid black; padding: 6px; text-align: center; font-size: 11pt;">${s.phone || s.parentPhone || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div style="text-align: justify; text-indent: 40px; margin-top: 10px;">
+          Apabila selama pelaksanaan PKL ada hal-hal yang kurang berkenan kami mohon maaf sebesar-besarnya. Kami harap, kerjasama yang telah terjalin dengan baik selama ini dapat terus berlangsung, sehingga untuk periode yang akan datang siswa/siswi kami dapat melaksanakan kegiatan PKL di <b>${g.industryName}</b>.
+        </div>
+        <div style="text-align: justify; text-indent: 40px; margin-top: 10px;">
           Demikian surat ini kami sampaikan, atas perhatian dan kerjasamanya disampaikan terimakasih.
         </div>
 
@@ -283,6 +310,7 @@ export default function SuratPenarikanPage() {
           <div>\${jabatan_pengirim}</div>
           <br/><br/><br/>
           <div><b><span style="text-decoration: underline;">\${nama_pengirim}</span></b></div>
+          <div>Pembina Utama Muda. IV/c</div>
           <div>NIP \${nip_pengirim}</div>
         </div>
         <div style="clear: both;"></div>
@@ -308,7 +336,7 @@ export default function SuratPenarikanPage() {
       const res = await fetch('/api/pokja/groups?department=Semua Jurusan');
       const json = await res.json();
       if (json.success) {
-        const acceptedStatuses = ['REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN'];
+        const acceptedStatuses = ['REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'];
         const acceptedGroups = json.data.filter((group: any) => 
           group.students.some((s: any) => acceptedStatuses.includes(s.status))
         ).map((group: any) => {
@@ -415,7 +443,7 @@ export default function SuratPenarikanPage() {
 
     // Check status
     const isPending = g.students.some((s: any) => s.status === 'REQUEST_PENARIKAN');
-    const isPublished = g.students.some((s: any) => s.status === 'MENUNGGU_PENARIKAN');
+    const isPublished = g.students.some((s: any) => ['MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'].includes(s.status));
     
     let matchStatus = true;
     if (statusFilter === 'PENDING') matchStatus = isPending;

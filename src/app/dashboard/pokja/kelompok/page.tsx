@@ -38,6 +38,7 @@ import {
   ExternalLink,
   AlertCircle,
   Hash,
+  Award,
   GraduationCap,
   CalendarDays,
   ShieldCheck,
@@ -150,6 +151,8 @@ export default function PokjaKelompokPrakerinPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [isSubmittingBulkPenerjunan, setIsSubmittingBulkPenerjunan] = useState(false);
+  const [isSubmittingBulkPenarikan, setIsSubmittingBulkPenarikan] = useState(false);
+  const [activeTabMode, setActiveTabMode] = useState<'ALL' | 'PENERJUNAN' | 'PENARIKAN'>('ALL');
   const [showMassUploadModal, setShowMassUploadModal] = useState(false);
   const [massUploadFile, setMassUploadFile] = useState<File | null>(null);
   const [massUploadMappings, setMassUploadMappings] = useState<Record<string, {start: string, end: string}>>({});
@@ -311,14 +314,27 @@ export default function PokjaKelompokPrakerinPage() {
     fetchGroupsData(selectedPeriodId, newStatus);
   };
 
-  // Filter Pencarian Berdasarkan Kata Kunci (Industri, Periode, Nomor Surat, Nama Siswa, NIS)
+  // Filter Pencarian Berdasarkan Kata Kunci (Industri, Periode, Nomor Surat, Nama Siswa, NIS) & Tab Mode
   const filteredGroups = useMemo(() => {
     return groups.filter((g) => {
+      // 🌟 Filter Tab Menu: Semua | Tahap Penerjunan | Tahap Penarikan
+      const studentsList = g.students || g.placements || [];
+      if (activeTabMode === 'PENERJUNAN') {
+        const matchPenerjunan = studentsList.some((p: any) =>
+          ['DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN'].includes(p.status)
+        ) || Boolean(g.suratBalasanUrl || g.suratPengantaranUrl);
+        if (!matchPenerjunan) return false;
+      } else if (activeTabMode === 'PENARIKAN') {
+        const matchPenarikan = studentsList.some((p: any) =>
+          ['PENGANTARAN_DITERBITKAN', 'MENUNGGU_PEMBERANGKATAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'COMPLETED', 'SELESAI_PKL', 'DISETUJUI_INDUSTRI', 'DITERIMA'].includes(p.status)
+        ) || Boolean(g.suratPengantaranUrl || g.suratPenarikanUrl);
+        if (!matchPenarikan) return false;
+      }
+
       const matchInd = g.industryName?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchPeriod = g.periodName?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchSurat = g.letterNumber?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const studentsList = g.students || g.placements || [];
       const matchStudent = studentsList.some((p: any) => {
         const studentObj = p.student || p;
         const name = studentObj.name || studentObj.studentName || '';
@@ -335,7 +351,7 @@ export default function PokjaKelompokPrakerinPage() {
 
       return matchInd || matchPeriod || matchSurat || matchStudent;
     });
-  }, [groups, searchTerm]);
+  }, [groups, searchTerm, activeTabMode]);
 
   // Kunci semua kelompok yang saat ini tampil di filter
   const allFilteredGroupKeys = useMemo(() => {
@@ -1095,6 +1111,66 @@ export default function PokjaKelompokPrakerinPage() {
         alert('Terjadi kesalahan jaringan');
       }
     };
+
+    // 🚀 Aksi Massal: Bulk Request Penarikan ke Tata Usaha
+    const handleBulkRequestPenarikan = async () => {
+      const selectedGroupItems = filteredGroups.filter(g => {
+        const key = g.groupKey || g.groupId || g.industryId || '';
+        return selectedGroups.includes(key);
+      });
+
+      if (selectedGroupItems.length === 0) {
+        alert('Pilih setidaknya satu kelompok terlebih dahulu.');
+        return;
+      }
+
+      // Ambil seluruh placement ID dari kelompok-kelompok yang dipilih
+      const placementIds: string[] = [];
+      selectedGroupItems.forEach(group => {
+        const rawList = group.placements || group.students || [];
+        rawList.forEach((p: any) => {
+          const pid = p.id || p.placementId;
+          if (pid && !placementIds.includes(pid)) {
+            placementIds.push(pid);
+          }
+        });
+      });
+
+      if (placementIds.length === 0) {
+        alert('Tidak ditemukan data penempatan siswa pada kelompok yang dipilih.');
+        return;
+      }
+
+      const confirmMsg = `Kirim request penarikan untuk ${selectedGroupItems.length} kelompok terpilih (${placementIds.length} siswa) ke Tata Usaha?\n\nSetelah dikirim, data kelompok akan otomatis diteruskan dan muncul di menu Tata Usaha (Surat Penarikan) untuk diproses penerbitan surat penarikannya.`;
+      if (!confirm(confirmMsg)) return;
+
+      setIsSubmittingBulkPenarikan(true);
+      try {
+        const res = await fetch('/api/pokja/groups', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            placementIds: placementIds,
+            status: 'REQUEST_PENARIKAN'
+          })
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (res.ok && (data?.success || data?.count !== undefined)) {
+          alert(`✅ Berhasil! Request penarikan untuk ${selectedGroupItems.length} kelompok (${placementIds.length} siswa) telah dikirim ke Tata Usaha.\n\nKelompok ini sekarang berstatus "Menunggu di TU" dan sudah tampil di menu Tata Usaha -> Surat Penarikan.`);
+          setSelectedGroups([]);
+          fetchGroupsData(selectedPeriodId, selectedStatus);
+        } else {
+          alert('Gagal request penarikan massal: ' + (data?.error || 'Terjadi kesalahan sistem'));
+        }
+      } catch (e) {
+        console.error('Error bulk request penarikan:', e);
+        alert('Terjadi kesalahan jaringan saat request penarikan massal.');
+      } finally {
+        setIsSubmittingBulkPenarikan(false);
+      }
+    };
     
 
   const handleUploadSuratGroup = async (e: React.FormEvent) => {
@@ -1740,6 +1816,57 @@ export default function PokjaKelompokPrakerinPage() {
         </div>
       )}
 
+      {/* 🌟 NAVIGASI TAB MENU: SEMUA | TAHAP PENERJUNAN | TAHAP PENARIKAN */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <button
+          type="button"
+          onClick={() => setActiveTabMode('ALL')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
+            activeTabMode === 'ALL'
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/30'
+              : theme === 'dark'
+              ? 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+              : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 shadow-sm'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Semua Kelompok</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeTabMode === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+            {groups.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTabMode('PENERJUNAN')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
+            activeTabMode === 'PENERJUNAN'
+              ? 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-600/30'
+              : theme === 'dark'
+              ? 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+              : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 shadow-sm'
+          }`}
+        >
+          <Truck className="w-4 h-4" />
+          <span>Menu Penerjunan PKL</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTabMode('PENARIKAN')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
+            activeTabMode === 'PENARIKAN'
+              ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/30'
+              : theme === 'dark'
+              ? 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+              : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 shadow-sm'
+          }`}
+        >
+          <Award className="w-4 h-4" />
+          <span>Menu Penarikan PKL</span>
+        </button>
+      </div>
+
       {/* SEARCH BAR & FILTER PERIODE/STATUS SECTION */}
       <div className={`p-6 rounded-3xl border shadow-xl flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 transition-all ${
         theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/90 shadow-slate-200/50'
@@ -1867,6 +1994,22 @@ export default function PokjaKelompokPrakerinPage() {
                 <Truck className="w-4 h-4" />
               )}
               <span>Request Penerjunan ({selectedGroups.length})</span>
+            </button>
+
+            {/* BULK REQUEST PENARIKAN BUTTON */}
+            <button
+              type="button"
+              disabled={isSubmittingBulkPenarikan}
+              onClick={handleBulkRequestPenarikan}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:opacity-60 text-white font-bold rounded-xl text-sm flex items-center gap-2 shadow-lg cursor-pointer transition-all"
+              title="Kirim Request Penarikan ke Tata Usaha untuk kelompok terpilih"
+            >
+              {isSubmittingBulkPenarikan ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Award className="w-4 h-4" />
+              )}
+              <span>Request Penarikan ({selectedGroups.length})</span>
             </button>
 
             <button
@@ -2474,21 +2617,21 @@ export default function PokjaKelompokPrakerinPage() {
                           <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">4. Surat Penarikan</h5>
                           <div className="flex flex-wrap items-center gap-2">
                             {/* Request Penarikan */}
-                            {group.placements?.some(p => ['MENUNGGU_PEMBERANGKATAN', 'COMPLETED', 'SELESAI_PKL'].includes(p.status)) && !group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
+                            {!group.placements?.some(p => ['REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'].includes(p.status)) && (
                               <button
                                 type="button"
                                 onClick={() => handleRequestPenarikan(group)}
-                                className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-orange-600 hover:bg-orange-500 text-white shadow-sm border-orange-500"
+                                className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-purple-600 hover:bg-purple-500 text-white shadow-sm border-purple-500"
                               >
                                 <Send className="w-3.5 h-3.5" />
-                                <span>Request</span>
+                                <span>Request Penarikan</span>
                               </button>
                             )}
                             {group.placements?.some(p => p.status === 'REQUEST_PENARIKAN') && (
                               <>
-                                <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-orange-500/10 text-orange-600 border border-orange-500/20 flex items-center space-x-1">
+                                <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center space-x-1">
                                   <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Menunggu</span>
+                                  <span>Menunggu di TU</span>
                                 </span>
                                 <button
                                   type="button"
@@ -2503,18 +2646,20 @@ export default function PokjaKelompokPrakerinPage() {
                             )}
                             
                             {/* Preview / Download Penarikan */}
-                            {(group.suratPenarikanUrl || (group.placements && group.placements.some(p => p.suratPenarikanUrl))) && (() => {
+                            {(group.suratPenarikanUrl || (group.placements && group.placements.some(p => p.suratPenarikanUrl || ['MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'].includes(p.status)))) && (() => {
                               const penarikanUrl = group.suratPenarikanUrl || group.placements?.find(p => p.suratPenarikanUrl)?.suratPenarikanUrl;
                               return (
                                 <>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenPdf(penarikanUrl || null, `Surat Penarikan - ${group.industryName}`)}
-                                    className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border-emerald-500"
-                                  >
-                                    <FileCheck2 className="w-3.5 h-3.5" />
-                                    <span>Preview / Unduh</span>
-                                  </button>
+                                  {penarikanUrl && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenPdf(penarikanUrl || null, `Surat Penarikan - ${group.industryName}`)}
+                                      className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border-emerald-500"
+                                    >
+                                      <FileCheck2 className="w-3.5 h-3.5" />
+                                      <span>Preview / Unduh</span>
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleDownloadPenarikanDocx(group)}

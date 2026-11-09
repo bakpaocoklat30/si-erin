@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     const prisma = db as any;
 
     if (isSummary) {
-      const [permohonanCount, penerjunanCount] = await Promise.all([
+      const [permohonanCount, penerjunanCount, penarikanCount] = await Promise.all([
         prisma.internshipPlacement.count({
           where: {
             OR: [
@@ -61,6 +61,11 @@ export async function GET(request: Request) {
           where: {
             status: 'REQUEST_PENGANTARAN'
           }
+        }),
+        prisma.internshipPlacement.count({
+          where: {
+            status: 'REQUEST_PENARIKAN'
+          }
         })
       ]);
 
@@ -68,7 +73,8 @@ export async function GET(request: Request) {
         success: true,
         counts: {
           permohonan: permohonanCount,
-          penerjunan: penerjunanCount
+          penerjunan: penerjunanCount,
+          penarikan: penarikanCount
         }
       });
     }
