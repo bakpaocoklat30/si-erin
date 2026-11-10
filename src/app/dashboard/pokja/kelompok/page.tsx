@@ -314,21 +314,72 @@ export default function PokjaKelompokPrakerinPage() {
     fetchGroupsData(selectedPeriodId, newStatus);
   };
 
+  // Cek kelayakan kelompok untuk Menu Penerjunan PKL:
+  // Hanya tampilkan kelompok yang sudah mendapat balasan DITERIMA dari industri
+  // dan BELUM diterbitkan surat penerjunannya (bukan status sudah diterjunkan / selesai, dan belum ada file surat pengantaran).
+  const isGroupEligibleForPenerjunan = useCallback((g: GroupItem) => {
+    const studentsList = g.students || g.placements || [];
+    const placementsList = g.placements || [];
+    const allItems = [...studentsList, ...placementsList];
+
+    const ISSUED_OR_LATER_STATUSES = [
+      'MENUNGGU_PEMBERANGKATAN',
+      'PENGANTARAN_DITERBITKAN',
+      'REQUEST_PENARIKAN',
+      'MENUNGGU_PENARIKAN',
+      'PENARIKAN_DITERBITKAN',
+      'COMPLETED',
+      'SELESAI_PKL',
+    ];
+
+    const hasIssuedPenerjunan =
+      Boolean(g.suratPengantaranUrl) ||
+      allItems.some((p: any) => Boolean(p?.suratPengantaranUrl)) ||
+      allItems.some((p: any) =>
+        ISSUED_OR_LATER_STATUSES.includes(String(p?.status || '').toUpperCase().trim())
+      );
+
+    if (hasIssuedPenerjunan) return false;
+
+    const ACCEPTED_FOR_PENERJUNAN_STATUSES = [
+      'DISETUJUI_INDUSTRI',
+      'DITERIMA',
+      'DITERIMA_INDUSTRI',
+      'MENUNGGU_PENERJUNAN',
+      'REQUEST_PENGANTARAN',
+    ];
+
+    return allItems.some((p: any) =>
+      ACCEPTED_FOR_PENERJUNAN_STATUSES.includes(String(p?.status || '').toUpperCase().trim())
+    );
+  }, []);
+
+  const isGroupEligibleForPenarikan = useCallback((g: GroupItem) => {
+    const studentsList = g.students || g.placements || [];
+    return studentsList.some((p: any) =>
+      ['PENGANTARAN_DITERBITKAN', 'MENUNGGU_PEMBERANGKATAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'COMPLETED', 'SELESAI_PKL', 'DISETUJUI_INDUSTRI', 'DITERIMA'].includes(p.status)
+    ) || Boolean(g.suratPengantaranUrl || g.suratPenarikanUrl);
+  }, []);
+
+  const penerjunanEligibleCount = useMemo(
+    () => groups.filter(isGroupEligibleForPenerjunan).length,
+    [groups, isGroupEligibleForPenerjunan]
+  );
+
+  const penarikanEligibleCount = useMemo(
+    () => groups.filter(isGroupEligibleForPenarikan).length,
+    [groups, isGroupEligibleForPenarikan]
+  );
+
   // Filter Pencarian Berdasarkan Kata Kunci (Industri, Periode, Nomor Surat, Nama Siswa, NIS) & Tab Mode
   const filteredGroups = useMemo(() => {
     return groups.filter((g) => {
       // 🌟 Filter Tab Menu: Semua | Tahap Penerjunan | Tahap Penarikan
       const studentsList = g.students || g.placements || [];
       if (activeTabMode === 'PENERJUNAN') {
-        const matchPenerjunan = studentsList.some((p: any) =>
-          ['DISETUJUI_INDUSTRI', 'REQUEST_PENGANTARAN', 'MENUNGGU_PEMBERANGKATAN', 'PENGANTARAN_DITERBITKAN'].includes(p.status)
-        ) || Boolean(g.suratBalasanUrl || g.suratPengantaranUrl);
-        if (!matchPenerjunan) return false;
+        if (!isGroupEligibleForPenerjunan(g)) return false;
       } else if (activeTabMode === 'PENARIKAN') {
-        const matchPenarikan = studentsList.some((p: any) =>
-          ['PENGANTARAN_DITERBITKAN', 'MENUNGGU_PEMBERANGKATAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'COMPLETED', 'SELESAI_PKL', 'DISETUJUI_INDUSTRI', 'DITERIMA'].includes(p.status)
-        ) || Boolean(g.suratPengantaranUrl || g.suratPenarikanUrl);
-        if (!matchPenarikan) return false;
+        if (!isGroupEligibleForPenarikan(g)) return false;
       }
 
       const matchInd = g.industryName?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -351,7 +402,7 @@ export default function PokjaKelompokPrakerinPage() {
 
       return matchInd || matchPeriod || matchSurat || matchStudent;
     });
-  }, [groups, searchTerm, activeTabMode]);
+  }, [groups, searchTerm, activeTabMode, isGroupEligibleForPenerjunan, isGroupEligibleForPenarikan]);
 
   // Kunci semua kelompok yang saat ini tampil di filter
   const allFilteredGroupKeys = useMemo(() => {
@@ -1820,7 +1871,10 @@ export default function PokjaKelompokPrakerinPage() {
       <div className="flex flex-wrap items-center gap-2.5">
         <button
           type="button"
-          onClick={() => setActiveTabMode('ALL')}
+          onClick={() => {
+            setActiveTabMode('ALL');
+            setSelectedGroups([]);
+          }}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
             activeTabMode === 'ALL'
               ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/30'
@@ -1838,7 +1892,10 @@ export default function PokjaKelompokPrakerinPage() {
 
         <button
           type="button"
-          onClick={() => setActiveTabMode('PENERJUNAN')}
+          onClick={() => {
+            setActiveTabMode('PENERJUNAN');
+            setSelectedGroups([]);
+          }}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
             activeTabMode === 'PENERJUNAN'
               ? 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-600/30'
@@ -1849,11 +1906,17 @@ export default function PokjaKelompokPrakerinPage() {
         >
           <Truck className="w-4 h-4" />
           <span>Menu Penerjunan PKL</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeTabMode === 'PENERJUNAN' ? 'bg-white/20 text-white' : 'bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400'}`}>
+            {penerjunanEligibleCount}
+          </span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTabMode('PENARIKAN')}
+          onClick={() => {
+            setActiveTabMode('PENARIKAN');
+            setSelectedGroups([]);
+          }}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
             activeTabMode === 'PENARIKAN'
               ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/30'
@@ -1864,8 +1927,24 @@ export default function PokjaKelompokPrakerinPage() {
         >
           <Award className="w-4 h-4" />
           <span>Menu Penarikan PKL</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeTabMode === 'PENARIKAN' ? 'bg-white/20 text-white' : 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400'}`}>
+            {penarikanEligibleCount}
+          </span>
         </button>
       </div>
+
+      {activeTabMode === 'PENERJUNAN' && (
+        <div className={`px-4 py-2.5 rounded-2xl border text-xs flex items-center gap-2.5 ${
+          theme === 'dark'
+            ? 'bg-teal-950/40 border-teal-800/60 text-teal-200'
+            : 'bg-teal-50 border-teal-200 text-teal-800'
+        }`}>
+          <Truck className="w-4 h-4 shrink-0 text-teal-600 dark:text-teal-400" />
+          <span>
+            Menampilkan kelompok yang <strong>sudah mendapat balasan diterima dari industri</strong> dan <strong>belum terbit surat penerjunannya</strong>.
+          </span>
+        </div>
+      )}
 
       {/* SEARCH BAR & FILTER PERIODE/STATUS SECTION */}
       <div className={`p-6 rounded-3xl border shadow-xl flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 transition-all ${
