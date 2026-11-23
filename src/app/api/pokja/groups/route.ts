@@ -79,23 +79,29 @@ export async function GET(request: Request) {
         'REQUEST_PENARIKAN',
         'MENUNGGU_PENARIKAN',
         'PENARIKAN_DITERBITKAN',
+        'TELAH_DITARIK',
         'DITERIMA',
         'DITERIMA_INDUSTRI',
         'COMPLETED',
         'SELESAI_PKL'
       ];
 
-    let statusCondition: any;
-    if (selectedStatus && selectedStatus !== 'ALL') {
-      statusCondition = selectedStatus;
-    } else {
-      statusCondition = { in: VERIFIED_STATUSES };
-    }
-
     let placementWhere: any = {
-      student: studentWhere,
-      status: statusCondition
+      student: studentWhere
     };
+
+    if (selectedStatus && selectedStatus !== 'ALL') {
+      if (selectedStatus === 'TELAH_DITARIK') {
+        placementWhere.OR = [
+          { status: { in: ['TELAH_DITARIK', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'] } },
+          { suratPenarikanUrl: { not: null } }
+        ];
+      } else {
+        placementWhere.status = selectedStatus;
+      }
+    } else {
+      placementWhere.status = { in: VERIFIED_STATUSES };
+    }
 
     // Ambil data penempatan dari database Prisma (TANPA menarik field surat*Url yang berisi base64 besar untuk mencegah OOM)
     const placements = await db.internshipPlacement.findMany({

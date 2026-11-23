@@ -57,7 +57,8 @@ import {
   Split,
   Archive,
   CheckSquare,
-  Square
+  Square,
+  Undo2
 } from 'lucide-react';
 import { detectDateFromPdfSource } from '@/lib/pdf-date-detector';
 import { parseSafeDate, toSafeIsoString, formatDateIndonesia, calculateDurationMonths } from '@/lib/date-utils';
@@ -357,7 +358,7 @@ export default function PokjaKelompokPrakerinPage() {
   const isGroupEligibleForPenarikan = useCallback((g: GroupItem) => {
     const studentsList = g.students || g.placements || [];
     return studentsList.some((p: any) =>
-      ['PENGANTARAN_DITERBITKAN', 'MENUNGGU_PEMBERANGKATAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'COMPLETED', 'SELESAI_PKL', 'DISETUJUI_INDUSTRI', 'DITERIMA'].includes(p.status)
+      ['PENGANTARAN_DITERBITKAN', 'MENUNGGU_PEMBERANGKATAN', 'REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'TELAH_DITARIK', 'COMPLETED', 'SELESAI_PKL', 'DISETUJUI_INDUSTRI', 'DITERIMA'].includes(p.status)
     ) || Boolean(g.suratPengantaranUrl || g.suratPenarikanUrl);
   }, []);
 
@@ -1157,6 +1158,42 @@ export default function PokjaKelompokPrakerinPage() {
           fetchGroupsData(selectedPeriodId, selectedStatus);
         } else {
           alert('Gagal request penarikan');
+        }
+      } catch (e) {
+        alert('Terjadi kesalahan jaringan');
+      }
+    };
+
+    const handleCancelRequestPenarikan = async (group: GroupItem) => {
+      if (!confirm('Apakah Anda yakin ingin membatalkan request penarikan untuk kelompok ini?\n\nStatus kelompok akan dikembalikan ke status sebelumnya (sebelum request penarikan).')) return;
+      
+      const rawList = group.placements || group.students || [];
+      const placementIds = rawList.map((p: any) => p.id || p.placementId).filter(Boolean);
+
+      if (placementIds.length === 0) {
+        alert('Tidak ditemukan data penempatan siswa.');
+        return;
+      }
+
+      // Cek apakah sudah pernah ada surat penerjunan untuk menentukan status pengembalian
+      const hasPengantaran = Boolean(group.suratPengantaranUrl) || rawList.some((p: any) => Boolean(p.suratPengantaranUrl || p.nomorPengantaran));
+      const revertedStatus = hasPengantaran ? 'PENGANTARAN_DITERBITKAN' : 'DISETUJUI_INDUSTRI';
+
+      try {
+        const res = await fetch('/api/pokja/groups', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            placementIds: placementIds,
+            status: revertedStatus
+          })
+        });
+        if (res.ok) {
+          alert('Request penarikan berhasil dibatalkan. Status kelompok telah dikembalikan.');
+          fetchGroupsData(selectedPeriodId, selectedStatus);
+        } else {
+          const err = await res.json().catch(() => null);
+          alert('Gagal membatalkan request penarikan: ' + (err?.error || 'Kesalahan sistem'));
         }
       } catch (e) {
         alert('Terjadi kesalahan jaringan');
@@ -1995,11 +2032,11 @@ export default function PokjaKelompokPrakerinPage() {
               <option value="PEMBUATAN_SURAT">Pembuatan Surat (Menunggu No/File Surat)</option>
               <option value="SURAT_DITERBITKAN">Surat Diterbitkan</option>
               <option value="DISETUJUI_INDUSTRI">Disetujui Industri</option>
-                <option value="REQUEST_PENGANTARAN">Menunggu Surat Penerjunan</option>
-                <option value="MENUNGGU_PEMBERANGKATAN">Menunggu Pemberangkatan</option>
-                <option value="REQUEST_PENARIKAN">Menunggu Surat Penarikan</option>
-                <option value="MENUNGGU_PENARIKAN">Menunggu Penarikan (Surat Siap)</option>
-                <option value="COMPLETED">Selesai PKL / Completed</option>
+              <option value="REQUEST_PENGANTARAN">Menunggu Surat Penerjunan</option>
+              <option value="MENUNGGU_PEMBERANGKATAN">Menunggu Pemberangkatan</option>
+              <option value="REQUEST_PENARIKAN">Menunggu Surat Penarikan</option>
+              <option value="TELAH_DITARIK">Telah Ditarik (Surat Terbit)</option>
+              <option value="COMPLETED">Selesai PKL / Completed</option>
               </select>
           </div>
         </div>
@@ -2150,6 +2187,7 @@ export default function PokjaKelompokPrakerinPage() {
           filteredGroups.map((group) => {
             const groupKey = group.groupKey || group.groupId || group.industryId || '';
             const hasSurat = Boolean(group.suratTugasUrl || group.letterNumber);
+            const isTelahDitarik = Boolean(group.suratPenarikanUrl) || Boolean(group.placements?.some((p: any) => Boolean(p.suratPenarikanUrl) || ['TELAH_DITARIK', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'].includes(p.status)));
             const studentList = group.students || group.placements || [];
             const groupDeptName = group.departmentName || pokjaDepartment;
 
@@ -2233,13 +2271,20 @@ export default function PokjaKelompokPrakerinPage() {
                 {/* STATUS & TOMBOL AKSI UTAMA POKJA */}
                   <div className="flex flex-wrap items-center gap-3 shrink-0">
                     <span className={`px-3.5 py-1.5 rounded-2xl text-xs font-extrabold border flex items-center space-x-1.5 ${
-                      (group.periodName || '').toLowerCase().includes('gasal')
-                        ? 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30'
-                        : hasSurat
-                          ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border-emerald-500/30'
-                          : 'bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/30'
+                      isTelahDitarik
+                        ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30'
+                        : (group.periodName || '').toLowerCase().includes('gasal')
+                          ? 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30'
+                          : hasSurat
+                            ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border-emerald-500/30'
+                            : 'bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/30'
                     }`}>
-                      {(group.periodName || '').toLowerCase().includes('gasal') ? (
+                      {isTelahDitarik ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                          <span>Telah Ditarik</span>
+                        </>
+                      ) : (group.periodName || '').toLowerCase().includes('gasal') ? (
                         <>
                           <CheckCircle2 className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                           <span>Diproses Luar Sistem</span>
@@ -2332,6 +2377,20 @@ export default function PokjaKelompokPrakerinPage() {
                               </span>
                               {(() => {
                                 const st = (student as any).status || (item as any).status;
+                                if (st === 'TELAH_DITARIK' || st === 'MENUNGGU_PENARIKAN' || st === 'PENARIKAN_DITERBITKAN' || (item as any)?.suratPenarikanUrl || (student as any)?.suratPenarikanUrl) {
+                                  return (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                                      TELAH DITARIK
+                                    </span>
+                                  );
+                                }
+                                if (st === 'REQUEST_PENARIKAN') {
+                                  return (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 whitespace-nowrap">
+                                      MENUNGGU DI TU
+                                    </span>
+                                  );
+                                }
                                 if (st === 'PEMBUATAN_SURAT') {
                                   return (
                                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 whitespace-nowrap">
@@ -2696,7 +2755,7 @@ export default function PokjaKelompokPrakerinPage() {
                           <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">4. Surat Penarikan</h5>
                           <div className="flex flex-wrap items-center gap-2">
                             {/* Request Penarikan */}
-                            {!group.placements?.some(p => ['REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'].includes(p.status)) && (
+                            {!group.placements?.some(p => ['REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'TELAH_DITARIK'].includes(p.status)) && !group.suratPenarikanUrl && (
                               <button
                                 type="button"
                                 onClick={() => handleRequestPenarikan(group)}
@@ -2714,6 +2773,15 @@ export default function PokjaKelompokPrakerinPage() {
                                 </span>
                                 <button
                                   type="button"
+                                  onClick={() => handleCancelRequestPenarikan(group)}
+                                  className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 border-rose-200 dark:border-rose-800 shadow-sm"
+                                  title="Batalkan Request Penarikan (Kembalikan Status Sebelumnya)"
+                                >
+                                  <Undo2 className="w-3.5 h-3.5" />
+                                  <span>Batal Request</span>
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => handleDownloadPenarikanDocx(group)}
                                   className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-sm border-blue-500"
                                   title="Unduh Cadangan Berkas DOCX Surat Penarikan"
@@ -2725,10 +2793,14 @@ export default function PokjaKelompokPrakerinPage() {
                             )}
                             
                             {/* Preview / Download Penarikan */}
-                            {(group.suratPenarikanUrl || (group.placements && group.placements.some(p => p.suratPenarikanUrl || ['MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'].includes(p.status)))) && (() => {
+                            {(group.suratPenarikanUrl || (group.placements && group.placements.some(p => p.suratPenarikanUrl || ['MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'TELAH_DITARIK'].includes(p.status)))) && (() => {
                               const penarikanUrl = group.suratPenarikanUrl || group.placements?.find(p => p.suratPenarikanUrl)?.suratPenarikanUrl;
                               return (
                                 <>
+                                  <span className="px-3 py-2 rounded-xl text-[11px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center space-x-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                                    <span>✓ Telah Ditarik</span>
+                                  </span>
                                   {penarikanUrl && (
                                     <button
                                       type="button"

@@ -127,7 +127,7 @@ export default function SuratPenarikanPage() {
           body: JSON.stringify({
             placementIds: placementIds,
             suratPenarikanUrl: finalBase64,
-            status: 'MENUNGGU_PENARIKAN'
+            status: 'TELAH_DITARIK'
           })
         });
 
@@ -336,7 +336,7 @@ export default function SuratPenarikanPage() {
       const res = await fetch('/api/pokja/groups?department=Semua Jurusan');
       const json = await res.json();
       if (json.success) {
-        const acceptedStatuses = ['REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'];
+        const acceptedStatuses = ['REQUEST_PENARIKAN', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'TELAH_DITARIK'];
         const acceptedGroups = json.data.filter((group: any) => 
           group.students.some((s: any) => acceptedStatuses.includes(s.status))
         ).map((group: any) => {
@@ -397,7 +397,7 @@ export default function SuratPenarikanPage() {
         body: JSON.stringify({
           placementIds: placementIds,
           suratPenarikanUrl: suratBase64,
-          status: 'MENUNGGU_PENARIKAN'
+          status: 'TELAH_DITARIK'
         })
       });
 
@@ -443,7 +443,7 @@ export default function SuratPenarikanPage() {
 
     // Check status
     const isPending = g.students.some((s: any) => s.status === 'REQUEST_PENARIKAN');
-    const isPublished = g.students.some((s: any) => ['MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'].includes(s.status));
+    const isPublished = g.students.some((s: any) => ['MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'TELAH_DITARIK'].includes(s.status)) || Boolean(g.suratPenarikanUrl);
     
     let matchStatus = true;
     if (statusFilter === 'PENDING') matchStatus = isPending;
@@ -579,7 +579,7 @@ export default function SuratPenarikanPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredGroups.map((group, idx) => {
-            const isPublished = group.students.some((s: any) => s.status === 'MENUNGGU_PENARIKAN');
+            const isPublished = group.students.some((s: any) => ['MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN', 'TELAH_DITARIK'].includes(s.status)) || Boolean(group.suratPenarikanUrl);
             return (
               <div key={idx} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden flex flex-col justify-between">
                 <div>
