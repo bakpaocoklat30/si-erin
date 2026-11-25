@@ -245,7 +245,7 @@ export default function SuratPenerjunanPage() {
         <table style="width: 100%; border: none;">
           <tr>
             <td style="width: 60%; vertical-align: top;">
-              <div>Nomor&nbsp;&nbsp;&nbsp;: ${g.inputNomor || '${nomor_naskah}'}</div>
+              <div>Nomor&nbsp;&nbsp;&nbsp;: ${g.inputNomor || g.students?.[0]?.nomorPengantaran || '${nomor_naskah}'}</div>
               <div>Lamp.&nbsp;&nbsp;&nbsp;: -</div>
               <div>Hal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <b><i><span style="text-decoration: underline;">Pengantar Praktik Kerja Lapangan</span></i></b></div>
             </td>
@@ -306,7 +306,7 @@ export default function SuratPenerjunanPage() {
         </div>
 
         <!-- TTD -->
-        <div style="margin-top: 40px; text-align: right; float: right; width: 300px;">
+        <div style="margin-top: 40px; text-align: left; float: right; width: 300px;">
           <div>\${jabatan_pengirim}</div>
           <br/><br/><br/>
           <div><b>\${nama_pengirim}</b></div>
@@ -808,7 +808,10 @@ export default function SuratPenerjunanPage() {
             <div className="p-4 border-t border-inherit flex justify-end gap-2">
               <button 
                 onClick={() => {
-                  const printUrl = `/api/letters/penerjunan?industryId=${docxPreviewGroup.industryId}&department=${encodeURIComponent(docxPreviewGroup.departmentName)}&periodId=${docxPreviewGroup.periodId}&nomorSurat=${encodeURIComponent(docxPreviewGroup.inputNomor || '')}`;
+                  const rawList = docxPreviewGroup.students || docxPreviewGroup.placements || [];
+                  const pIds = rawList.map((p: any) => p.placementId || p.id).filter(Boolean).join(',');
+                  const pNomor = docxPreviewGroup.inputNomor || docxPreviewGroup.students?.[0]?.nomorPengantaran || '';
+                  const printUrl = `/api/letters/penerjunan?industryId=${docxPreviewGroup.industryId}&department=${encodeURIComponent(docxPreviewGroup.departmentName)}&periodId=${docxPreviewGroup.periodId}&nomorSurat=${encodeURIComponent(pNomor)}&groupId=${encodeURIComponent(docxPreviewGroup.groupId || '')}&placementIds=${encodeURIComponent(pIds)}`;
                   window.open(printUrl, '_blank');
                   setDocxPreviewGroup(null);
                 }} 

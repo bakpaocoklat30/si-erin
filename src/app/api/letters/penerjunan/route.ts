@@ -91,7 +91,7 @@ async function createSection(
   const startDate = rawStartDate ? new Date(rawStartDate) : new Date();
   const endDate = rawEndDate ? new Date(rawEndDate) : new Date();
   const durationMonths = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)));
-  const actualNomorSurat = nomorSurat || placements[0]?.nomorPengantaran || placements.find((p: any) => p.nomorPengantaran)?.nomorPengantaran || placements[0]?.letterNumber || "${nomor_naskah}";
+  const actualNomorSurat = nomorSurat || placements[0]?.nomorPengantaran || placements.find((p: any) => p.nomorPengantaran)?.nomorPengantaran || "${nomor_naskah}";
 
   const kopImagePath = path.join(process.cwd(), 'public/images/kop-surat-tugas.png');
   const headerChildren: any[] = [];
@@ -99,12 +99,13 @@ async function createSection(
     headerChildren.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
         children: [
           new ImageRun({
             data: fs.readFileSync(kopImagePath),
             transformation: {
-              width: 700,
-              height: 137
+              width: 624,
+              height: 122
             }
           })
         ]
@@ -114,6 +115,7 @@ async function createSection(
     headerChildren.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
         children: [
           new TextRun({ text: school.name || 'SMK NEGERI 1 ADIWERNA', font: 'Times New Roman', size: 28, bold: true })
         ]
@@ -130,8 +132,6 @@ async function createSection(
     },
     children: [
       ...headerChildren,
-      
-      new Paragraph({ spacing: { before: 200, after: 200 }, children: [] }),
       
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
@@ -204,13 +204,33 @@ async function createSection(
         new TextRun({ text: "tkj@smkn1adw.sch.id", font: "Times New Roman", size: 24, underline: {} }),
         new TextRun({ text: ".", font: "Times New Roman", size: 24 }),
       ]}),
-      new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { after: 400 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Demikian untuk menjadi periksa, atas perhatian dan kerjasamanya disampaikan terimakasih.", font: "Times New Roman", size: 24 })] }),
+      new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { after: 300 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Demikian untuk menjadi periksa, atas perhatian dan kerjasamanya disampaikan terimakasih.", font: "Times New Roman", size: 24 })] }),
       
-      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${jabatan_pengirim}", font: "Times New Roman", size: 24 })] }),
-      new Paragraph({ spacing: { before: 600 }, alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${ttd_pengirim}", font: "Times New Roman", size: 24 })] }),
-      new Paragraph({ spacing: { before: 600 }, alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "${nama_pengirim}", font: "Times New Roman", size: 24, bold: true })] }),
-      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Pembina Utama Muda. IV/c", font: "Times New Roman", size: 24 })] }),
-      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "NIP ${nip_pengirim}", font: "Times New Roman", size: 24 })] }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0 },
+          bottom: { style: BorderStyle.NONE, size: 0 },
+          left: { style: BorderStyle.NONE, size: 0 },
+          right: { style: BorderStyle.NONE, size: 0 },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0 },
+          insideVertical: { style: BorderStyle.NONE, size: 0 }
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 55, type: WidthType.PERCENTAGE }, children: [] }),
+              new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, children: [
+                new Paragraph({ children: [new TextRun({ text: "${jabatan_pengirim}", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ spacing: { before: 500, after: 500 }, children: [new TextRun({ text: "${ttd_pengirim}", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [new TextRun({ text: "${nama_pengirim}", font: "Times New Roman", size: 24, bold: true })] }),
+                new Paragraph({ children: [new TextRun({ text: "Pembina Utama Muda, IV/c", font: "Times New Roman", size: 24 })] }),
+                new Paragraph({ children: [new TextRun({ text: "NIP ${nip_pengirim}", font: "Times New Roman", size: 24 })] }),
+              ]}),
+            ],
+          }),
+        ],
+      }),
     ],
   };
 }
@@ -239,7 +259,7 @@ export async function POST(request: Request) {
 
     const sections = [];
     for (const g of groups) {
-      const groupNomor = nomorSurat || (g.students && g.students.length > 0 ? (g.students[0].nomorPengantaran || g.students[0].letterNumber) : '');
+      const groupNomor = nomorSurat || (g.students && g.students.length > 0 ? (g.students[0].nomorPengantaran || '') : '');
       const placementIds = g.students?.map((s: any) => s.placementId || s.id).filter(Boolean);
       const section = await createSection(g.industryId, g.departmentName, g.periodId, school, groupNomor, g.groupId, placementIds);
       if (section) sections.push(section);

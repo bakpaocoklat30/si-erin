@@ -91,7 +91,7 @@ async function createSection(
   const startDate = rawStartDate ? new Date(rawStartDate) : new Date();
   const endDate = rawEndDate ? new Date(rawEndDate) : new Date();
   const endDateFormatted = endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const actualNomorSurat = nomorSurat || placements[0]?.nomorPenarikan || placements.find((p: any) => p.nomorPenarikan)?.nomorPenarikan || placements[0]?.letterNumber || "${nomor_naskah}";
+  const actualNomorSurat = nomorSurat || placements[0]?.nomorPenarikan || placements.find((p: any) => p.nomorPenarikan)?.nomorPenarikan || "${nomor_naskah}";
 
   // Susun alamat lengkap DUDI
   const jalan = industry?.address || '';
@@ -110,12 +110,13 @@ async function createSection(
     headerChildren.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
         children: [
           new ImageRun({
             data: fs.readFileSync(kopImagePath),
             transformation: {
-              width: 700,
-              height: 137
+              width: 624,
+              height: 122
             }
           })
         ]
@@ -125,6 +126,7 @@ async function createSection(
     headerChildren.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
         children: [
           new TextRun({ text: school.name || 'SMK NEGERI 1 ADIWERNA', font: 'Times New Roman', size: 28, bold: true })
         ]
@@ -141,8 +143,6 @@ async function createSection(
     },
     children: [
       ...headerChildren,
-      
-      new Paragraph({ spacing: { before: 200, after: 200 }, children: [] }),
       
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
@@ -305,7 +305,7 @@ export async function POST(request: Request) {
 
     const sections = [];
     for (const g of groups) {
-      const groupNomor = nomorSurat || (g.students && g.students.length > 0 ? (g.students[0].nomorPenarikan || g.students[0].letterNumber) : '');
+      const groupNomor = nomorSurat || (g.students && g.students.length > 0 ? (g.students[0].nomorPenarikan || '') : '');
       const placementIds = g.students?.map((s: any) => s.placementId || s.id).filter(Boolean);
       const section = await createSection(g.industryId, g.departmentName, g.periodId, school, groupNomor, g.groupId, placementIds);
       if (section) sections.push(section);

@@ -666,7 +666,7 @@ export default function PokjaKelompokPrakerinPage() {
     if (group.departmentName) params.set('department', group.departmentName);
     if (group.groupId) params.set('groupId', group.groupId);
     if (pIds) params.set('placementIds', pIds);
-    const nomorSurat = (group.students && group.students[0]?.nomorPengantaran) || group.letterNumber || '';
+    const nomorSurat = (group.students && group.students[0]?.nomorPengantaran) || '';
     if (nomorSurat) params.set('nomorSurat', nomorSurat);
 
     const url = `/api/letters/penerjunan?${params.toString()}`;
@@ -684,7 +684,7 @@ export default function PokjaKelompokPrakerinPage() {
     if (group.departmentName) params.set('department', group.departmentName);
     if (group.groupId) params.set('groupId', group.groupId);
     if (pIds) params.set('placementIds', pIds);
-    const nomorSurat = (group.students && group.students[0]?.nomorPenarikan) || group.letterNumber || '';
+    const nomorSurat = (group.students && group.students[0]?.nomorPenarikan) || '';
     if (nomorSurat) params.set('nomorSurat', nomorSurat);
 
     const url = `/api/letters/penarikan?${params.toString()}`;
