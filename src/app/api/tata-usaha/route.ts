@@ -53,7 +53,10 @@ export async function GET(request: Request) {
             OR: [
               { stage: 3 },
               { status: 'PEMBUATAN_SURAT' },
-              { status: 'POKJA_APPROVED' }
+              { status: 'POKJA_APPROVED' },
+              { status: 'DISETUJUI' },
+              { status: 'APPROVED' },
+              { status: 'PENGAJUAN_DISETUJUI' }
             ]
           }
         }),
@@ -85,13 +88,25 @@ export async function GET(request: Request) {
         { stage: 4 },
         { status: 'POKJA_APPROVED' },
         { status: 'PEMBUATAN_SURAT' },
+        { status: 'DISETUJUI' },
+        { status: 'APPROVED' },
+        { status: 'PENGAJUAN_DISETUJUI' },
         { status: 'SURAT_DITERBITKAN' },
         { status: 'LETTER_ISSUED' }
       ]
     };
 
     if (filterStatus === 'QUEUE') {
-      whereCondition = { OR: [{ stage: 3 }, { status: 'PEMBUATAN_SURAT' }, { status: 'POKJA_APPROVED' }] };
+      whereCondition = {
+        OR: [
+          { stage: 3 },
+          { status: 'PEMBUATAN_SURAT' },
+          { status: 'POKJA_APPROVED' },
+          { status: 'DISETUJUI' },
+          { status: 'APPROVED' },
+          { status: 'PENGAJUAN_DISETUJUI' }
+        ]
+      };
     } else if (filterStatus === 'ISSUED') {
       whereCondition = { OR: [{ stage: 4 }, { status: 'SURAT_DITERBITKAN' }, { status: 'LETTER_ISSUED' }] };
     }

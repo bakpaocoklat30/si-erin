@@ -636,10 +636,6 @@ export default function PokjaKelompokPrakerinPage() {
 
   // Unduh Single Surat Permohonan PKL (DOCX)
   const handleDownloadSingleDocx = (group: GroupItem, overrideTte?: boolean) => {
-    if ((group.periodName || '').toLowerCase().includes('gasal')) {
-      alert('Surat Permohonan untuk kelompok Periode Gasal telah dibuat di luar sistem sebelumnya.');
-      return;
-    }
     const key = group.groupKey || group.groupId || '';
     if (!key && !group.industryId) {
       setErrorMsg('Kunci kelompok tidak valid.');
@@ -2130,19 +2126,15 @@ export default function PokjaKelompokPrakerinPage() {
 
             <button
               onClick={async () => {
-                const nonGasalKeys = selectedGroups.filter(key => {
-                  const g = filteredGroups.find(item => (item.groupKey || item.groupId) === key);
-                  return !((g?.periodName || '').toLowerCase().includes('gasal'));
-                });
-                if (nonGasalKeys.length === 0) {
-                  alert('Kelompok yang dipilih termasuk dalam Periode Gasal. Surat permohonan untuk Periode Gasal telah diproses di luar sistem sebelumnya.');
+                if (selectedGroups.length === 0) {
+                  alert('Pilih minimal satu kelompok terlebih dahulu.');
                   return;
                 }
                 try {
                   const res = await fetch('/api/pokja/groups/download-docx', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ groupIds: nonGasalKeys, format: 'merged' })
+                    body: JSON.stringify({ groupIds: selectedGroups, format: 'merged' })
                   });
                   if (!res.ok) {
                     const err = await res.json().catch(() => null);
@@ -2273,21 +2265,14 @@ export default function PokjaKelompokPrakerinPage() {
                     <span className={`px-3.5 py-1.5 rounded-2xl text-xs font-extrabold border flex items-center space-x-1.5 ${
                       isTelahDitarik
                         ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30'
-                        : (group.periodName || '').toLowerCase().includes('gasal')
-                          ? 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30'
-                          : hasSurat
-                            ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border-emerald-500/30'
-                            : 'bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/30'
+                        : hasSurat
+                          ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border-emerald-500/30'
+                          : 'bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/30'
                     }`}>
                       {isTelahDitarik ? (
                         <>
                           <CheckCircle2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                           <span>Telah Ditarik</span>
-                        </>
-                      ) : (group.periodName || '').toLowerCase().includes('gasal') ? (
-                        <>
-                          <CheckCircle2 className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                          <span>Diproses Luar Sistem</span>
                         </>
                       ) : hasSurat ? (
                         <>
@@ -2577,36 +2562,30 @@ export default function PokjaKelompokPrakerinPage() {
                         {/* 1. Surat Permohonan */}
                         <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
                           <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">1. Surat Permohonan PKL</h5>
-                          {(group.periodName || '').toLowerCase().includes('gasal') ? (
-                            <div className="text-[11px] text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 px-3 py-2 rounded-xl border border-amber-500/20 flex items-center gap-1.5">
-                              <AlertCircle className="w-4 h-4 shrink-0" />
-                              <span>Diterbitkan di luar sistem (Periode Gasal)</span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-wrap items-center gap-2">
-                              {/* Surat Permohonan (DOCX) */}
-                              <button
-                                type="button"
-                                onClick={() => handleDownloadSingleDocx(group)}
-                                className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-sm border-blue-500"
-                                title="Generate & Unduh DOCX"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                                <span>DOCX</span>
-                              </button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Surat Permohonan (DOCX) */}
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadSingleDocx(group)}
+                              className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-sm border-blue-500"
+                              title="Generate & Unduh DOCX"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>DOCX</span>
+                            </button>
 
-                              {/* Preview Surat (DOCX) */}
-                              <button
-                                type="button"
-                                onClick={() => handleOpenDocxPreview(group)}
-                                className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm border-indigo-500"
-                                title="Preview Surat Permohonan"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                <span>Preview</span>
-                              </button>
+                            {/* Preview Surat (DOCX) */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDocxPreview(group)}
+                              className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center space-x-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm border-indigo-500"
+                              title="Preview Surat Permohonan"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Preview</span>
+                            </button>
 
-                              {/* Hasil TTE / Upload */}
+                            {/* Hasil TTE / Upload */}
                               {hasSurat && group.suratTugasUrl && (
                                 <button
                                   type="button"

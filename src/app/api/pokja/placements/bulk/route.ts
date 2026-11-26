@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     const placements = await db.internshipPlacement.findMany({
       where: {
         student: studentWhere,
-        status: { in: ['PENGAJUAN_DIKIRIM', 'REVIEW_POKJA'] }
+        status: { in: ['PENGAJUAN_DIKIRIM', 'REVIEW_POKJA', 'PENDING'] }
       },
       include: {
         student: true,
@@ -54,6 +54,10 @@ export async function GET(request: Request) {
         status: {
           in: [
             'PEMBUATAN_SURAT',
+            'DISETUJUI',
+            'APPROVED',
+            'POKJA_APPROVED',
+            'PENGAJUAN_DISETUJUI',
             'SURAT_DITERBITKAN',
             'LETTER_ISSUED',
             'KIRIM_SURAT',
@@ -200,9 +204,12 @@ export async function POST(request: Request) {
           status: targetStatus,
           notes: notes ? notes.trim() : undefined
         };
-        if (targetStatus === 'PEMBUATAN_SURAT' && startDate && endDate) {
-          updateData.startDate = new Date(startDate);
-          updateData.endDate = new Date(endDate);
+        if (targetStatus === 'PEMBUATAN_SURAT') {
+          updateData.stage = 3;
+          if (startDate && endDate) {
+            updateData.startDate = new Date(startDate);
+            updateData.endDate = new Date(endDate);
+          }
         }
         return db.internshipPlacement.update({
           where: { id },

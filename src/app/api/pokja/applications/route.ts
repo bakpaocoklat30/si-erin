@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { notifyTuNewPendingPermohonan } from '@/lib/whatsapp';
 
 export async function GET(request: Request) {
   try {
@@ -77,10 +78,36 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'ID dan Status wajib disertakan' }, { status: 400 });
     }
 
+    const upperStatus = String(status).toUpperCase().trim();
+    const isApproved = upperStatus === 'DISETUJUI' || upperStatus === 'APPROVED' || upperStatus === 'PEMBUATAN_SURAT';
+    const isRejected = upperStatus === 'DITOLAK' || upperStatus === 'DITOLAK_INDUSTRI';
+
+    const targetStatus = isApproved ? 'PEMBUATAN_SURAT' : (isRejected ? 'DITOLAK_INDUSTRI' : upperStatus);
+    const updateData: any = {
+      status: targetStatus
+    };
+    if (isApproved) {
+      updateData.stage = 3;
+    }
+
     const updated = await db.internshipPlacement.update({
       where: { id },
-      data: { status: status.toUpperCase() }
+      data: updateData,
+      include: {
+        student: true,
+        industry: true
+      }
     });
+
+    if (isApproved && updated) {
+      notifyTuNewPendingPermohonan({
+        studentName: updated.student?.name || 'Siswa',
+        studentClass: updated.student?.className || '-',
+        department: updated.student?.department || '-',
+        industryName: updated.industry?.name || '-',
+        waktu: new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' }),
+      }).catch(err => console.warn('[WAHA] Warning broadcast notifikasi TU:', err));
+    }
 
     return NextResponse.json({ success: true, message: 'Status pengajuan berhasil diperbarui', data: updated });
   } catch (error) {

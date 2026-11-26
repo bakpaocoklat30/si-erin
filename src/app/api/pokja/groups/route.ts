@@ -68,11 +68,16 @@ export async function GET(request: Request) {
     // 🌟 STATUS TERVERIFIKASI: Hanya kelompok/siswa yang sudah diverifikasi Pokja yang boleh tampil di modul ini
     const VERIFIED_STATUSES = [
         'PEMBUATAN_SURAT',
+        'DISETUJUI',
+        'APPROVED',
+        'POKJA_APPROVED',
+        'PENGAJUAN_DISETUJUI',
         'SURAT_DITERBITKAN',
         'LETTER_ISSUED',
         'KIRIM_SURAT',
         'SENT_DUDI',
         'DISETUJUI_INDUSTRI',
+        'DIPROSES_INDUSTRI',
         'REQUEST_PENGANTARAN',
         'MENUNGGU_PEMBERANGKATAN',
         'PENGANTARAN_DITERBITKAN',

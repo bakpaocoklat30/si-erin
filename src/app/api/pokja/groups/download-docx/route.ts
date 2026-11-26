@@ -30,6 +30,10 @@ const ALLOWED_ROLES = [
 
 const VERIFIED_STATUSES = [
   'PEMBUATAN_SURAT',
+  'DISETUJUI',
+  'APPROVED',
+  'POKJA_APPROVED',
+  'PENGAJUAN_DISETUJUI',
   'SURAT_DITERBITKAN',
   'LETTER_ISSUED',
   'KIRIM_SURAT',
@@ -42,6 +46,7 @@ const VERIFIED_STATUSES = [
   'REQUEST_PENARIKAN',
   'MENUNGGU_PENARIKAN',
   'PENARIKAN_DITERBITKAN',
+  'TELAH_DITARIK',
   'DITERIMA',
   'DITERIMA_INDUSTRI',
   'COMPLETED',
@@ -222,14 +227,7 @@ async function getGroupPermohonanList(filters: {
     });
 
     if (matched.length > 0) {
-      const nonGasalMatched = matched.filter(g => {
-        const pName = g.periodName || periodCtx.periods.find(p => p.id === g.periodId)?.name || '';
-        return !pName.toLowerCase().includes('gasal');
-      });
-      if (nonGasalMatched.length === 0) {
-        throw new Error('Surat permohonan untuk kelompok Periode Gasal tidak tersedia di sistem karena permohonan telah diproses di luar sistem sebelumnya.');
-      }
-      return nonGasalMatched;
+      return matched;
     }
 
     // Fallback darurat: cari placement langsung berdasarkan targetIds jika tidak ter-cluster di groupedMap
@@ -287,11 +285,7 @@ async function getGroupPermohonanList(filters: {
     return [];
   }
 
-  // Filter kelompok umum / masal: sembunyikan kelompok dari Periode Gasal
-  return allGroups.filter(g => {
-    const pName = g.periodName || periodCtx.periods.find(p => p.id === g.periodId)?.name || '';
-    return !pName.toLowerCase().includes('gasal');
-  });
+  return allGroups;
 }
 
 export async function GET(req: NextRequest) {

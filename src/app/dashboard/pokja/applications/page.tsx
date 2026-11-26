@@ -197,30 +197,39 @@ export default function PokjaApplicationsPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          app.status === 'DISETUJUI' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
-                          app.status === 'DITOLAK' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
+                          app.status === 'DISETUJUI' || app.status === 'PEMBUATAN_SURAT' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                          app.status === 'DITOLAK' || app.status === 'DITOLAK_INDUSTRI' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
                           'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                         }`}>
-                          {app.status || 'PENDING'}
+                          {app.status === 'PEMBUATAN_SURAT' ? 'DISETUJUI' : (app.status || 'PENDING')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleVerify(app.id, 'DISETUJUI')}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-sm cursor-pointer inline-flex items-center space-x-1"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Setujui</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleVerify(app.id, 'DITOLAK')}
-                          className="px-3 py-1.5 rounded-xl bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/30 text-xs font-bold transition-all cursor-pointer inline-flex items-center space-x-1"
-                        >
-                          <XCircle className="w-3.5 h-3.5" />
-                          <span>Tolak</span>
-                        </button>
+                        {app.status === 'PEMBUATAN_SURAT' || app.status === 'DISETUJUI' ? (
+                          <span className="text-xs text-emerald-500 font-bold px-2 py-1 bg-emerald-500/10 rounded-lg inline-flex items-center space-x-1 border border-emerald-500/20">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Terverifikasi</span>
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleVerify(app.id, 'PEMBUATAN_SURAT')}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-sm cursor-pointer inline-flex items-center space-x-1"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Setujui</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleVerify(app.id, 'DITOLAK_INDUSTRI')}
+                              className="px-3 py-1.5 rounded-xl bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/30 text-xs font-bold transition-all cursor-pointer inline-flex items-center space-x-1"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>Tolak</span>
+                            </button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}
