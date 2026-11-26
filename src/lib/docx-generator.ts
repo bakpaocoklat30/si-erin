@@ -38,13 +38,18 @@ function escapeXml(unsafe: any): string {
  */
 
 function extractBodyContent(xml: string): string {
-  const bodyStartIdx = xml.indexOf('<w:body>') + '<w:body>'.length;
+  const bodyStartIdx = xml.indexOf('<w:body>');
+  if (bodyStartIdx === -1) return '';
+  const contentStart = bodyStartIdx + '<w:body>'.length;
   const sectPrIdx = xml.lastIndexOf('<w:sectPr');
-  if (sectPrIdx !== -1) {
-    return xml.substring(bodyStartIdx, sectPrIdx);
+  if (sectPrIdx !== -1 && sectPrIdx >= contentStart) {
+    return xml.substring(contentStart, sectPrIdx);
   }
-  const bodyEndIdx = xml.lastIndexOf('<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body>');
-  return xml.substring(bodyStartIdx, bodyEndIdx);
+  const bodyEndIdx = xml.indexOf('</w:body>', contentStart);
+  if (bodyEndIdx !== -1) {
+    return xml.substring(contentStart, bodyEndIdx);
+  }
+  return xml.substring(contentStart);
 }
 
 function extractSectPr(xml: string): string {
@@ -302,13 +307,13 @@ export async function generateMergedSuratTugasDocx(
     bodyContents.push(extractBodyContent(xml));
   }
 
-  const sectPr = extractSectPr(baseXml);
+  const sectPr = extractSectPr(baseXml) || `<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
   const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
   const mergedXml =
     baseXml.substring(0, bodyStartIdx) +
     bodyContents.join(pageBreak) +
     sectPr +
-    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>';
+    '</w:body></w:document>';
 
   zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();
@@ -775,13 +780,13 @@ export async function generateMergedSppdDocx(
     bodyContents.push(extractBodyContent(xml));
   }
 
-  const sectPr = extractSectPr(baseXml);
+  const sectPr = extractSectPr(baseXml) || `<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
   const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
   const mergedXml =
     baseXml.substring(0, bodyStartIdx) +
     bodyContents.join(pageBreak) +
     sectPr +
-    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>';
+    '</w:body></w:document>';
 
   zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();
@@ -1158,7 +1163,7 @@ export function buildLaporanXml(
     baseXml.substring(0, bodyStartIdx) +
     mergedContent +
     sectPr +
-    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>'
+    '</w:body></w:document>'
   );
 }
 
@@ -1209,7 +1214,7 @@ export async function generateMergedLaporanDocx(
     baseXml.substring(0, bodyStartIdx) +
     bodyContents.join(pageBreak) +
     sectPr +
-    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>';
+    '</w:body></w:document>';
 
   zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();
@@ -1533,7 +1538,7 @@ export function buildSuratPermohonanXml(
     baseXml.substring(0, bodyStartIdx) +
     bodyXml +
     sectPr +
-    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>'
+    '</w:body></w:document>'
   );
 }
 
@@ -1624,12 +1629,15 @@ export async function generateMergedSuratPermohonanDocx(
   }
 
   const baseXml = zip.readAsText('word/document.xml');
-  const pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  const pageBreak = '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p>';
   const bodyContents: string[] = [];
 
   for (const item of groups) {
     const xml = buildSuratPermohonanXml(baseXml, item, options);
-    bodyContents.push(extractBodyContent(xml));
+    const content = extractBodyContent(xml);
+    if (content.trim()) {
+      bodyContents.push(content);
+    }
   }
 
   const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
@@ -1638,7 +1646,7 @@ export async function generateMergedSuratPermohonanDocx(
     baseXml.substring(0, bodyStartIdx) +
     bodyContents.join(pageBreak) +
     sectPr +
-    '<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>';
+    '</w:body></w:document>';
 
   zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
   return zip.toBuffer();

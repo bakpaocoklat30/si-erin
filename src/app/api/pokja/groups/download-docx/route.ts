@@ -321,6 +321,25 @@ export async function GET(req: NextRequest) {
 
     const schoolSetting = await db.schoolSetting.findFirst();
 
+    if (format === 'merged') {
+      const mergedBuffer = groups.length === 1
+        ? await generateSuratPermohonanDocx(groups[0], {
+            useTteTags: useTte,
+            schoolSetting: schoolSetting || undefined
+          })
+        : await generateMergedSuratPermohonanDocx(groups, {
+            useTteTags: useTte,
+            schoolSetting: schoolSetting || undefined
+          });
+      const filename = `Surat Permohonan - Gabungan (${groups.length} Kelompok).docx`;
+      return new NextResponse(new Uint8Array(mergedBuffer), {
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+        }
+      });
+    }
+
     if (format === 'zip' || (groups.length > 1 && !groupId)) {
       const zipBuffer = await generateBulkSuratPermohonanZip(groups, {
         useTteTags: useTte,
@@ -366,9 +385,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized - Akses ditolak' }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { groupIds, tte, useTte: useTteBody, format, groupsData } = body;
-    const tteParam = tte ?? useTteBody;
+    const body = await req.json().catch(() => ({}));
+    const urlFormat = req.nextUrl.searchParams.get('format');
+    const { groupIds, tte, useTte: useTteBody, groupsData } = body;
+    const format = body.format || urlFormat || 'zip';
+    const tteParam = tte ?? useTteBody ?? (req.nextUrl.searchParams.get('tte') !== null ? req.nextUrl.searchParams.get('tte') === 'true' : undefined) ?? (req.nextUrl.searchParams.get('useTte') !== null ? req.nextUrl.searchParams.get('useTte') === 'true' : undefined);
     const useTte = tteParam !== false;
 
     let targetGroups: GroupPermohonanData[] = [];
@@ -391,16 +412,21 @@ export async function POST(req: NextRequest) {
 
     const schoolSetting = await db.schoolSetting.findFirst();
 
-    if (format === 'merged' && targetGroups.length > 1) {
-      const mergedBuffer = await generateMergedSuratPermohonanDocx(targetGroups, {
-        useTteTags: useTte,
-        schoolSetting: schoolSetting || undefined
-      });
-      const filename = `Surat Permohonan - Gabungan.docx`;
+    if (format === 'merged') {
+      const mergedBuffer = targetGroups.length === 1
+        ? await generateSuratPermohonanDocx(targetGroups[0], {
+            useTteTags: useTte,
+            schoolSetting: schoolSetting || undefined
+          })
+        : await generateMergedSuratPermohonanDocx(targetGroups, {
+            useTteTags: useTte,
+            schoolSetting: schoolSetting || undefined
+          });
+      const filename = `Surat Permohonan - Gabungan (${targetGroups.length} Kelompok).docx`;
       return new NextResponse(new Uint8Array(mergedBuffer), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         }
       });
     }

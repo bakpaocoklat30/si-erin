@@ -565,14 +565,29 @@ export default function PermohonanSuratKelompokPage() {
   };
 
   const handleBulkDownloadMerged = async () => {
+    if (selectedGroupIds.length === 0) {
+      alert("Pilih minimal satu kelompok terlebih dahulu.");
+      return;
+    }
+    const selectedGroups = verifiedGroups.filter(g => 
+      selectedGroupIds.includes(g.groupId || '') || 
+      (g.groupKey && selectedGroupIds.includes(g.groupKey))
+    );
     const url = `/api/pokja/groups/download-docx?format=merged&useTte=${useTteMode}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ groupIds: selectedGroupIds, groupsData: verifiedGroups.filter(g => selectedGroupIds.includes(g.groupId || '')), tte: useTteMode, useTte: useTteMode })
+      body: JSON.stringify({ 
+        groupIds: selectedGroupIds, 
+        groupsData: selectedGroups, 
+        format: 'merged',
+        tte: useTteMode, 
+        useTte: useTteMode 
+      })
     });
     if (!res.ok) {
-      alert("Gagal mengunduh dokumen gabungan");
+      const err = await res.json().catch(() => null);
+      alert(err?.error || "Gagal mengunduh dokumen gabungan");
       return;
     }
     const blob = await res.blob();
@@ -583,6 +598,7 @@ export default function PermohonanSuratKelompokPage() {
     document.body.appendChild(a);
     a.click();
     a.remove();
+    window.URL.revokeObjectURL(downloadUrl);
   };
 
   const handleBulkFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
