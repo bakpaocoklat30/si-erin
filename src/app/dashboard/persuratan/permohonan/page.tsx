@@ -433,9 +433,9 @@ export default function PermohonanSuratKelompokPage() {
   </style>
 </head>
 <body>
-  <!-- KOP SURAT RESMI -->
-  <div style="text-align: center; margin-bottom: 8px;">
-    <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
+  <!-- KOP SURAT RESMI (Sama persis dengan Penerjunan) -->
+  <div style="text-align: center; margin-bottom: 20px;">
+    <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
   </div>
 
   <!-- NOMOR & TANGGAL SURAT -->

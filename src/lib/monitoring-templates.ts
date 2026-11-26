@@ -310,7 +310,7 @@ export function numberToWordsIndonesian(n: number): string {
 function getOfficialKopHtml(): string {
   return `
   <div class="kop-container" style="text-align: center; margin-bottom: 20px;">
-    <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
+    <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
   </div>
   `;
 }
@@ -433,7 +433,7 @@ export function generateSuratTugasHtml(
 
   <!-- KOP SURAT RESMI -->
   <div class="kop-container" style="text-align: center; margin-bottom: ${isCompact ? '10px' : '20px'};">
-    <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
+    <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
   </div>
 
   <!-- JUDUL SURAT TUGAS & NOMOR -->
@@ -752,7 +752,7 @@ export function generateSppdHtml(
   <!-- 📄 HALAMAN 1: RINCIAN SURAT PERINTAH PERJALANAN DINAS (SPPD) -->
   <!-- ====================================================================== -->
   <div class="kop-container" style="text-align: center; margin-bottom: ${isMany ? '8px' : '16px'};">
-    <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: ${isMany ? '680px' : '720px'}; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
+    <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
   </div>
 
   <div class="text-center" style="margin-bottom: ${isMany ? '6px' : '10px'};">
@@ -1087,7 +1087,7 @@ export function generateLaporanHasilKegiatanHtml(
 <body>
   <!-- KOP SURAT RESMI -->
   <div style="text-align: center; margin-bottom: 12px;">
-    <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
+    <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
   </div>
 
   <!-- NOMOR & LEMBAR KE DI SEBELAH KANAN -->
@@ -1324,7 +1324,7 @@ export function generateDokumentasiFotoHtml(
       pageHeaderHtml = `
         <!-- KOP SURAT RESMI (HALAMAN 1) -->
         <div style="text-align: center; margin-bottom: 6px;">
-          <img src="/images/kop-surat-tugas.png" alt="Kop Surat Resmi SMKN 1 Adiwerna" style="width: 100%; max-width: 720px; height: auto; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/images/kop-jateng-smkn1adw.png';" />
+          <img src="/images/kop-surat-tugas.png" alt="Kop Surat" style="width: 100%; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
         </div>
 
         <!-- DIBAWAH KOP SEBELAH KANAN: NOMOR SURAT TUGAS & LEMBAR KE 4 -->

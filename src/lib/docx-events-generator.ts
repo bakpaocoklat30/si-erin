@@ -106,7 +106,7 @@ export function buildSuratIzinKegiatanXml(
       <w:r>
         <w:drawing>
           <wp:inline distT="0" distB="0" distL="0" distR="0">
-            <wp:extent cx="6693000" cy="1240000"/>
+            <wp:extent cx="5943600" cy="1162050"/>
             <wp:effectExtent l="0" t="0" r="0" b="0"/>
             <wp:docPr id="1" name="Picture 1" descr="Kop Surat"/>
             <wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>
@@ -125,7 +125,7 @@ export function buildSuratIzinKegiatanXml(
                     <a:stretch><a:fillRect/></a:stretch>
                   </pic:blipFill>
                   <pic:spPr bwMode="auto">
-                    <a:xfrm><a:off x="0" y="0"/><a:ext cx="6693000" cy="1240000"/></a:xfrm>
+                    <a:xfrm><a:off x="0" y="0"/><a:ext cx="5943600" cy="1162050"/></a:xfrm>
                     <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
                     <a:noFill/><a:ln><a:noFill/></a:ln>
                   </pic:spPr>

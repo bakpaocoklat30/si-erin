@@ -12,6 +12,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import AdmZip from 'adm-zip';
 import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  AlignmentType,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
+  VerticalAlign,
+  ImageRun,
+} from 'docx';
+import {
   MonitoringAssignmentData,
   GeneratorOptions,
   formatIndonesianDate,
@@ -123,6 +137,8 @@ export function buildSuratTugasXml(
     /<w:pgMar\b[^>]*\/>/g,
     '<w:pgMar w:top="500" w:right="950" w:bottom="500" w:left="950" w:header="500" w:footer="500" w:gutter="0"/>'
   );
+  // Sesuaikan ukuran Kop Surat (5943600 x 1162050 EMU = 624 x 122 pt) sama dengan penerjunan
+  xml = xml.replace(/cx="6619875"\s+cy="1293185"/g, 'cx="5943600" cy="1162050"');
 
   const isCompact = allIndustries.length >= 4 || allTeachers.length >= 2;
 
@@ -873,7 +889,7 @@ export function buildLaporanXml(
   const headmasterNip = options?.schoolSetting?.headmasterNip || '19690317 199802 1 004';
 
   const drawingMatch = baseXml.match(/<w:r\b[^>]*>[\s\S]*?<w:drawing>[\s\S]*?<\/w:drawing>[\s\S]*?<\/w:r>/);
-  const kopDrawing = drawingMatch ? drawingMatch[0] : '';
+  const kopDrawing = (drawingMatch ? drawingMatch[0] : '').replace(/cx="6619875"\s+cy="1293185"/g, 'cx="5943600" cy="1162050"');
   const kopParagraph = `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>${kopDrawing}</w:p>`;
 
   const tteSignatureLeftDocx = useTte
@@ -1542,42 +1558,247 @@ export function buildSuratPermohonanXml(
   );
 }
 
+export async function createPermohonanSection(
+  group: GroupPermohonanData,
+  options?: GeneratorOptions
+) {
+  const useTte = options?.useTteTags !== false;
+
+  // 1. Nomor Surat
+  let letterNo = group.letterNumber && group.letterNumber.trim() !== '' ? group.letterNumber.trim() : '';
+  if (!useTte) {
+    if (!letterNo || letterNo === '${nomor_naskah}') {
+      letterNo = '400.14.5.4 / 1068 / 2026';
+    }
+  } else {
+    if (!letterNo) {
+      letterNo = '${nomor_naskah}';
+    }
+  }
+
+  // 2. Tanggal Surat
+  let letterDate = group.letterUploadedAt ? formatIndonesianDate(group.letterUploadedAt) : '';
+  if (!letterDate || letterDate === '-') {
+    letterDate = formatIndonesianDate(new Date().toISOString());
+  }
+  const dateStr = useTte ? '${tanggal_naskah}' : letterDate;
+
+  // 3. Kop Surat (Sama persis dengan penerjunan)
+  const kopImagePath = path.join(process.cwd(), 'public/images/kop-surat-tugas.png');
+  const headerChildren: any[] = [];
+  if (fs.existsSync(kopImagePath)) {
+    headerChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
+        children: [
+          new ImageRun({
+            data: fs.readFileSync(kopImagePath),
+            transformation: {
+              width: 624,
+              height: 122
+            }
+          })
+        ]
+      })
+    );
+  } else {
+    headerChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
+        children: [
+          new TextRun({
+            text: options?.schoolSetting?.name || 'SMK NEGERI 1 ADIWERNA',
+            font: 'Times New Roman',
+            size: 28,
+            bold: true
+          })
+        ]
+      })
+    );
+  }
+
+  // 4. Industri
+  const indName = group.industryName || 'Pimpinan DUDI Mitra';
+  const indAddress = formatIndustryAddress(group);
+
+  // 5. Rentang Tanggal & Durasi
+  const startStr = group.startDate ? formatIndonesianDate(group.startDate) : '1 Desember 2026';
+  const endStr = group.endDate ? formatIndonesianDate(group.endDate) : '31 Maret 2027';
+  const duration = calculateDurationMonths(group.startDate, group.endDate);
+  const deptLabel = group.departmentName || 'Teknik Komputer dan Jaringan';
+
+  // 6. Siswa
+  const rawStudents = group.students || (group.placements || []).map((p: any) => p.student || p) || [];
+  const students = rawStudents.map((s: any) => ({
+    name: (s.name || s.studentName || '-').toUpperCase(),
+    nis: s.nis || '-',
+    className: s.className || '-',
+    phone: s.phone || s.parentPhone || '-'
+  }));
+
+  // 7. Info Kepsek
+  const headmasterName = options?.schoolSetting?.headmaster || 'Joko Pramono, S.Pd., M.Ds.';
+  const headmasterNip = options?.schoolSetting?.headmasterNip || '196903171998021004';
+  const headmasterRank = 'Pembina Utama Muda, IV/c';
+
+  return {
+    properties: {
+      page: {
+        size: { width: 12240, height: 18720 }, // F4 Size
+        margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+      }
+    },
+    children: [
+      ...headerChildren,
+
+      // Nomor & Tanggal
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0 },
+          bottom: { style: BorderStyle.NONE, size: 0 },
+          left: { style: BorderStyle.NONE, size: 0 },
+          right: { style: BorderStyle.NONE, size: 0 },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0 },
+          insideVertical: { style: BorderStyle.NONE, size: 0 }
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 60, type: WidthType.PERCENTAGE },
+                children: [
+                  new Paragraph({ children: [new TextRun({ text: `Nomor  : ${letterNo}`, font: "Times New Roman", size: 24 })] }),
+                  new Paragraph({ children: [new TextRun({ text: "Lamp.  : -", font: "Times New Roman", size: 24 })] }),
+                  new Paragraph({ children: [
+                    new TextRun({ text: "Hal      : ", font: "Times New Roman", size: 24 }), 
+                    new TextRun({ text: "Permohonan Praktik Kerja Lapangan (PKL)", font: "Times New Roman", size: 24, bold: true, italics: true, underline: {} })
+                  ]}),
+                ]
+              }),
+              new TableCell({
+                width: { size: 40, type: WidthType.PERCENTAGE },
+                children: [
+                  new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `Adiwerna, ${dateStr}`, font: "Times New Roman", size: 24 })] }),
+                ]
+              }),
+            ],
+          }),
+        ],
+      }),
+
+      // Tujuan Industri
+      new Paragraph({ spacing: { before: 240 }, children: [new TextRun({ text: "Kepada", font: "Times New Roman", size: 24, bold: true })] }),
+      new Paragraph({ children: [new TextRun({ text: `Yth. Pimpinan ${indName}`, font: "Times New Roman", size: 24, bold: true })] }),
+      new Paragraph({ children: [new TextRun({ text: indAddress, font: "Times New Roman", size: 24 })] }),
+
+      // Pembuka
+      new Paragraph({ spacing: { before: 240 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Dengan hormat,", font: "Times New Roman", size: 24 })] }),
+      new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 200 },
+        indent: { firstLine: 720 },
+        children: [
+          new TextRun({ text: "Sebagai upaya peningkatan mutu lulusan Sekolah Menengah Kejuruan (SMK) yang relevan dengan kebutuhan industri, serta merujuk pada Kurikulum Merdeka yang mewajibkan siswa terjun langsung ke dunia kerja melalui Praktik Kerja Lapangan (PKL), maka dengan ini kami bermaksud mengajukan permohonan untuk menempatkan siswa/siswi kami guna melaksanakan Praktik Kerja Lapangan (PKL) pada Program Keahlian ", font: "Times New Roman", size: 24 }),
+          new TextRun({ text: deptLabel, font: "Times New Roman", size: 24, bold: true }),
+          new TextRun({ text: " tahun pelajaran 2026/2027 pada tanggal ", font: "Times New Roman", size: 24 }),
+          new TextRun({ text: `${startStr} s.d ${endStr}`, font: "Times New Roman", size: 24, bold: true }),
+          new TextRun({ text: ` atau selama ± ${duration.months} bulan.`, font: "Times New Roman", size: 24, bold: true }),
+        ]
+      }),
+      new Paragraph({ spacing: { after: 200 }, indent: { firstLine: 720 }, children: [new TextRun({ text: "Adapun daftar nama siswa yang kami ajukan adalah sebagai berikut:", font: "Times New Roman", size: 24 })] }),
+
+      // Tabel Siswa
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+          bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+          left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+          right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+          insideVertical: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "NO", font: "Times New Roman", size: 24, bold: true })] })], verticalAlign: VerticalAlign.CENTER }),
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "NIS", font: "Times New Roman", size: 24, bold: true })] })], verticalAlign: VerticalAlign.CENTER }),
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "NAMA", font: "Times New Roman", size: 24, bold: true })] })], verticalAlign: VerticalAlign.CENTER }),
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "KELAS", font: "Times New Roman", size: 24, bold: true })] })], verticalAlign: VerticalAlign.CENTER }),
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "NO. HP/WA", font: "Times New Roman", size: 24, bold: true })] })], verticalAlign: VerticalAlign.CENTER }),
+            ]
+          }),
+          ...students.map((student: any, idx: number) => new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${idx + 1}`, font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: student.nis || "-", font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (student.name || '').toUpperCase(), font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: student.className || "-", font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: student.phone || student.parentPhone || "-", font: "Times New Roman", size: 24 })] })], verticalAlign: VerticalAlign.CENTER }),
+            ]
+          }))
+        ]
+      }),
+
+      // Penutup
+      new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { before: 200, after: 300 },
+        indent: { firstLine: 720 },
+        children: [
+          new TextRun({ text: "Demikian permohonan ini kami sampaikan, atas perhatian dan kerjasama Bapak/Ibu kami sampaikan terimakasih.", font: "Times New Roman", size: 24 })
+        ]
+      }),
+
+      // TTD
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0 },
+          bottom: { style: BorderStyle.NONE, size: 0 },
+          left: { style: BorderStyle.NONE, size: 0 },
+          right: { style: BorderStyle.NONE, size: 0 },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0 },
+          insideVertical: { style: BorderStyle.NONE, size: 0 }
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 55, type: WidthType.PERCENTAGE }, children: [] }),
+              new TableCell({
+                width: { size: 45, type: WidthType.PERCENTAGE },
+                children: useTte ? [
+                  new Paragraph({ children: [new TextRun({ text: "${jabatan_pengirim}", font: "Times New Roman", size: 24 })] }),
+                  new Paragraph({ spacing: { before: 500, after: 500 }, children: [new TextRun({ text: "${ttd_pengirim}", font: "Times New Roman", size: 24 })] }),
+                  new Paragraph({ children: [new TextRun({ text: "${nama_pengirim}", font: "Times New Roman", size: 24, bold: true })] }),
+                  new Paragraph({ children: [new TextRun({ text: headmasterRank, font: "Times New Roman", size: 24 })] }),
+                  new Paragraph({ children: [new TextRun({ text: "NIP ${nip_pengirim}", font: "Times New Roman", size: 24 })] }),
+                ] : [
+                  new Paragraph({ children: [new TextRun({ text: "Kepala SMK Negeri 1 Adiwerna", font: "Times New Roman", size: 24 })] }),
+                  new Paragraph({ spacing: { before: 800, after: 0 }, children: [] }),
+                  new Paragraph({ children: [new TextRun({ text: headmasterName, font: "Times New Roman", size: 24, bold: true })] }),
+                  new Paragraph({ children: [new TextRun({ text: headmasterRank, font: "Times New Roman", size: 24 })] }),
+                  new Paragraph({ children: [new TextRun({ text: `NIP ${headmasterNip}`, font: "Times New Roman", size: 24 })] }),
+                ]
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  };
+}
+
 export async function generateSuratPermohonanDocx(
   group: GroupPermohonanData,
   options?: GeneratorOptions
 ): Promise<Buffer> {
-  const templatePath = path.join(process.cwd(), 'template', 'Surat Tugas Monitoring PKL.docx');
-  const sppdPath = path.join(process.cwd(), 'template', 'SPPD TTE.docx');
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`File template tidak ditemukan di: ${templatePath}`);
-  }
-  const zip = new AdmZip(templatePath);
-
-  // If TTE enabled, inject TTE QR Code image & relationship
-  if (options?.useTteTags !== false && fs.existsSync(sppdPath)) {
-    try {
-      const sppdZip = new AdmZip(sppdPath);
-      const imgEntry = sppdZip.getEntry('word/media/image3.png');
-      if (imgEntry) {
-        zip.addFile('word/media/image_tte.png', imgEntry.getData());
-        let rels = zip.readAsText('word/_rels/document.xml.rels');
-        if (!rels.includes('rId99')) {
-          rels = rels.replace(
-            '</Relationships>',
-            '<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image_tte.png"/></Relationships>'
-          );
-          zip.updateFile('word/_rels/document.xml.rels', Buffer.from(rels, 'utf8'));
-        }
-      }
-    } catch (e) {
-      console.warn('Warning: Failed to inject TTE QR code image into docx:', e);
-    }
-  }
-
-  const baseXml = zip.readAsText('word/document.xml');
-  const xml = buildSuratPermohonanXml(baseXml, group, options);
-  zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
-  return zip.toBuffer();
+  const section = await createPermohonanSection(group, options);
+  const doc = new Document({ sections: [section] });
+  return await Packer.toBuffer(doc);
 }
 
 export async function generateBulkSuratPermohonanZip(
@@ -1602,52 +1823,7 @@ export async function generateMergedSuratPermohonanDocx(
   if (!groups || groups.length === 0) {
     throw new Error('Tidak ada kelompok yang dipilih.');
   }
-  if (groups.length === 1) {
-    return generateSuratPermohonanDocx(groups[0], options);
-  }
-
-  const templatePath = path.join(process.cwd(), 'template', 'Surat Tugas Monitoring PKL.docx');
-  const sppdPath = path.join(process.cwd(), 'template', 'SPPD TTE.docx');
-  const zip = new AdmZip(templatePath);
-
-  if (options?.useTteTags !== false && fs.existsSync(sppdPath)) {
-    try {
-      const sppdZip = new AdmZip(sppdPath);
-      const imgEntry = sppdZip.getEntry('word/media/image3.png');
-      if (imgEntry) {
-        zip.addFile('word/media/image_tte.png', imgEntry.getData());
-        let rels = zip.readAsText('word/_rels/document.xml.rels');
-        if (!rels.includes('rId99')) {
-          rels = rels.replace(
-            '</Relationships>',
-            '<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image_tte.png"/></Relationships>'
-          );
-          zip.updateFile('word/_rels/document.xml.rels', Buffer.from(rels, 'utf8'));
-        }
-      }
-    } catch {}
-  }
-
-  const baseXml = zip.readAsText('word/document.xml');
-  const pageBreak = '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p>';
-  const bodyContents: string[] = [];
-
-  for (const item of groups) {
-    const xml = buildSuratPermohonanXml(baseXml, item, options);
-    const content = extractBodyContent(xml);
-    if (content.trim()) {
-      bodyContents.push(content);
-    }
-  }
-
-  const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="18708" w:code="9"/><w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
-  const bodyStartIdx = baseXml.indexOf('<w:body>') + '<w:body>'.length;
-  const mergedXml =
-    baseXml.substring(0, bodyStartIdx) +
-    bodyContents.join(pageBreak) +
-    sectPr +
-    '</w:body></w:document>';
-
-  zip.updateFile('word/document.xml', Buffer.from(mergedXml, 'utf8'));
-  return zip.toBuffer();
+  const sections = await Promise.all(groups.map((g) => createPermohonanSection(g, options)));
+  const doc = new Document({ sections });
+  return await Packer.toBuffer(doc);
 }
