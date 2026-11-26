@@ -108,6 +108,27 @@ export async function GET(request: Request) {
       placementWhere.status = { in: VERIFIED_STATUSES };
     }
 
+    // 🛡️ SELF-HEALING: Bersihkan data residu persuratan lama bagi siswa yang berstatus PEMBUATAN_SURAT / DISETUJUI tapi masih menyimpan berkas/nomor lama karena pernah ditolak sebelumnya
+    await db.internshipPlacement.updateMany({
+      where: {
+        status: { in: ['PEMBUATAN_SURAT', 'DISETUJUI'] },
+        OR: [
+          { suratTugasUrl: { not: null } },
+          { letterNumber: { not: null } },
+          { suratBalasanUrl: { not: null } }
+        ]
+      },
+      data: {
+        suratTugasUrl: null,
+        letterNumber: null,
+        letterUploadedBy: null,
+        letterUploadedAt: null,
+        suratBalasanUrl: null,
+        suratBalasanStatus: 'BELUM_UPLOAD',
+        groupId: null
+      }
+    }).catch(err => console.warn('Self-healing cleanup warning:', err));
+
     // Ambil data penempatan dari database Prisma (TANPA menarik field surat*Url yang berisi base64 besar untuk mencegah OOM)
     const placements = await db.internshipPlacement.findMany({
       where: placementWhere,
@@ -221,11 +242,15 @@ export async function GET(request: Request) {
       const industryName = industry?.name || 'Tanpa Nama Industri';
       const departmentName = student?.department || userDepartment || 'Teknik Kejuruan';
 
-      const savedLetterNumber = placement.letterNumber || null;
-      const groupKey = placement.groupId || `${industryId}___${periodId}___${departmentName}___${savedLetterNumber || 'PENDING'}`;
-
+      const isPendingPermohonan = placement.status === 'PEMBUATAN_SURAT' || placement.status === 'DISETUJUI';
+      const savedLetterNumber = isPendingPermohonan ? null : (placement.letterNumber || null);
+      const groupKey = (isPendingPermohonan ? null : placement.groupId) || `${industryId}___${periodId}___${departmentName}___${savedLetterNumber || 'PENDING'}`;
 
       const buildProxyUrl = (type: string, placementItem: any) => {
+        // Jika penempatan sedang menunggu pembuatan surat baru, jangan gunakan berkas usang dari penolakan sebelumnya
+        if ((type === 'tugas' || type === 'balasan') && (placementItem.status === 'PEMBUATAN_SURAT' || placementItem.status === 'DISETUJUI')) {
+          return null;
+        }
         let hasUrl = false;
         if (type === 'balasan') {
           hasUrl = hasBalasanSet.has(placementItem.id);

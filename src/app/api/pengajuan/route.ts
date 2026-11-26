@@ -111,6 +111,18 @@ export async function POST(request: Request) {
         data: {
           industryId,
           status: 'PENDING',
+          stage: 1,
+          letterNumber: null,
+          suratTugasUrl: null,
+          letterUploadedBy: null,
+          letterUploadedAt: null,
+          suratBalasanUrl: null,
+          suratBalasanStatus: 'BELUM_UPLOAD',
+          suratPengantaranUrl: null,
+          nomorPengantaran: null,
+          suratPenarikanUrl: null,
+          nomorPenarikan: null,
+          groupId: null
         },
       });
     } else {

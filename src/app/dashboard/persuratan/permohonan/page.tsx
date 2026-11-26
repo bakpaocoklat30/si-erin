@@ -252,11 +252,11 @@ export default function PermohonanSuratKelompokPage() {
 
     verifiedGroups.forEach((g) => {
       total++;
-      const hasSurat = Boolean(g.suratTugasUrl);
-      if (hasSurat) {
-        published++;
-      } else {
+      const isPending = !g.suratTugasUrl || g.placements?.some((p: any) => p.status === 'PEMBUATAN_SURAT' || p.status === 'DISETUJUI');
+      if (isPending) {
         pending++;
+      } else {
+        published++;
       }
     });
 
@@ -275,12 +275,12 @@ export default function PermohonanSuratKelompokPage() {
       const matchPeriodFilter = selectedPeriodFilter === 'SEMUA' || (g.periodName && g.periodName.toLowerCase() === selectedPeriodFilter.toLowerCase());
 
       // Filter Berdasarkan Status Surat
-      const hasSurat = Boolean(g.suratTugasUrl);
+      const isPending = !g.suratTugasUrl || g.placements?.some((p: any) => p.status === 'PEMBUATAN_SURAT' || p.status === 'DISETUJUI');
       let matchStatus = true;
       if (letterStatusFilter === 'PENDING') {
-        matchStatus = !hasSurat; // Hanya yang belum punya surat
+        matchStatus = isPending; // Hanya yang belum punya surat atau sedang dalam antrean pembuatan surat
       } else if (letterStatusFilter === 'PUBLISHED') {
-        matchStatus = hasSurat;  // Hanya yang sudah punya surat
+        matchStatus = !isPending;  // Hanya yang sudah punya surat
       }
 
       const matchInd = g.industryName?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1024,7 +1024,8 @@ export default function PermohonanSuratKelompokPage() {
       <div className="space-y-6">
         {filteredGroups.length > 0 ? (
           filteredGroups.map((group) => {
-            const hasSurat = Boolean(group.suratTugasUrl);
+            const isPendingGroup = !group.suratTugasUrl || group.placements?.some((p: any) => p.status === 'PEMBUATAN_SURAT' || p.status === 'DISETUJUI');
+            const hasSurat = !isPendingGroup;
             const studentList = group.students || group.placements || [];
             const groupDeptName = group.departmentName || studentList[0]?.department || 'Teknik Kejuruan';
 

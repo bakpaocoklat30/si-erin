@@ -2178,7 +2178,8 @@ export default function PokjaKelompokPrakerinPage() {
         {filteredGroups.length > 0 ? (
           filteredGroups.map((group) => {
             const groupKey = group.groupKey || group.groupId || group.industryId || '';
-            const hasSurat = Boolean(group.suratTugasUrl || group.letterNumber);
+            const isPendingGroup = !group.suratTugasUrl || group.placements?.some((p: any) => p.status === 'PEMBUATAN_SURAT' || p.status === 'DISETUJUI');
+            const hasSurat = Boolean(group.suratTugasUrl || group.letterNumber) && !isPendingGroup;
             const isTelahDitarik = Boolean(group.suratPenarikanUrl) || Boolean(group.placements?.some((p: any) => Boolean(p.suratPenarikanUrl) || ['TELAH_DITARIK', 'MENUNGGU_PENARIKAN', 'PENARIKAN_DITERBITKAN'].includes(p.status)));
             const studentList = group.students || group.placements || [];
             const groupDeptName = group.departmentName || pokjaDepartment;

@@ -685,7 +685,20 @@ export async function POST(request: Request) {
       startDate: finalStartDate,
       endDate: finalEndDate,
       notes: notes || '',
-      appliedAt: new Date()
+      appliedAt: new Date(),
+      stage: 1,
+      // 🌟 RESET DOKUMEN & IDENTIFIER DARI PENGAJUAN SEBELUMNYA JIKA PERNAH DITOLAK
+      letterNumber: null,
+      suratTugasUrl: null,
+      letterUploadedBy: null,
+      letterUploadedAt: null,
+      suratBalasanUrl: null,
+      suratBalasanStatus: 'BELUM_UPLOAD',
+      suratPengantaranUrl: null,
+      nomorPengantaran: null,
+      suratPenarikanUrl: null,
+      nomorPenarikan: null,
+      groupId: null
     };
 
     if (existingPlacement) {

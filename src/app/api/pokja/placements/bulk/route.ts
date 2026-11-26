@@ -206,6 +206,18 @@ export async function POST(request: Request) {
         };
         if (targetStatus === 'PEMBUATAN_SURAT') {
           updateData.stage = 3;
+          // 🌟 BERSIHKAN ARTIFAK PERSURATAN & BALASAN DARI PENGAJUAN SEBELUMNYA JIKA PERNAH DITOLAK
+          updateData.letterNumber = null;
+          updateData.suratTugasUrl = null;
+          updateData.letterUploadedBy = null;
+          updateData.letterUploadedAt = null;
+          updateData.suratBalasanUrl = null;
+          updateData.suratBalasanStatus = 'BELUM_UPLOAD';
+          updateData.suratPengantaranUrl = null;
+          updateData.nomorPengantaran = null;
+          updateData.suratPenarikanUrl = null;
+          updateData.nomorPenarikan = null;
+          updateData.groupId = null;
           if (startDate && endDate) {
             updateData.startDate = new Date(startDate);
             updateData.endDate = new Date(endDate);
