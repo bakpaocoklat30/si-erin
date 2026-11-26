@@ -5,7 +5,7 @@ import { PDFDocument } from 'pdf-lib';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from '@/app/theme-provider';
-import { Truck, Printer, Search, Loader2, Users, Building2, Calendar, FileText, Upload, SendHorizontal, X, Eye , UploadCloud, FileCheck2, Trash2, Hash, Layers } from 'lucide-react';
+import { Truck, Printer, Search, Loader2, Users, Building2, Calendar, FileText, Upload, SendHorizontal, X, Eye , UploadCloud, FileCheck2, Trash2, Hash, Layers, CheckCircle2 } from 'lucide-react';
 
 export default function SuratPenerjunanPage() {
   const { data: session } = useSession();
@@ -33,7 +33,8 @@ export default function SuratPenerjunanPage() {
   const [showBulkUploadModal, setShowBulkUploadModal] = useState<boolean>(false);
   const [bulkPdfBytes, setBulkPdfBytes] = useState<Uint8Array | null>(null);
   const [pdfPageCount, setPdfPageCount] = useState<number>(0);
-  const [pageMapping, setPageMapping] = useState<Record<string, number>>({});
+  const [pageToGroup, setPageToGroup] = useState<Record<number, string>>({});
+  const [activePreviewPage, setActivePreviewPage] = useState<number>(1);
   const [showPdfPreview, setShowPdfPreview] = useState<boolean>(true);
   const [bulkPdfPreviewUrl, setBulkPdfPreviewUrl] = useState<string>('');
   
@@ -49,25 +50,30 @@ export default function SuratPenerjunanPage() {
       const buffer = await file.arrayBuffer();
       const bytes = new Uint8Array(buffer);
       setBulkPdfBytes(bytes);
+
+      const selectedGroups = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
       
       if (file.type === 'application/pdf') {
         const pdfDoc = await PDFDocument.load(bytes);
         const count = pdfDoc.getPageCount();
         setPdfPageCount(count);
 
-        const newMapping: Record<string, number> = {};
-        const selectedGroups = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
-        selectedGroups.forEach((g, index) => {
-           newMapping[g.groupId || (g.industryId + g.departmentName)] = Math.min(index + 1, count);
-        });
-        setPageMapping(newMapping);
+        const newMapping: Record<number, string> = {};
+        for (let p = 1; p <= count; p++) {
+          if (p <= selectedGroups.length) {
+            newMapping[p] = selectedGroups[p - 1].groupId || (selectedGroups[p - 1].industryId + selectedGroups[p - 1].departmentName);
+          } else {
+            newMapping[p] = '';
+          }
+        }
+        setPageToGroup(newMapping);
+        setActivePreviewPage(1);
       } else {
         setPdfPageCount(1);
-        const newMapping: Record<string, number> = {};
-        filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName))).forEach(g => {
-           newMapping[g.groupId || (g.industryId + g.departmentName)] = 1;
-        });
-        setPageMapping(newMapping);
+        const newMapping: Record<number, string> = {};
+        newMapping[1] = selectedGroups[0] ? (selectedGroups[0].groupId || (selectedGroups[0].industryId + selectedGroups[0].departmentName)) : '';
+        setPageToGroup(newMapping);
+        setActivePreviewPage(1);
       }
     } catch (err) {
       console.error(err);
@@ -81,36 +87,87 @@ export default function SuratPenerjunanPage() {
       setErrorMsg('Silakan pilih berkas Surat (PDF)!');
       return;
     }
+
+    const selectedGroups = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
+
+    // Petakan halaman untuk setiap kelompok: groupPages[groupKey] = [pageNumber, ...]
+    const groupPages: Record<string, number[]> = {};
+    selectedGroups.forEach(g => {
+      const key = g.groupId || (g.industryId + g.departmentName);
+      groupPages[key] = [];
+    });
+
+    if (pdfPageCount > 1) {
+      for (let p = 1; p <= pdfPageCount; p++) {
+        const targetKey = pageToGroup[p];
+        if (targetKey && groupPages[targetKey] !== undefined) {
+          groupPages[targetKey].push(p);
+        }
+      }
+    } else {
+      const singleKey = pageToGroup[1];
+      if (singleKey && groupPages[singleKey] !== undefined) {
+        groupPages[singleKey].push(1);
+      } else {
+        selectedGroups.forEach(g => {
+          const k = g.groupId || (g.industryId + g.departmentName);
+          groupPages[k].push(1);
+        });
+      }
+    }
+
+    const mappedGroups = selectedGroups.filter(g => {
+      const key = g.groupId || (g.industryId + g.departmentName);
+      return groupPages[key] && groupPages[key].length > 0;
+    });
+
+    if (mappedGroups.length === 0) {
+      setErrorMsg('Belum ada kelompok / PT yang dipilih pada halaman berkas!');
+      return;
+    }
+
+    const unmappedGroups = selectedGroups.filter(g => {
+      const key = g.groupId || (g.industryId + g.departmentName);
+      return !groupPages[key] || groupPages[key].length === 0;
+    });
+
+    if (unmappedGroups.length > 0) {
+      const names = unmappedGroups.map(g => g.industryName).slice(0, 3).join(', ');
+      const more = unmappedGroups.length > 3 ? ` dan ${unmappedGroups.length - 3} lainnya` : '';
+      if (!confirm(`Ada ${unmappedGroups.length} kelompok yang belum dipilih pada halaman mana pun (${names}${more}).\n\nTetap lanjutkan upload untuk ${mappedGroups.length} kelompok yang sudah dipetakan?`)) {
+        return;
+      }
+    }
+
     setSubmitting(true);
     setErrorMsg('');
     setSuccessMsg('');
 
     try {
-      const selectedGroups = filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName)));
-      
       let sourcePdf: PDFDocument | null = null;
       if (pdfPageCount > 1) {
          sourcePdf = await PDFDocument.load(bulkPdfBytes);
       }
 
       let successCount = 0;
+      const toBase64 = (arr: Uint8Array) => {
+        let binary = '';
+        for (let i = 0; i < arr.byteLength; i++) {
+          binary += String.fromCharCode(arr[i]);
+        }
+        return window.btoa(binary);
+      };
 
-      for (const group of selectedGroups) {
-        const mappedPage = pageMapping[group.groupId || (group.industryId + group.departmentName)] || 1;
-        
+      for (const group of mappedGroups) {
+        const key = group.groupId || (group.industryId + group.departmentName);
+        const pages = groupPages[key] || [1];
+
         let finalBase64 = '';
-        const toBase64 = (arr: Uint8Array) => {
-          let binary = '';
-          for (let i = 0; i < arr.byteLength; i++) {
-            binary += String.fromCharCode(arr[i]);
-          }
-          return window.btoa(binary);
-        };
-
         if (sourcePdf && pdfPageCount > 1) {
            const newPdf = await PDFDocument.create();
-           const [copiedPage] = await newPdf.copyPages(sourcePdf, [mappedPage - 1]);
-           newPdf.addPage(copiedPage);
+           const pageIndices = pages.map(p => p - 1);
+           const copiedPages = await newPdf.copyPages(sourcePdf, pageIndices);
+           copiedPages.forEach(cp => newPdf.addPage(cp));
            const newBytes = await newPdf.save();
            finalBase64 = 'data:application/pdf;base64,' + toBase64(newBytes);
         } else {
@@ -137,7 +194,7 @@ export default function SuratPenerjunanPage() {
       }
 
       if (successCount > 0) {
-        setSuccessMsg('Berhasil memetakan dan mengunggah untuk ' + successCount + ' kelompok!');
+        setSuccessMsg(`Berhasil memetakan dan mengunggah untuk ${successCount} kelompok!`);
         setTimeout(() => {
           setShowBulkUploadModal(false);
           setSelectedGroupIds([]);
@@ -146,15 +203,16 @@ export default function SuratPenerjunanPage() {
           if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
           setBulkPdfPreviewUrl('');
           setPdfPageCount(0);
-          setPageMapping({});
+          setPageToGroup({});
+          setActivePreviewPage(1);
           fetchAcceptedGroups();
         }, 2000);
       } else {
         setErrorMsg('Gagal mengunggah untuk semua kelompok.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setErrorMsg('Terjadi kesalahan saat upload massal.');
+      setErrorMsg('Terjadi kesalahan saat upload massal: ' + (err.message || ''));
     } finally {
       setSubmitting(false);
     }
@@ -875,41 +933,124 @@ export default function SuratPenerjunanPage() {
                     </div>
                   </div>
 
-                  {/* Mapping Pages */}
-                  {pdfPageCount > 1 && (
-                    <div className="space-y-4">
-                      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 p-4 rounded-xl">
-                        <p className="text-xs text-amber-800 dark:text-amber-400 font-bold mb-2">
-                          PDF ini memiliki {pdfPageCount} halaman. Silakan tentukan halaman mana untuk kelompok mana.
-                        </p>
-                      </div>
-                      
-                      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-200 dark:divide-slate-800">
-                        {filteredGroups.filter(g => selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName))).map((g, i) => (
-                          <div key={g.groupId || (g.industryId + g.departmentName)} className="flex items-center justify-between p-4">
-                            <div className="flex-1 min-w-0 pr-4">
-                              <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{g.industryName}</p>
-                              <p className="text-[10px] font-medium text-slate-500 truncate">{g.departmentName} - {g.students.length} Siswa</p>
-                            </div>
-                            <div className="flex items-center space-x-3 bg-white dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                              <span className="text-xs font-bold text-slate-500">Hal.</span>
-                              <input 
-                                type="number" 
-                                min={1} 
-                                max={pdfPageCount}
-                                value={pageMapping[g.groupId || (g.industryId + g.departmentName)] || 1}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value) || 1;
-                                  setPageMapping(prev => ({...prev, [g.groupId || (g.industryId + g.departmentName)]: val}));
-                                }}
-                                className="w-16 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-0 p-0 text-indigo-600 dark:text-indigo-400"
-                              />
-                            </div>
+                  {/* Mapping Pages: Halaman Fix, Nama PT Dropdown */}
+                  {pdfPageCount > 0 && (() => {
+                    const selectedGroups = filteredGroups.filter(g =>
+                      selectedGroupIds.includes(g.groupId || (g.industryId + g.departmentName))
+                    );
+                    const mappedKeys = new Set(Object.values(pageToGroup).filter(Boolean));
+                    const mappedCount = selectedGroups.filter(g =>
+                      mappedKeys.has(g.groupId || (g.industryId + g.departmentName))
+                    ).length;
+                    const unmappedCount = selectedGroups.length - mappedCount;
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Info & Status Pemetaan */}
+                        <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs text-indigo-950 dark:text-indigo-200 font-bold flex items-center gap-1.5">
+                              <span>📄</span>
+                              <span>Total {pdfPageCount} Halaman PDF ({selectedGroups.length} Kelompok Terpilih)</span>
+                            </p>
+                            <p className="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">
+                              Daftar halaman diurutkan tetap (fix). Pilih nama PT / Industri yang sesuai pada dropdown masing-masing halaman.
+                            </p>
                           </div>
-                        ))}
+                          <div className="shrink-0">
+                            {unmappedCount === 0 ? (
+                              <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Semua Terpetakan ({mappedCount}/{selectedGroups.length})</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                <span>⚠️ {unmappedCount} PT Belum Dipilih</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* List Baris Halaman Fix dengan Dropdown PT */}
+                        <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                          {Array.from({ length: pdfPageCount }, (_, i) => i + 1).map((pageNum) => {
+                            const currentKey = pageToGroup[pageNum] || '';
+                            const isActive = activePreviewPage === pageNum;
+
+                            return (
+                              <div
+                                key={pageNum}
+                                onClick={() => setActivePreviewPage(pageNum)}
+                                className={`p-3 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer ${
+                                  isActive
+                                    ? 'bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-400 dark:border-indigo-600 ring-2 ring-indigo-500/20 shadow-sm'
+                                    : 'bg-slate-50/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2.5 shrink-0">
+                                  <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-xl font-black text-xs border ${
+                                    isActive
+                                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                  }`}>
+                                    Hal. {pageNum}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">Kelompok:</span>
+                                </div>
+
+                                <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                                  <select
+                                    value={currentKey}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setPageToGroup(prev => ({ ...prev, [pageNum]: val }));
+                                      setActivePreviewPage(pageNum);
+                                    }}
+                                    className={`w-full text-xs font-bold py-2 px-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm ${
+                                      currentKey
+                                        ? 'bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100'
+                                        : 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-400'
+                                    }`}
+                                  >
+                                    <option value="">-- [Lewati Halaman Ini / Bukan Surat PT] --</option>
+                                    {selectedGroups.map((g, idx) => {
+                                      const key = g.groupId || (g.industryId + g.departmentName);
+                                      const isUsedOther = Object.entries(pageToGroup).some(
+                                        ([p, k]) => parseInt(p) !== pageNum && k === key
+                                      );
+                                      return (
+                                        <option key={key} value={key}>
+                                          {idx + 1}. {g.industryName} ({g.departmentName} - {g.students?.length || 0} Siswa)
+                                          {isUsedOther ? ' ⚠️ (Juga dipilih di hal. lain)' : ''}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActivePreviewPage(pageNum);
+                                  }}
+                                  className={`shrink-0 p-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 border transition-all ${
+                                    isActive
+                                      ? 'bg-indigo-600 text-white border-indigo-600'
+                                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-indigo-600'
+                                  }`}
+                                  title={`Lihat Halaman ${pageNum} di PDF`}
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span className="hidden md:inline">Lihat</span>
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {errorMsg && <div className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-600 border border-rose-200 dark:border-rose-900/50 text-sm font-bold rounded-xl">{errorMsg}</div>}
                   {successMsg && <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border border-emerald-200 dark:border-emerald-900/50 text-sm font-bold rounded-xl">{successMsg}</div>}
@@ -943,16 +1084,38 @@ export default function SuratPenerjunanPage() {
                     <div className="px-3.5 py-2.5 bg-slate-200/70 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
                       <div className="flex items-center gap-1.5">
                         <FileText className="w-4 h-4 text-indigo-500" />
-                        <span>Pratinjau PDF Asli</span>
+                        <span>Pratinjau PDF Asli {pdfPageCount > 1 ? `(Halaman ${activePreviewPage} / ${pdfPageCount})` : ''}</span>
                       </div>
+                      {pdfPageCount > 1 && (
+                        <div className="flex items-center space-x-1 text-[11px]">
+                          <button
+                            type="button"
+                            disabled={activePreviewPage <= 1}
+                            onClick={() => setActivePreviewPage(prev => Math.max(1, prev - 1))}
+                            className="px-2 py-0.5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 disabled:opacity-40 cursor-pointer"
+                          >
+                            ◀
+                          </button>
+                          <span className="px-1">{activePreviewPage} / {pdfPageCount}</span>
+                          <button
+                            type="button"
+                            disabled={activePreviewPage >= pdfPageCount}
+                            onClick={() => setActivePreviewPage(prev => Math.min(pdfPageCount, prev + 1))}
+                            className="px-2 py-0.5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 disabled:opacity-40 cursor-pointer"
+                          >
+                            ▶
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <object
-                      data={`${bulkPdfPreviewUrl}#toolbar=1&navpanes=1&view=FitH`}
+                      key={`preview-page-${activePreviewPage}`}
+                      data={`${bulkPdfPreviewUrl}#page=${activePreviewPage}&toolbar=1&navpanes=1&view=FitH`}
                       type="application/pdf"
                       className="w-full flex-1 border-0"
                     >
                       <iframe
-                        src={bulkPdfPreviewUrl}
+                        src={`${bulkPdfPreviewUrl}#page=${activePreviewPage}`}
                         title="PDF Preview"
                         className="w-full h-full border-0"
                       />
@@ -1037,7 +1200,8 @@ export default function SuratPenerjunanPage() {
                   if (bulkPdfPreviewUrl) URL.revokeObjectURL(bulkPdfPreviewUrl);
                   setBulkPdfPreviewUrl('');
                   setPdfPageCount(0);
-                  setPageMapping({});
+                  setPageToGroup({});
+                  setActivePreviewPage(1);
                   setShowBulkUploadModal(true);
                 }}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/20 cursor-pointer"
