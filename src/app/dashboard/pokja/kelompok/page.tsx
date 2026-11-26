@@ -2617,7 +2617,6 @@ export default function PokjaKelompokPrakerinPage() {
                                 <span>{hasSurat ? 'Ganti' : 'Upload'}</span>
                               </button>
                             </div>
-                          )}
                         </div>
 
                         {/* 2. Surat Balasan Industri */}
