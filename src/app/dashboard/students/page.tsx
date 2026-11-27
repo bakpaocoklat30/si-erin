@@ -37,6 +37,7 @@ import {
   X, 
   UserCheck, 
   Award, 
+  Camera,
   BookOpen,
   Sparkles,
   Timer,
@@ -646,54 +647,109 @@ export default function StudentDashboardPage() {
         </div>
       )}
 
-      {/* 🏆 KARTU UPLOAD SERTIFIKAT & NILAI AKHIR INDUSTRI (MUNCUL SETELAH SURAT PENARIKAN TERBIT) */}
+      {/* 🏆 KARTU UPLOAD SERTIFIKAT & NILAI AKHIR INDUSTRI / STATUS SELESAI PRAKERIN */}
       {activePlacement && (
         (activePlacement.suratPenarikanUrl && String(activePlacement.suratPenarikanUrl).trim() !== '') ||
         ['PENARIKAN_DITERBITKAN', 'TELAH_DITARIK', 'COMPLETED', 'SELESAI_PKL', 'MENUNGGU_PENARIKAN'].includes(String(activePlacement.status || '').toUpperCase())
-      ) && (
+      ) && (() => {
+        const isCertCompleted = Boolean(
+          (activePlacement.sertifikatPdfUrl || (activePlacement.sertifikatDepanUrl && activePlacement.sertifikatBelakangUrl)) &&
+          activePlacement.nilaiAkhirIndustri !== null &&
+          activePlacement.nilaiAkhirIndustri !== undefined
+        );
+        const periodLabel = activePeriod?.name || 'Prakerin';
+        const industryLabel = activePlacement?.industry?.name || 'Industri Mitra';
+
+        return (
+          <div className={`p-6 sm:p-8 rounded-3xl border shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all ${
+            isCertCompleted
+              ? theme === 'dark'
+                ? 'bg-gradient-to-br from-emerald-950/50 via-slate-900 to-slate-900 border-emerald-500/40'
+                : 'bg-gradient-to-br from-emerald-50 via-white to-white border-emerald-300'
+              : theme === 'dark'
+              ? 'bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border-amber-500/30'
+              : 'bg-gradient-to-br from-amber-50 via-white to-white border-amber-300/80'
+          }`}>
+            <div className="flex items-start space-x-4">
+              <div className={`p-4 rounded-2xl border shrink-0 ${
+                isCertCompleted
+                  ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
+                  : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+              }`}>
+                <Award className="w-7 h-7" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`text-xs font-black uppercase tracking-wider ${
+                    isCertCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                  }`}>
+                    {isCertCompleted ? 'Prakerin Selesai' : 'Surat Penarikan Telah Terbit'}
+                  </span>
+                  {isCertCompleted ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                      Sertifikat Tersimpan • Nilai Akhir: {activePlacement.nilaiAkhirIndustri}
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                      Wajib Diunggah
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg font-black">
+                  {isCertCompleted
+                    ? `Selamat, anda telah menyelesaikan proses prakerin periode ${periodLabel} pada ${industryLabel}.`
+                    : 'Upload Sertifikat & Nilai Akhir Industri'}
+                </h3>
+                <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {isCertCompleted
+                    ? 'Terima kasih telah mengunggah sertifikat PKL dan nilai akhir industri Anda.'
+                    : 'Unggah foto sertifikat depan & belakang (atau file PDF) sekaligus nilai akhir PKL dari industri mitra.'}
+                </p>
+              </div>
+            </div>
+
+            <Link
+              href="/dashboard/students/sertifikat"
+              className={`px-5 py-3 rounded-2xl text-xs font-black text-white shadow-lg flex items-center space-x-2 shrink-0 transition-all ${
+                isCertCompleted
+                  ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30'
+                  : 'bg-amber-500 hover:bg-amber-400 shadow-amber-500/30'
+              }`}
+            >
+              <Award className="w-4 h-4" />
+              <span>{isCertCompleted ? 'Lihat / Perbarui Sertifikat' : 'Upload Sertifikat Sekarang'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        );
+      })()}
+
+      {/* 📸 KARTU UPLOAD FOTO KEGIATAN & DOKUMENTASI PKL */}
+      {activePlacement && (
         <div className={`p-6 sm:p-8 rounded-3xl border shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all ${
-          theme === 'dark'
-            ? 'bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border-amber-500/30'
-            : 'bg-gradient-to-br from-amber-50 via-white to-white border-amber-300/80'
+          theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
           <div className="flex items-start space-x-4">
-            <div className="p-4 rounded-2xl bg-amber-500/15 text-amber-500 border border-amber-500/30 shrink-0">
-              <Award className="w-7 h-7" />
+            <div className="p-4 rounded-2xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 shrink-0">
+              <Camera className="w-7 h-7" />
             </div>
             <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                  Surat Penarikan Telah Terbit
-                </span>
-                {(activePlacement.sertifikatPdfUrl || (activePlacement.sertifikatDepanUrl && activePlacement.sertifikatBelakangUrl)) &&
-                 activePlacement.nilaiAkhirIndustri !== null &&
-                 activePlacement.nilaiAkhirIndustri !== undefined ? (
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                    Sertifikat Tersimpan • Nilai: {activePlacement.nilaiAkhirIndustri}
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
-                    Wajib Diunggah
-                  </span>
-                )}
-              </div>
-              <h3 className="text-lg font-black">Upload Sertifikat &amp; Nilai Akhir Industri</h3>
+              <span className="text-xs font-black uppercase tracking-wider text-indigo-500">
+                Dokumentasi PKL Siswa
+              </span>
+              <h3 className="text-lg font-black">Upload Foto Kegiatan &amp; Dokumentasi</h3>
               <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                Unggah foto sertifikat depan &amp; belakang (atau file PDF) sekaligus nilai akhir PKL dari industri mitra.
+                Unggah minimal <strong>4 foto kegiatan PKL</strong> beserta foto penerjunan, monitoring, dan penarikan.
               </p>
             </div>
           </div>
 
           <Link
-            href="/dashboard/students/sertifikat"
-            className="px-5 py-3 rounded-2xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/30 flex items-center space-x-2 shrink-0 transition-all"
+            href="/dashboard/students/foto-kegiatan"
+            className="px-5 py-3 rounded-2xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center space-x-2 shrink-0 transition-all"
           >
-            <Award className="w-4 h-4" />
-            <span>
-              {(activePlacement.sertifikatPdfUrl || (activePlacement.sertifikatDepanUrl && activePlacement.sertifikatBelakangUrl))
-                ? 'Lihat / Perbarui Sertifikat'
-                : 'Upload Sertifikat Sekarang'}
-            </span>
+            <Camera className="w-4 h-4" />
+            <span>Kelola Foto Kegiatan</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

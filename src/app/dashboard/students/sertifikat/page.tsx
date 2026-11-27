@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Award,
@@ -18,15 +19,19 @@ import {
   Building2,
   Sparkles,
   ExternalLink,
+  PartyPopper,
 } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 
 export default function StudentSertifikatPage() {
   const { status } = useSession();
   const { theme } = useTheme();
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(5);
   const [hasSuratPenarikan, setHasSuratPenarikan] = useState(false);
   const [student, setStudent] = useState<any>(null);
   const [placement, setPlacement] = useState<any>(null);
@@ -81,6 +86,18 @@ export default function StudentSertifikatPage() {
       fetchData();
     }
   }, [status]);
+
+  useEffect(() => {
+    if (!showCelebration) return;
+    if (redirectCountdown <= 0) {
+      router.push('/dashboard/students');
+      return;
+    }
+    const timer = setTimeout(() => {
+      setRedirectCountdown((c) => c - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [showCelebration, redirectCountdown, router]);
 
   const handleFilePick = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -152,6 +169,8 @@ export default function StudentSertifikatPage() {
         setDepanLocalPreview(null);
         setBelakangLocalPreview(null);
         setSuccessMsg('Sertifikat PKL dan nilai akhir industri berhasil disimpan!');
+        setRedirectCountdown(5);
+        setShowCelebration(true);
       } else {
         setErrorMsg(json.error || 'Gagal menyimpan sertifikat.');
       }
@@ -553,6 +572,102 @@ export default function StudentSertifikatPage() {
             </div>
           </form>
         </>
+      )}
+
+      {/* 🎉 POP-UP SELAMAT + BALON & PESTA SETELAH UPLOAD SERTIFIKAT */}
+      {showCelebration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-hidden">
+          <style>{`
+            @keyframes floatBalloon {
+              0% { transform: translateY(110vh) rotate(-6deg); opacity: 0; }
+              15% { opacity: 1; }
+              50% { transform: translateY(35vh) rotate(6deg); }
+              100% { transform: translateY(-25vh) rotate(-4deg); opacity: 0; }
+            }
+            @keyframes confettiFall {
+              0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+              100% { transform: translateY(105vh) rotate(720deg); opacity: 0.2; }
+            }
+            .balloon-float {
+              animation: floatBalloon 4.8s ease-in-out infinite;
+            }
+            .confetti-fall {
+              animation: confettiFall 3.6s linear infinite;
+            }
+          `}</style>
+
+          {/* Dekorasi Balon & Confetti */}
+          <div className="pointer-events-none fixed inset-0 overflow-hidden">
+            {[
+              { left: '6%', delay: '0s', emoji: '🎈', size: 'text-5xl' },
+              { left: '16%', delay: '0.7s', emoji: '🎉', size: 'text-4xl' },
+              { left: '28%', delay: '1.2s', emoji: '🎈', size: 'text-6xl' },
+              { left: '44%', delay: '0.4s', emoji: '🎊', size: 'text-4xl' },
+              { left: '58%', delay: '1.5s', emoji: '🎈', size: 'text-5xl' },
+              { left: '72%', delay: '0.2s', emoji: '✨', size: 'text-4xl' },
+              { left: '84%', delay: '0.9s', emoji: '🎈', size: 'text-6xl' },
+              { left: '92%', delay: '1.8s', emoji: '🥳', size: 'text-4xl' },
+            ].map((b, i) => (
+              <div
+                key={i}
+                style={{ left: b.left, animationDelay: b.delay }}
+                className={`absolute bottom-0 ${b.size} balloon-float select-none`}
+              >
+                {b.emoji}
+              </div>
+            ))}
+            {[
+              { left: '10%', delay: '0s', color: 'bg-amber-400' },
+              { left: '22%', delay: '0.5s', color: 'bg-rose-500' },
+              { left: '35%', delay: '1.1s', color: 'bg-emerald-400' },
+              { left: '48%', delay: '0.2s', color: 'bg-indigo-500' },
+              { left: '63%', delay: '0.8s', color: 'bg-sky-400' },
+              { left: '77%', delay: '0.3s', color: 'bg-pink-500' },
+              { left: '89%', delay: '1.3s', color: 'bg-yellow-400' },
+            ].map((c, i) => (
+              <div
+                key={`c-${i}`}
+                style={{ left: c.left, animationDelay: c.delay }}
+                className={`absolute top-0 w-3 h-3 rounded-sm ${c.color} confetti-fall`}
+              />
+            ))}
+          </div>
+
+          <div
+            className={`relative z-10 w-full max-w-md rounded-3xl p-8 text-center border shadow-2xl space-y-5 animate-in zoom-in-95 duration-300 ${
+              theme === 'dark'
+                ? 'bg-slate-900 border-amber-500/40 text-white'
+                : 'bg-white border-amber-300 text-slate-900'
+            }`}
+          >
+            <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-xl shadow-amber-500/30 animate-bounce">
+              <PartyPopper className="w-10 h-10" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Prakerin Selesai!</span>
+              </div>
+              <h2 className="text-2xl font-black">Selamat! 🎉</h2>
+              <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
+                Sertifikat PKL dan nilai akhir Anda di{' '}
+                <strong className="text-indigo-500">{placement?.industry?.name || 'Industri Mitra'}</strong>{' '}
+                berhasil disimpan. Anda telah menyelesaikan seluruh proses Prakerin!
+              </p>
+            </div>
+
+            <div className="pt-2 space-y-2">
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard/students')}
+                className="w-full py-3 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+              >
+                Kembali ke Beranda ({redirectCountdown}s)
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal Preview */}

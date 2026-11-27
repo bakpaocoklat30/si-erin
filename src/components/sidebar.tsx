@@ -41,6 +41,7 @@ import {
   Truck,
   Search,
   Award,
+  Camera,
   ShieldCheck,
   Settings,
   GraduationCap,
@@ -87,6 +88,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
   const userClassName = (session?.user as any)?.className;
   
   const [isStudentAccepted, setIsStudentAccepted] = useState(false);
+  const [hasActivePlacement, setHasActivePlacement] = useState(false);
   const [hasSuratPenarikan, setHasSuratPenarikan] = useState(false);
 
   useEffect(() => {
@@ -103,13 +105,14 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
           .catch(err => console.error('Error fetching class permission:', err));
       }
       
-      // Cek status penempatan untuk memunculkan menu Lengkapi Data Industri & Upload Sertifikat
+      // Cek status penempatan untuk memunculkan menu Lengkapi Data Industri, Upload Foto, & Upload Sertifikat
       fetch('/api/students/apply')
         .then(res => res.json())
         .then(resData => {
           if (resData && resData.success && resData.data && resData.data.activePlacement) {
             const pl = resData.data.activePlacement;
             const st = String(pl.status || '').toUpperCase().trim();
+            setHasActivePlacement(true);
             if (st === 'DISETUJUI_INDUSTRI' || st === 'PEMBUATAN_SURAT' || st === 'SURAT_DITERBITKAN') {
               setIsStudentAccepted(true);
             }
@@ -189,6 +192,9 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed = false, setIsC
         ] : []),
         { name: 'Teman Satu Kelompok', href: '/dashboard/students/kelompok', icon: Users },
         { name: 'Dokumen Persuratan', href: '/dashboard/students/surat-izin', icon: FileText },
+        ...(hasActivePlacement ? [
+          { name: 'Upload Foto Kegiatan', href: '/dashboard/students/foto-kegiatan', icon: Camera }
+        ] : []),
         ...(hasSuratPenarikan ? [
           { name: 'Upload Sertifikat & Nilai', href: '/dashboard/students/sertifikat', icon: Award }
         ] : []),

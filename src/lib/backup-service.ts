@@ -706,7 +706,7 @@ export interface BackupSyncSummary {
     placementsWithSertifikat?: number;
   };
   details: Array<{
-    type: 'PENGAJUAN' | 'JAWABAN' | 'CV' | 'BPJS' | 'PENUGASAN_TUGAS' | 'PENUGASAN_SPPD' | 'PENUGASAN_HASIL' | 'PENUGASAN_DOKUMENTASI' | 'SURAT_IZIN' | 'SERTIFIKAT';
+    type: 'PENGAJUAN' | 'JAWABAN' | 'CV' | 'BPJS' | 'PENUGASAN_TUGAS' | 'PENUGASAN_SPPD' | 'PENUGASAN_HASIL' | 'PENUGASAN_DOKUMENTASI' | 'SURAT_IZIN' | 'SERTIFIKAT' | 'FOTO_KEGIATAN_SISWA';
     path: string;
     fileName: string;
     action: 'created' | 'updated' | 'failed';
@@ -786,6 +786,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
     SchoolEvent: new Set(['id', 'name', 'startDate', 'endDate', 'location', 'letterIntro', 'createdAt', 'updatedAt']),
     EventParticipant: new Set(['id', 'eventId', 'studentId', 'startDate', 'endDate', 'location', 'letterUrl', 'createdAt']),
     PlacementGroup: new Set(['id', 'industryId', 'periodId', 'startDate', 'endDate', 'createdAt', 'updatedAt']),
+    StudentActivityPhoto: new Set(['id', 'placementId', 'category', 'photoUrl', 'caption', 'createdAt', 'updatedAt']),
   };
 
   // Kueri murni tabel tanpa include relasi agar tidak menyisipkan kolom objek/array phantom
@@ -801,6 +802,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   const placementGroups = prisma.placementGroup ? await prisma.placementGroup.findMany() : [];
   const students = prisma.student ? await prisma.student.findMany() : [];
   const placements = prisma.internshipPlacement ? await prisma.internshipPlacement.findMany() : [];
+  const studentActivityPhotos = prisma.studentActivityPhoto ? await prisma.studentActivityPhoto.findMany() : [];
   const teacherHours = prisma.teacherHourAllocation ? await prisma.teacherHourAllocation.findMany() : [];
   const monitoringAssignments = prisma.monitoringAssignment ? await prisma.monitoringAssignment.findMany() : [];
   const notifications = prisma.notification ? await prisma.notification.findMany() : [];
@@ -865,6 +867,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   sqlDumpContent += generateInsert('PlacementGroup', placementGroups, 'id');
   sqlDumpContent += generateInsert('Student', students, 'id');
   sqlDumpContent += generateInsert('InternshipPlacement', placements, 'id');
+  sqlDumpContent += generateInsert('StudentActivityPhoto', studentActivityPhotos, 'id');
   sqlDumpContent += generateInsert('TeacherHourAllocation', teacherHours, 'id');
   sqlDumpContent += generateInsert('MonitoringAssignment', monitoringAssignments, 'id');
   sqlDumpContent += generateInsert('Notification', notifications, 'id');
@@ -1300,6 +1303,62 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
         });
         console.error(`[BACKUP SERVICE] Gagal mengunggah Sertifikat siswa ${student.name}:`, err?.message || err);
       }
+    }
+  }
+
+  // B3. PROSES FOTO KEGIATAN & DOKUMENTASI SISWA (KEGIATAN, PENERJUNAN, MONITORING, PENARIKAN)
+  const detailedStudentPhotos = prisma.studentActivityPhoto
+    ? await prisma.studentActivityPhoto.findMany({
+        include: {
+          placement: {
+            include: {
+              student: true,
+            },
+          },
+        },
+      })
+    : [];
+
+  for (let idx = 0; idx < detailedStudentPhotos.length; idx++) {
+    const sp = detailedStudentPhotos[idx];
+    const student = sp.placement?.student;
+    if (!student || !sp.photoUrl) continue;
+
+    const { periodName, academicYearName, departmentName } = resolvePeriodAndYear(student.className, student.department);
+    const safeClassName = sanitizeFolderName(student.className || 'Kelas Umum');
+    const safeStudentName = sanitizeStudentFileName(student.name);
+    const categoryLabel = sanitizeFolderName(sp.category || 'KEGIATAN');
+    const fileName = `foto_${safeStudentName}_${categoryLabel.toLowerCase()}_${sp.id.slice(-6)}.jpg`;
+
+    try {
+      const resolved = await resolveRawImageBuffer(sp.photoUrl);
+      if (resolved && resolved.buffer && resolved.buffer.length > 0) {
+        const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
+        const classFolderId = await getOrCreateFolder(drive, safeClassName, periodFolderId, folderCache);
+        const fotoRootId = await getOrCreateFolder(drive, 'Foto Kegiatan', classFolderId, folderCache);
+        const catFolderId = await getOrCreateFolder(drive, categoryLabel, fotoRootId, folderCache);
+
+        const uploadRes = await uploadOrUpdateFileInDrive(drive, fileName, resolved.mimeType || 'image/jpeg', resolved.buffer, catFolderId);
+        if (uploadRes.action === 'created') totalSynced++;
+        else totalUpdated++;
+
+        syncDetails.push({
+          type: 'FOTO_KEGIATAN_SISWA',
+          path: `${academicYearName}/${departmentName}/${periodName}/${safeClassName}/Foto Kegiatan/${categoryLabel}`,
+          fileName,
+          action: uploadRes.action,
+        });
+      }
+    } catch (err: any) {
+      totalFailed++;
+      syncDetails.push({
+        type: 'FOTO_KEGIATAN_SISWA',
+        path: `${academicYearName}/${departmentName}/${periodName}/${safeClassName}/Foto Kegiatan/${categoryLabel}`,
+        fileName,
+        action: 'failed',
+        error: err?.message || String(err),
+      });
+      console.error(`[BACKUP SERVICE] Gagal mengunggah Foto Kegiatan siswa ${student.name}:`, err?.message || err);
     }
   }
 
