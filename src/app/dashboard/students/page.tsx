@@ -646,6 +646,59 @@ export default function StudentDashboardPage() {
         </div>
       )}
 
+      {/* 🏆 KARTU UPLOAD SERTIFIKAT & NILAI AKHIR INDUSTRI (MUNCUL SETELAH SURAT PENARIKAN TERBIT) */}
+      {activePlacement && (
+        (activePlacement.suratPenarikanUrl && String(activePlacement.suratPenarikanUrl).trim() !== '') ||
+        ['PENARIKAN_DITERBITKAN', 'TELAH_DITARIK', 'COMPLETED', 'SELESAI_PKL', 'MENUNGGU_PENARIKAN'].includes(String(activePlacement.status || '').toUpperCase())
+      ) && (
+        <div className={`p-6 sm:p-8 rounded-3xl border shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all ${
+          theme === 'dark'
+            ? 'bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border-amber-500/30'
+            : 'bg-gradient-to-br from-amber-50 via-white to-white border-amber-300/80'
+        }`}>
+          <div className="flex items-start space-x-4">
+            <div className="p-4 rounded-2xl bg-amber-500/15 text-amber-500 border border-amber-500/30 shrink-0">
+              <Award className="w-7 h-7" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  Surat Penarikan Telah Terbit
+                </span>
+                {(activePlacement.sertifikatPdfUrl || (activePlacement.sertifikatDepanUrl && activePlacement.sertifikatBelakangUrl)) &&
+                 activePlacement.nilaiAkhirIndustri !== null &&
+                 activePlacement.nilaiAkhirIndustri !== undefined ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    Sertifikat Tersimpan • Nilai: {activePlacement.nilaiAkhirIndustri}
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                    Wajib Diunggah
+                  </span>
+                )}
+              </div>
+              <h3 className="text-lg font-black">Upload Sertifikat &amp; Nilai Akhir Industri</h3>
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                Unggah foto sertifikat depan &amp; belakang (atau file PDF) sekaligus nilai akhir PKL dari industri mitra.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/dashboard/students/sertifikat"
+            className="px-5 py-3 rounded-2xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/30 flex items-center space-x-2 shrink-0 transition-all"
+          >
+            <Award className="w-4 h-4" />
+            <span>
+              {(activePlacement.sertifikatPdfUrl || (activePlacement.sertifikatDepanUrl && activePlacement.sertifikatBelakangUrl))
+                ? 'Lihat / Perbarui Sertifikat'
+                : 'Upload Sertifikat Sekarang'}
+            </span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
+
       {/* 🎯 KARTU STATUS PENEMPATAN INDUSTRI (DUDI) */}
       <div className={`p-6 sm:p-8 rounded-3xl border shadow-xl space-y-6 transition-all ${
         theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80 shadow-slate-200/50'

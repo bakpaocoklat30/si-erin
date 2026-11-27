@@ -196,11 +196,21 @@ model InternshipPlacement {
   suratBalasanUrl    String? @db.Text
   suratBalasanStatus String? @default("BELUM_UPLOAD")
 
-  // FIELD PENGANTARAN
+  // FIELD PENGANTARAN & PENARIKAN
   suratPengantaranUrl String?   @db.Text
   nomorPengantaran    String?
   suratPenarikanUrl   String?   @db.Text
   nomorPenarikan      String?
+
+  // FIELD SERTIFIKAT & NILAI AKHIR INDUSTRI (SETELAH SURAT PENARIKAN TERBIT)
+  sertifikatType        String? // "IMAGE" (depan & belakang) atau "PDF"
+  sertifikatDepanUrl    String?   @db.Text
+  sertifikatBelakangUrl String?   @db.Text
+  sertifikatPdfUrl      String?   @db.Text
+  nilaiAkhirIndustri    Float? // Nilai angka akhir dari industri (0 - 100)
+  nilaiAkhirFileUrl     String?   @db.Text // Opsional: berkas lembar nilai akhir terpisah
+  sertifikatUploadedAt  DateTime?
+
   startDate           DateTime?
   endDate             DateTime?
   groupId             String?

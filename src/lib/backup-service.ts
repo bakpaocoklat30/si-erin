@@ -703,9 +703,10 @@ export interface BackupSyncSummary {
     assignmentsWithSppd?: number;
     assignmentsWithLaporan?: number;
     assignmentsWithDokumentasi?: number;
+    placementsWithSertifikat?: number;
   };
   details: Array<{
-    type: 'PENGAJUAN' | 'JAWABAN' | 'CV' | 'BPJS' | 'PENUGASAN_TUGAS' | 'PENUGASAN_SPPD' | 'PENUGASAN_HASIL' | 'PENUGASAN_DOKUMENTASI' | 'SURAT_IZIN';
+    type: 'PENGAJUAN' | 'JAWABAN' | 'CV' | 'BPJS' | 'PENUGASAN_TUGAS' | 'PENUGASAN_SPPD' | 'PENUGASAN_HASIL' | 'PENUGASAN_DOKUMENTASI' | 'SURAT_IZIN' | 'SERTIFIKAT';
     path: string;
     fileName: string;
     action: 'created' | 'updated' | 'failed';
@@ -771,7 +772,10 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       'id', 'studentId', 'industryId', 'status', 'stage', 'notes',
       'letterNumber', 'suratTugasUrl', 'letterUploadedBy', 'letterUploadedAt',
       'suratBalasanUrl', 'suratBalasanStatus', 'suratPengantaranUrl', 'nomorPengantaran',
-      'suratPenarikanUrl', 'nomorPenarikan', 'startDate', 'endDate', 'groupId',
+      'suratPenarikanUrl', 'nomorPenarikan',
+      'sertifikatType', 'sertifikatDepanUrl', 'sertifikatBelakangUrl', 'sertifikatPdfUrl',
+      'nilaiAkhirIndustri', 'nilaiAkhirFileUrl', 'sertifikatUploadedAt',
+      'startDate', 'endDate', 'groupId',
       'appliedAt', 'createdAt', 'updatedAt'
     ]),
     TeacherHourAllocation: new Set(['id', 'className', 'teacherId', 'totalHours', 'academicYear', 'createdAt', 'updatedAt']),
@@ -1045,6 +1049,7 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
       const photos = parseAssignmentPhotos(a.activityPhotos);
       return photos.length > 0;
     }).length,
+    placementsWithSertifikat: detailedPlacements.filter((p: any) => Boolean(p.sertifikatPdfUrl || p.sertifikatDepanUrl || p.sertifikatBelakangUrl)).length,
   };
 
   console.log('[BACKUP SERVICE] 📊 Statistik Ketersediaan Berkas di Database SI-ERIN:', JSON.stringify(stats));
@@ -1235,6 +1240,65 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
           error: err?.message || String(err),
         });
         console.error(`[BACKUP SERVICE] Gagal mengunggah BPJS siswa ${student.name}:`, err?.message || err);
+      }
+    }
+  }
+
+  // B2. PROSES SERTIFIKAT & LEMBAR NILAI AKHIR SISWA
+  // 📁 Struktur Folder: [Tahun] / [Jurusan] / [Periode] / [Nama Kelas] / Sertifikat / [file].pdf
+  for (const placement of detailedPlacements) {
+    const pAny = placement as any;
+    const student = placement.student;
+    if (!student) continue;
+
+    const certFiles: Array<{ url: string; fileName: string }> = [];
+    const safeStudentName = sanitizeStudentFileName(student.name);
+    if (pAny.sertifikatPdfUrl && String(pAny.sertifikatPdfUrl).trim() !== '') {
+      certFiles.push({ url: pAny.sertifikatPdfUrl, fileName: `sertifikat_${safeStudentName}.pdf` });
+    }
+    if (pAny.sertifikatDepanUrl && String(pAny.sertifikatDepanUrl).trim() !== '') {
+      certFiles.push({ url: pAny.sertifikatDepanUrl, fileName: `sertifikat_depan_${safeStudentName}.pdf` });
+    }
+    if (pAny.sertifikatBelakangUrl && String(pAny.sertifikatBelakangUrl).trim() !== '') {
+      certFiles.push({ url: pAny.sertifikatBelakangUrl, fileName: `sertifikat_belakang_${safeStudentName}.pdf` });
+    }
+    if (pAny.nilaiAkhirFileUrl && String(pAny.nilaiAkhirFileUrl).trim() !== '') {
+      certFiles.push({ url: pAny.nilaiAkhirFileUrl, fileName: `nilai_akhir_${safeStudentName}.pdf` });
+    }
+    if (certFiles.length === 0) continue;
+
+    const { periodName, academicYearName, departmentName } = resolvePeriodAndYear(student.className, student.department);
+    const safeClassName = sanitizeFolderName(student.className || 'Kelas Umum');
+
+    for (const cf of certFiles) {
+      try {
+        const resolved = await resolveFileBuffer(cf.url);
+        if (resolved) {
+          const { periodFolderId } = await getPeriodFolder(academicYearName, departmentName, periodName);
+          const classFolderId = await getOrCreateFolder(drive, safeClassName, periodFolderId, folderCache);
+          const certFolderId = await getOrCreateFolder(drive, 'Sertifikat', classFolderId, folderCache);
+
+          const uploadRes = await uploadOrUpdateFileInDrive(drive, cf.fileName, resolved.mimeType, resolved.buffer, certFolderId);
+          if (uploadRes.action === 'created') totalSynced++;
+          else totalUpdated++;
+
+          syncDetails.push({
+            type: 'SERTIFIKAT',
+            path: `${academicYearName}/${departmentName}/${periodName}/${safeClassName}/Sertifikat`,
+            fileName: cf.fileName,
+            action: uploadRes.action,
+          });
+        }
+      } catch (err: any) {
+        totalFailed++;
+        syncDetails.push({
+          type: 'SERTIFIKAT',
+          path: `${academicYearName}/${departmentName}/${periodName}/${safeClassName}/Sertifikat`,
+          fileName: cf.fileName,
+          action: 'failed',
+          error: err?.message || String(err),
+        });
+        console.error(`[BACKUP SERVICE] Gagal mengunggah Sertifikat siswa ${student.name}:`, err?.message || err);
       }
     }
   }
@@ -1493,9 +1557,9 @@ export async function executeFullBackupSystem(options?: { isCron?: boolean }): P
   if (totalFailed > 0) {
     statusMessage = `Backup Sistem selesai: Arsip ZIP terunggah, ${successCount} dokumen disinkronkan, namun ada ${totalFailed} dokumen yang gagal diunggah ke Google Drive.`;
   } else if (successCount > 0) {
-    statusMessage = `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Surat Pengajuan, Jawaban, CV, BPJS, Laporan Kegiatan, Dokumentasi Kegiatan, Surat Izin, & Penugasan) telah disinkronkan ke folder Google Drive.`;
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP dan ${successCount} dokumen (Surat Pengajuan, Jawaban, CV, BPJS, Sertifikat, Laporan Kegiatan, Dokumentasi Kegiatan, Surat Izin, & Penugasan) telah disinkronkan ke folder Google Drive.`;
   } else {
-    statusMessage = `Backup Sistem berhasil! Arsip ZIP terunggah ke Google Drive. Belum ada berkas unggahan (${stats.studentsWithCv} CV, ${stats.studentsWithBpjs} BPJS, ${stats.placementsWithSuratTugas} Pengajuan, ${stats.placementsWithSuratBalasan} Jawaban, ${stats.assignmentsWithTugas} Surat Tugas, ${stats.assignmentsWithSppd} SPPD, ${stats.assignmentsWithLaporan} Laporan Kegiatan, ${stats.assignmentsWithDokumentasi} Dokumentasi Kegiatan).`;
+    statusMessage = `Backup Sistem berhasil! Arsip ZIP terunggah ke Google Drive. Belum ada berkas unggahan (${stats.studentsWithCv} CV, ${stats.studentsWithBpjs} BPJS, ${stats.placementsWithSertifikat} Sertifikat, ${stats.placementsWithSuratTugas} Pengajuan, ${stats.placementsWithSuratBalasan} Jawaban, ${stats.assignmentsWithTugas} Surat Tugas, ${stats.assignmentsWithSppd} SPPD, ${stats.assignmentsWithLaporan} Laporan Kegiatan, ${stats.assignmentsWithDokumentasi} Dokumentasi Kegiatan).`;
   }
 
   console.log(`[BACKUP SERVICE] 🏁 ${statusMessage}`);
